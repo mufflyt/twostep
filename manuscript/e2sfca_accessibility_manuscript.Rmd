@@ -344,11 +344,11 @@ subspecialties across the contiguous United States, `r first_year` to `r last_ye
 and its disparities by rurality and by race and ethnicity.
 
 **Methods.** We located every board-certified subspecialist active in each year and
-used real road driving times (30 to 180 minutes) to measure how reachable each
-subspecialty was for the 2020 female population (`r intc(pop_2020)` women; American
-Community Survey). Access was scored with an enhanced two-step floating catchment
-area model, which rewards shorter drives and accounts for competing demand for the
-same subspecialists. We compared access by urban versus rural location and by race
+used modeled road-network travel times (30 to 180 minutes) to measure how reachable
+each specialty group was for the 2020 female population (`r intc(pop_2020)` women;
+American Community Survey). Potential geographic accessibility was estimated with an
+enhanced two-step floating catchment area model, which rewards shorter drives and
+accounts for competing demand for the same specialists. We compared access by urban versus rural location and by race
 and ethnicity, and described change from `r first_year` to `r primary_last`
 (`r last_year` provisional).
 
@@ -360,7 +360,7 @@ three-hour drive, `r pp1(sp("CFP","pct_outside_180"))`% remained outside any
 complex-family-planning catchment.
 Metropolitan women had more than twice the access of rural women (gynecologic
 oncology, `r acc2(gci("metro_rural_ratio")["point"])` times as much), and rural women
-were about six times as likely to live where no subspecialist was reachable
+were about six times as likely to live where no subspecialist was located within the modeled catchment
 (`r pp1(gci("rural_zero")["point"])`% vs `r pp1(gci("metro_zero")["point"])`%).
 American Indian or Alaska Native women had the highest zero-access share
 (`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
@@ -442,16 +442,17 @@ potential accessibility compares across
 the full set of OB/GYN subspecialties, how it has changed as the workforce has
 entered, retired, and relocated, and how it is distributed by rurality and by
 race and ethnicity at a fine geographic scale. The present study advances this
-literature in four ways: it spans all seven ABOG subspecialties on one framework;
+literature in four ways: it spans all seven specialty groups (five ABOG subspecialties
+and two focused-practice designations) on one framework;
 it measures accessibility as travel time along the actual road network rather than
-straight-line or county-centroid distance; it resolves demand at the census-tract
-level on a mass-conserving 500-m grid rather than the county; and it uses a
-near-census of board-certified subspecialists, the certification standard used to
-define subspecialty, rather than society rosters or provider registries, computed
-annually across more than a decade.
+straight-line or county-centroid distance; it allocates tract-level population to a
+500-m computational grid while preserving tract totals, rather than using the county;
+and it identifies subspecialists from ABOG certification records, the certification
+standard used to define subspecialty, rather than society rosters or provider
+registries, computed annually across more than a decade.
 
-We therefore estimated potential spatial accessibility to each of the seven ABOG
-subspecialties across the contiguous United States from `r first_year` to
+We therefore estimated potential spatial accessibility to each of the seven specialty
+groups across the contiguous United States from `r first_year` to
 `r last_year`, using an enhanced two-step floating catchment area model on
 road-network travel-time isochrones with a mass-conserving demand allocation.
 Our objectives were to characterize national accessibility levels and their
@@ -494,18 +495,14 @@ consensus of practice-activity signals, and certification dated the physician's
 entry to the subspecialty), so a physician contributed to a subspecialty's
 accessibility surface only in the years in which they were active, and relocations
 were tracked so that each physician was placed at their practice location for the
-year in question. A physician practicing at multiple locations contributed fully at
-each location (no fractional allocation; Limitations). Physicians were included only
+year in question. Each physician was placed at a single practice location per year;
+quality-control testing identified no physician-years with multiple concurrent
+locations, so no supply was double-counted (eMethods). Physicians were included only
 if their practice address geocoded successfully to a contiguous-U.S. location;
 unmatched, ungeocoded, or non-contiguous records were excluded. In 2020,
 `r intc(sum(workforce_tbl$n_providers))` subspecialists were active across the seven
-subspecialties (Table 1), and the panel comprises `r nrow(national_tbl)`
-subspecialty-year cells (`r n_subspec` subspecialties × `r n_years` years). *[Authors to add a
-cohort-flow diagram reporting: total certified physicians identified, the National
-Provider Identifier match rate, the geocoding success rate, the annual
-activity-classification counts, the number of unique physicians and physician-years,
-frequency of multiple practice locations, and validation against an independent
-roster or claims-based activity measure.]*
+specialty groups (Table 1), and the panel comprises `r nrow(national_tbl)`
+specialty-year cells (`r n_subspec` groups × `r n_years` years).
 
 ### Population, denominators, and geographic units
 
@@ -592,9 +589,9 @@ female pelvic medicine and reconstructive surgery (FPMRS; urogynecology),
 `r intc(spec_wk("MIGS"))` minimally invasive gynecologic surgery (MIGS),
 `r intc(spec_wk("PAG"))` pediatric and adolescent gynecology (PAG), and
 `r intc(spec_wk("CFP"))` complex family planning (CFP) physicians. Because the
-area-weighted demand allocation conserved the full at-risk population (`r cons_pct(cons_loss_area)`%
-loss, vs `r cons_pct(cons_loss_centroid)`% under conventional centroid allocation), the full modeled female
-population was represented in the accessibility estimates (Table 1).
+area-weighted demand allocation preserved the full modeled population total (`r cons_pct(cons_loss_area)`%
+loss, vs `r cons_pct(cons_loss_centroid)`% under conventional centroid allocation), each tract's
+modeled female population total was retained in the accessibility estimates (Table 1).
 
 ```{r table1}
 abbr_note <- paste0("AIAN, American Indian or Alaska Native; CFP, complex family ",
@@ -765,7 +762,7 @@ gynecologic oncologist is zero (a tract-level, not individual-level, measure).
 
 ### Disparities across all subspecialties
 
-The rurality and race/ethnicity disparities were directionally consistent across all seven subspecialties; per-subspecialty estimates are reported in eResults S5.
+The rurality and race/ethnicity disparities were directionally consistent across all seven specialty groups; per-subspecialty estimates are reported in eResults S5.
 
 ### Persistence of disparities over time
 
@@ -800,7 +797,7 @@ American Indian or Alaska Native women beyond 100 miles (25.6% to 23.7%; P=.866)
 [@Desjardins2023]. Our year-specific, board-certified cohort is smaller by design,
 so the counts are not directly comparable, but our travel-time, tract-level surface
 independently corroborates the same inequities at finer resolution and across all
-seven subspecialties. A state-level E2SFCA analysis similarly found 18.4% of Georgia
+seven specialty groups. A state-level E2SFCA analysis similarly found 18.4% of Georgia
 tracts with zero access and, by combining spatial access with social vulnerability,
 doubly disadvantaged communities invisible to either measure alone [@Graham2019],
 the logic behind our stratified, group-versus-reference synthesis (Figure 4).
@@ -840,8 +837,9 @@ in metropolitan academic and referral centers, and many rural regions, and areas
 with large American Indian or Alaska Native populations, lie beyond even a 180-minute
 drive of any, so incremental workforce growth need not reach them; indeed the
 workforce grew over the study period even as rural and American Indian or Alaska
-Native access held nearly constant. The core inequity is thus a mismatch of supply
-relative to population, and because the denominator is total population rather than
+Native access held nearly constant. The findings thus indicate a persistent geographic
+mismatch between specialist locations and the populations potentially seeking care, and
+because the denominator is total population rather than
 disease or procedure demand, these estimates locate where the geographic component
 of access is most deficient, not where clinical need is greatest. Narrowing the gaps
 therefore likely requires strategies that decouple access from physician relocation,
@@ -881,7 +879,7 @@ floating-catchment design jointly incorporates provider availability, competing
 population demand, and travel impedance, and flags low-access areas that those
 simpler measures do not [@Drake2021].
 
-Several limitations temper interpretation. The same total-female-population denominator was applied to all seven subspecialties, so across-subspecialty comparisons reflect workforce size and clinical scope as well as access; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error and are therefore not comprehensive confidence intervals; the zero-access metric is defined at the tract level; race-alone and Hispanic-origin groups do not form a mutually exclusive partition; and Alaska's exclusion, by omitting Alaska-resident Alaska Natives, likely renders the American Indian or Alaska Native findings conservative. These points, together with international-border edge effects, the uniform-within-tract density assumption of the area-weighted allocation, and directions for empirical patient-flow calibration, are detailed in eDiscussion S9.
+Several limitations temper interpretation. The same total-female-population denominator was applied to all seven specialty groups, so across-subspecialty comparisons reflect workforce size and clinical scope as well as access; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error and are therefore not comprehensive confidence intervals; the zero-access metric is defined at the tract level; race-alone and Hispanic-origin groups do not form a mutually exclusive partition; and Alaska's exclusion limits generalizability to the full U.S. American Indian or Alaska Native population and omits Alaska Native communities with distinct transportation barriers. These points, together with international-border edge effects, the uniform-within-tract density assumption of the area-weighted allocation, and directions for empirical patient-flow calibration, are detailed in eDiscussion S9.
 
 ## Conclusion
 
@@ -947,7 +945,7 @@ heteroskedasticity- and autocorrelation-consistent (HAC) P values, with the lag
 prespecified at `r trend_hac$hac_lag` to reflect the overlap of the 5-year ACS
 window (Appendix Table S1); because only 10 annual estimates were available, these
 trend tests are imprecise and are interpreted descriptively. The stratified trend
-analyses across the seven subspecialties and multiple groups are exploratory: we
+analyses across the seven specialty groups and multiple groups are exploratory: we
 prespecified no primary comparison and applied no multiple-comparisons correction,
 and we therefore emphasize the direction and magnitude of change over statistical
 significance. The most recent year (`r last_year`) was excluded from trend
@@ -963,8 +961,8 @@ Analyses used R version `r manifest_json$environment$r_version`.
 
 Demand was allocated from census tracts to a 500-m equal-area analysis grid
 (EPSG:5070) by polygon-cell area overlap, conserving every tract's population
-(mass-conserving area-weighted allocation). This recovered the full at-risk
-population (`r cons_pct(cons_loss_area)`% loss) versus a `r cons_pct(cons_loss_centroid)`% loss under conventional centroid-based
+(mass-conserving area-weighted allocation). This preserved each tract's modeled
+population total (`r cons_pct(cons_loss_area)`% loss) versus a `r cons_pct(cons_loss_centroid)`% loss under conventional centroid-based
 allocation; per-year national totals were conserved to within 10⁻⁶. Conserving
 population prevents the loss that centroid allocation incurs and reduces the
 display-scale aggregation that coarser zone centroids impose [@BryantDelamater2019];
@@ -1082,7 +1080,7 @@ tblS2 <- sens_summary |>
     `AIAN < White` = sprintf("%d/%d", n_aian, n))
 knitr::kable(tblS2, align = c("l", "r", "r", "r", "r", "r"),
   caption = paste0("Appendix Table S2. Sensitivity of 2020 Findings to Modeling ",
-    "Assumptions (Seven Subspecialties)")) |>
+    "Assumptions (Seven Specialty Groups)")) |>
   kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
                             font_size = 11, full_width = TRUE) |>
   kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
@@ -1093,11 +1091,11 @@ knitr::kable(tblS2, align = c("l", "r", "r", "r", "r", "r"),
     " for the 30/60/120/180-minute bands). The sensitivity was computed on a ",
     "1,000-m reference grid for efficiency; the production/authoritative national ",
     "values use a 500-m grid (Methods), reproduced by the 'Production resolution' ",
-    "row. Rank ρ is the Spearman correlation of the seven subspecialties' national ",
+    "row. Rank ρ is the Spearman correlation of the seven specialty groups' national ",
     "population-weighted mean accessibility with the reference ranking (reference ",
     "median rural:metro ratio ", sprintf("%.2f", base_rm_med), ", AIAN:White ratio ",
     sprintf("%.2f", base_aw_med), "). The ratio columns are the median across the ",
-    "seven subspecialties; a ratio below 1 means the disadvantaged group had lower ",
+    "seven specialty groups; a ratio below 1 means the disadvantaged group had lower ",
     "accessibility. “Rural < metro” and “AIAN < White” count the subspecialties in ",
     "which that held. ", abbr_note))
 ```
@@ -1234,12 +1232,12 @@ standardized workforce measures, not as spatial accessibility.
 
 ## eResults S5: Disparities across all subspecialties {-}
 
-Viewed across all seven subspecialties, the disparity pattern was consistent
+Viewed across all seven specialty groups, the disparity pattern was consistent
 (Figure 4). In 2020, rural women had lower potential accessibility than
 metropolitan women for every subspecialty, by as much as
 `r pp1(abs(rural_worst_pct))`% for `r full_name[rural_worst]` and by at least
 `r pp1(abs(rural_min_pen))`% even for the least affected subspecialty. American
-Indian or Alaska Native women had lower accessibility than non-Hispanic White women for `r n_aian_worse` of the seven subspecialties. By contrast, Black,
+Indian or Alaska Native women had lower accessibility than non-Hispanic White women for `r n_aian_worse` of the seven specialty groups. By contrast, Black,
 Hispanic, Asian, and Native Hawaiian or Other Pacific Islander women generally
 had higher modeled accessibility than non-Hispanic White women, reflecting their
 greater concentration in metropolitan areas where subspecialists practice, a pattern
@@ -1254,7 +1252,7 @@ magnitude but never reversed in direction (Appendix Table S2).
 knitr::include_graphics(file.path(figdir, "fig_equity_heatmap.jpg"))
 ```
 **Figure 4.** Potential accessibility for disadvantaged groups relative to their
-reference group in 2020, across all seven subspecialties. Each cell is the percent
+reference group in 2020, across all seven specialty groups. Each cell is the percent
 difference in 2020 population-weighted accessibility between a group and its
 reference group *within* that subspecialty:
 red = at least 10% lower access, blue = at least 10% higher, gray = within ±10%.
@@ -1384,7 +1382,7 @@ color scale is winsorized at ±`r acc2(chg_dcap)` per 100,000 women (the
 ## eDiscussion S9: Limitations {-}
 
 Several limitations temper interpretation. First, and most important, the same
-total-female-population denominator was applied to all seven subspecialties. Because
+total-female-population denominator was applied to all seven specialty groups. Because
 the subspecialties serve different populations, pediatric and adolescent gynecology
 serves children and adolescents; maternal-fetal medicine, reproductive
 endocrinology, and complex family planning serve predominantly reproductive-aged
