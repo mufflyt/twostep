@@ -11,6 +11,41 @@ accessibility paper builds and reproduces on its own, independent of the physici
 distribution / workforce-cliff work. The manuscript renders entirely from the
 frozen artifacts shipped here — no upstream pipeline or network access needed.
 
+## Figures
+
+These are the figures the manuscript renders (shipped in `manuscript/figures/` and
+embedded by the render; the generating scripts `scripts/figure_*` and `scripts/map_*`
+are included for provenance). Seven supplemental per-subspecialty access-change maps
+(Figures S1 to S7) also appear in the rendered HTML.
+
+**Figure 1. Potential accessibility to each of the seven OB/GYN subspecialties, 2020** (per 100,000 women).
+
+![Figure 1](manuscript/figures/fig0_level2020.jpg)
+
+**Figure 2. National potential accessibility by subspecialty** (population-weighted mean and distribution).
+
+![Figure 2](manuscript/figures/fig1_national.jpg)
+
+**Figure 3. Gynecologic oncology accessibility in 2020, by (A) rurality and (B) race and ethnicity.**
+
+![Figure 3](manuscript/figures/fig3_go2020.jpg)
+
+**Figure 4. Access for disadvantaged groups relative to their reference group, across all seven subspecialties** (equity heatmap).
+
+![Figure 4](manuscript/figures/fig_equity_heatmap.jpg)
+
+**Figure 5. Trends in gynecologic oncology accessibility disparities, 2013 to 2023.**
+
+![Figure 5](manuscript/figures/fig4_gotrends.jpg)
+
+**Figure 6. Change in the share of (A) rural and (B) American Indian or Alaska Native residents with zero modeled access.**
+
+![Figure 6](manuscript/figures/fig5_equity.jpg)
+
+**Figure 7. Change in potential accessibility by subspecialty, 2013 to 2023.**
+
+![Figure 7](manuscript/figures/fig5_change_faceted.jpg)
+
 ## Reproduce the manuscript
 
 ```r
