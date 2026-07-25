@@ -116,5 +116,13 @@ documents the production run, gates, and frozen facts.
   (<https://github.com/mufflyt/isochrones>, private; source commit `ff3aac4a`).
   twostep vends a frozen, checksummed subset of that pipeline's output; you do **not**
   need access to isochrones to reproduce the manuscript from this repo.
+- **Regenerating the shipped outputs:** the scripts that produced twostep's
+  committed artifacts/figures are now included, so outputs are regenerable rather
+  than only frozen, e.g. `scripts/spatial_outcomes_2020.R` -> `spatial_outcomes_2020.csv`,
+  `scripts/map_equity_heatmap.R`, and `scripts/map_allsubspec_allyears_access_surface.R`.
+  The per-subspecialty E2SFCA access-surface maps are in
+  `artifacts/2sfca_seam/figures/`, and `scripts/check_wordcount.R` audits the
+  rendered main-text word count. Like the other generation scripts, most consume
+  upstream inputs not shipped here (see the analysis-scripts note above).
 - **Geographic scope:** contiguous U.S. (48 states + DC). Alaska and Hawaii are
   outside the road-network modeling framework; see the manuscript's limitations.

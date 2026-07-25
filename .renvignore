@@ -1,5 +1,12 @@
-# Reference-only generation + EC2 scripts (not in the render/test path).
+# Only the render + test path is scanned for package dependencies. Everything
+# below is reference/provenance code whose heavy deps (arrow, leaflet, tidycensus,
+# tigris, cowplot, classInt, ...) must NOT enter renv.lock.
 scripts/*
 !scripts/manuscript_e2sfca_values.R
+# Reference-only R/ analysis + map scripts (not sourced by the render or tests).
+R/desjardins7_e2sfca.R
+R/create_bivariate_map_access_x_adi.R
+R/generate_bivariate_choropleth.R
+R/calculate_subspecialty_accessibility.R
 # Rendered outputs.
 *.html
