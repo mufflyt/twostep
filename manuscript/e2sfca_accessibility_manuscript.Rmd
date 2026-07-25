@@ -323,7 +323,7 @@ population-weighted national cells).
 # Complementary provider-referenced access metric (differential distance, Herb 2021):
 # additional straight-line travel to the nearest urogynecologist (FPMRS) beyond the
 # nearest general OB/GYN, women 65+. Source: scripts/urps_module_d_differential_distance.R.
-.dd_f <- here::here("cliff", "data", "urps_module_d_differential_distance_2026-07-23.csv")
+.dd_f <- here::here("manuscript", "data", "differential_distance_fpmrs_2026-07-23.csv")
 if (file.exists(.dd_f)) {
   .dd <- readr::read_csv(.dd_f, show_col_types = FALSE)
   diff_median_mi <- round(stats::median(.dd$differential_miles, na.rm = TRUE))

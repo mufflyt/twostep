@@ -49,7 +49,7 @@ manuscript setup chunk. "Consumed by" names the object / element in
 | `artifacts/2sfca/seam_subgroup/seam_subgroup.csv` | `seam_tbl` | Tract-vintage (2010↔2020) seam test by subgroup |
 | `artifacts/2sfca/spatial_outcomes/spatial_outcomes_2020.csv` | `spatial_tbl` (`sp()`) | Gini, share outside 60/120/180 min, median/p10 access per subspecialty |
 | `artifacts/2sfca_seam/change_faceted_df.rds` | Figure 7 change data | 2013→2023 cell-level change + winsorization threshold |
-| `cliff/data/urps_module_d_differential_distance_2026-07-23.csv` | differential-distance chunk (optional) | Herb-2021-style differential distance to the nearest urogynecologist (two Discussion numbers); the render falls back to NA if absent |
+| `manuscript/data/differential_distance_fpmrs_2026-07-23.csv` | differential-distance chunk (optional) | Herb-2021-style differential distance to the nearest urogynecologist (two Discussion numbers); the render falls back to NA if absent |
 
 ## Verifying the freeze
 
