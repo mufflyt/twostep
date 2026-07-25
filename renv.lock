@@ -1680,6 +1680,16 @@
       "Maintainer": "Yihui Xie <xie@yihui.name>",
       "Repository": "CRAN"
     },
+    "mufflyaccess": {
+      "Package": "mufflyaccess",
+      "Version": "0.1.4",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "mufflyaccess",
+      "RemoteUsername": "mufflyt",
+      "RemoteRef": "v0.1.4"
+    },
     "otel": {
       "Package": "otel",
       "Version": "0.2.0",
