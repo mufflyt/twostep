@@ -20,7 +20,8 @@ suppressWarnings(suppressMessages({
   library(sf); library(leaflet); library(htmlwidgets)
 }))
 
-BAND    <- 3600L
+source("R/contour_bands.R"); source("R/access_categories.R")  # SSOT: F/G access constants (R/contour_bands.R, R/access_categories.R)
+BAND <- PRIMARY_ACCESS_BAND_SEC
 DISC    <- "Gynecologic Oncology"
 FIGDIR  <- "manuscript/figures"
 OUT     <- file.path(FIGDIR, "figure6_bivariate_go_access_INTERACTIVE.html")
@@ -37,6 +38,7 @@ g0 <- readRDS("data/cache/tract_boundaries/tracts_y2020_cb0_51st_v1.rds")
 gid <- intersect(c("GEOID","fips_tract"), names(g0))[1]
 g0 <- g0[, gid]; names(g0)[1] <- "fips_tract"
 g0$fips_tract <- as.character(g0$fips_tract)
+# SSOT anchor (NON_CONUS_FIPS): canonical non-contiguous set in scripts/manuscript_e2sfca_values.R (complement of CONUS_STATE_FIPS); guarded by tests/testthat/test-ssot-nonconus-fips.R
 g0 <- g0[!substr(g0$fips_tract, 1, 2) %in% c("02","15","60","66","69","72","78"), ]
 # simplify in an equal-area CRS for clean topology, then back to WGS84 for leaflet
 g0 <- st_transform(g0, 5070)
@@ -45,7 +47,7 @@ g0 <- st_simplify(g0, dTolerance = 700, preserveTopology = TRUE)
 message("[2/5] access + minority share ...")
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>%
-  filter(range == BAND, category == "total_female", subspecialty == DISC) %>%
+  filter(range == BAND, category == DENOMINATOR_CATEGORY, subspecialty == DISC) %>%
   select(fips_tract, percent) %>% collect())
 cov <- cov[is.finite(percent)]
 cov[, fips_tract := as.character(fips_tract)]

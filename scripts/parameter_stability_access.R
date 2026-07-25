@@ -43,6 +43,7 @@ root <- tryCatch(here::here(), error = function(e) getwd())
 datadir <- file.path(root, "vignettes/urogyn_app/data")
 msg <- function(...) message(sprintf(...))
 BANDS <- c(30,60,120,180)
+# SSOT anchor (NON_CONUS_FIPS): canonical non-contiguous set in scripts/manuscript_e2sfca_values.R (complement of CONUS_STATE_FIPS); guarded by tests/testthat/test-ssot-nonconus-fips.R
 NONCONUS <- c("02","15","72","78","66","69","60")
 # SSOT anchor (E2SFCA_DEFAULT_WEIGHTS): `base` equals the engine's canonical weights
 # (R/two_step_floating_catchment.R); `steeper`/`flatter` are deliberate sensitivity

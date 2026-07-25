@@ -23,7 +23,7 @@ source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
 OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[strat] %s\n", sprintf(...)))
-conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+conus <- function() CONUS_STATE_FIPS   # SSOT: scripts/manuscript_e2sfca_values.R
 
 # ── 1. per-tract GO 2020 access (production, verified) ───────────────────────
 acc_rds <- Sys.getenv("GO2020_ACCESS_RDS",

@@ -64,6 +64,8 @@ PRIORITY <- "13"
 
 message("[1/8] geometry ...")
 source("R/guard_simplified_map.R")
+source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY
+source("R/contour_bands.R")  # SSOT: PRIMARY_ACCESS_BAND_SEC
 dir.create("manuscript/stats", showWarnings = FALSE, recursive = TRUE)
 ALLOW_FALLBACK <- identical(Sys.getenv("ALLOW_SIMPLIFY_FALLBACK", "0"), "1")
 KEEP <- as.numeric(Sys.getenv("SIMPLIFY_KEEP", "0.15"))
@@ -72,6 +74,7 @@ g0 <- readRDS("data/cache/tract_boundaries/tracts_y2020_cb0_51st_v1.rds")
 gid <- intersect(c("GEOID","fips_tract"), names(g0))[1]
 g0 <- g0[, gid]; names(g0)[1] <- "fips_tract"
 g0$fips_tract <- as.character(g0$fips_tract)
+# SSOT anchor (NON_CONUS_FIPS): canonical non-contiguous set in scripts/manuscript_e2sfca_values.R (complement of CONUS_STATE_FIPS); guarded by tests/testthat/test-ssot-nonconus-fips.R
 g0 <- g0[!substr(g0$fips_tract, 1, 2) %in% c("02","15","60","66","69","72","78"), ]
 g0 <- st_transform(g0, 4326)
 g0$stfips <- substr(g0$fips_tract, 1, 2)
@@ -178,7 +181,7 @@ states_gj <- tryCatch({
 message("[3/8] access, all subspecialty x band (2023) ...")
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>%
-  filter(range %in% unname(BANDS), category == "total_female",
+  filter(range %in% unname(BANDS), category == DENOMINATOR_CATEGORY,
          subspecialty %in% unname(SUBS)) %>%
   select(fips_tract, subspecialty, range, percent) %>% collect())
 cov[, fips_tract := as.character(fips_tract)]
@@ -195,7 +198,7 @@ cov[, combo := factor(combo, levels = COMBOS)]
 
 message("[4/8] 2023 demographics + minority tertile ...")
 race <- as.data.table(ds %>%
-  filter(range == 3600L, subspecialty == "Gynecologic Oncology") %>%
+  filter(range == PRIMARY_ACCESS_BAND_SEC, subspecialty == "Gynecologic Oncology") %>%
   select(fips_tract, category, total) %>% collect())
 race[, fips_tract := as.character(fips_tract)]
 rw <- dcast(race, fips_tract ~ category, value.var = "total",

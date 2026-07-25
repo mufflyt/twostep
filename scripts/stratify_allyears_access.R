@@ -41,6 +41,7 @@ FIGURES  <- !hasA("--no-figures")
 stopifnot(nzchar(ACCDIR), dir.exists(ACCDIR))
 dir.create(OUT, showWarnings=FALSE, recursive=TRUE); dir.create(CACHE, showWarnings=FALSE, recursive=TRUE)
 say <- function(...) cat(sprintf("[strat] %s\n", sprintf(...)))
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 ALL_SUB <- c("CFP","FPMRS","GO","MFM","MIGS","PAG","REI")

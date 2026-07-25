@@ -28,6 +28,7 @@ SUB   <- Sys.getenv("E2SFCA_MAP_SUB", "GO")
 BAND  <- as.integer(Sys.getenv("E2SFCA_MAP_BAND", "60"))
 YEARS <- 2013:2023
 CRS5070 <- E2SFCA_AREA_CRS   # SSOT: engine's equal-area CRS (R/two_step_floating_catchment.R, sourced above)
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ── active cohort (coord_ids) per year ───────────────────────────────────────

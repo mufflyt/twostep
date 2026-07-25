@@ -8,6 +8,7 @@
 suppressWarnings(suppressMessages({ library(sf); library(dplyr) }))
 options(tigris_use_cache = TRUE)
 say <- function(...) cat(sprintf("[prefetch-2sfca] %s\n", sprintf(...)))
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 ACS_YEARS <- 2013:2022   # clamp(year,2013,2022) for study years 2013-2023
 

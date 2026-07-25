@@ -12,7 +12,8 @@ suppressWarnings(suppressMessages({
   library(arrow); library(dplyr); library(tidyr); library(data.table)
   library(sf); library(ggplot2); library(patchwork)
 }))
-BAND <- 3600L
+source("R/contour_bands.R"); source("R/access_categories.R")  # SSOT: F/G access constants (R/contour_bands.R, R/access_categories.R)
+BAND <- PRIMARY_ACCESS_BAND_SEC
 FIGDIR <- "manuscript/figures"; dir.create(FIGDIR, showWarnings = FALSE, recursive = TRUE)
 dir.create("manuscript/stats", showWarnings = FALSE, recursive = TRUE)
 FULL <- c(
@@ -28,6 +29,7 @@ message("[1/5] geometry ...")
 g0 <- readRDS("data/cache/tract_boundaries/tracts_y2020_cb0_51st_v1.rds")
 gid <- intersect(c("GEOID","fips_tract"), names(g0))[1]; g0 <- g0[, gid]; names(g0)[1] <- "fips_tract"
 g0$fips_tract <- as.character(g0$fips_tract)
+# SSOT anchor (NON_CONUS_FIPS): canonical non-contiguous set in scripts/manuscript_e2sfca_values.R (complement of CONUS_STATE_FIPS); guarded by tests/testthat/test-ssot-nonconus-fips.R
 g0 <- g0[!substr(g0$fips_tract,1,2) %in% c("02","15","60","66","69","72","78"), ]
 g0 <- st_transform(g0, 5070)
 g0 <- st_simplify(g0, dTolerance = 900, preserveTopology = TRUE)
@@ -35,7 +37,7 @@ base <- g0[, "fips_tract"]
 
 message("[2/5] coverage + minority share ...")
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
-cov <- as.data.table(ds %>% filter(range == BAND, category == "total_female") %>%
+cov <- as.data.table(ds %>% filter(range == BAND, category == DENOMINATOR_CATEGORY) %>%
   select(fips_tract, subspecialty, percent) %>% collect())
 cov <- cov[subspecialty %in% names(FULL) & is.finite(percent)]
 cov[, disc := factor(FULL[subspecialty], levels = unname(FULL))]

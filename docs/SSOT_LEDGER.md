@@ -19,6 +19,7 @@ Loop: every 30 minutes, up to 16 iterations (~8 hours). No commits (per instruct
 | 11 | Seam method vocabulary (`SEAM_METHODS`) | **COMPLETE** (2 identical vectors consolidated + guard; fixed 1 regression, iter 12) | see below |
 | 12 | Access thresholds `c(0,1,5,10,20,50)` | **VERIFIED already-SSOT** (no refactor; hardening guard added; seam lock preserved, iter 13) | see below |
 | 13 | Subspecialty workforce sizes (7 counts) | **COMPLETE** (run-derivation + CSV cross-check + adversarial guard, iter 14) | see below |
+| 14 | CONUS state FIPS vector (`conus()` x12) | **COMPLETE** (`CONUS_STATE_FIPS`; 4 wired, 8 anchored, drift guard, iter 15) | see below |
 
 ## Iteration 1 — base E2SFCA band weights
 
@@ -646,9 +647,90 @@ manuscript reads every count via `spec_wk()` (no hardcoded literals). Full suite
 no longer drift undetected from the run. A future step could drop the CSV entirely and
 derive in-Rmd.
 
+## Iteration 15 — CONUS state FIPS vector (`conus()` copy-pasted x12)
+
+**Why high risk:** the `conus()`/`conus_states()` helper (49 FIPS = 48 states + DC) was
+copy-pasted byte-identically in 12 analysis scripts; a one-file edit would silently
+change the study's geographic scope.
+
+**Audit:** all 12 identical: `sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))` — 49
+codes; excludes AK(02), HI(15), territories(60,66,69,72,78); includes DC(11).
+
+**Canonical:** `CONUS_STATE_FIPS` in the loader (49-element char vector).
+
+**Refactor (safe subset wired):** `conus()` is a function (lazy-eval), so wiring is safe
+only where the loader is sourced before the first `conus()` CALL. Verified 4 such
+scripts (map_allsubspec, stratify_go_2020, map_go_2020, map_fpmrs) -> `conus <-
+function() CONUS_STATE_FIPS`. The other 8 call conus() before their loader source
+(map_2sfca_coverage) or don't source the loader (run_2sfca, seam_test, prefetch,
+inferential, sensitivity, stratify_allyears, stratify_go_allyears) -> SSOT-anchor
+comment, literal retained. Sha-gated engine untouched.
+
+**Files changed:** `manuscript_e2sfca_values.R` (constant) + 12 scripts (4 wired, 8
+anchored) + `tests/testthat/test-ssot-conus-fips.R` (new).
+
+**Guards/tests:** 21-assertion guard — 49 codes, exact set, AK/HI/territories excluded,
+DC included; the 4 wired scripts reference the constant; **every remaining
+conus/conus_states literal parses to a set equal to the canonical** (drift guard on the
+8 anchored copies). Full suite **707 pass / 0 fail** (was 686; +21).
+
+**Remaining risk:** 8 anchored literals persist (guarded against drift). NEXT (item C):
+derive the non-CONUS exclusion list as the COMPLEMENT of CONUS_STATE_FIPS.
+
+## Iteration 16 — non-CONUS FIPS (B skipped: PFD not present)
+
+**(B) PFD prevalence — NOT PRESENT in twostep.** No PFD/pelvic-floor prevalence rate
+exists here; twostep's demand denominator is total female population (ACS B01001_026),
+not a prevalence-adjusted at-risk population (that demand-side modeling lives in the
+isochrones/URPS work). Recorded and skipped.
+
+**(C) Non-CONUS FIPS — DONE.** Canonical `NON_CONUS_FIPS` in the loader, DERIVED as
+`setdiff(US_STATE_TERRITORY_FIPS, CONUS_STATE_FIPS)` (AK, HI + 5 territories = 7 codes)
+so it can never drift from the CONUS inclusion set. Anchored the 6 consumer literals
+(parameter_stability NONCONUS + 5 catalog scripts + an R/ fallback, guarded).
+Guard `test-ssot-nonconus-fips.R`: derivation == expected 7; CONUS/non-CONUS disjoint
+and their union == the 56-code universe; every non-CONUS literal in the repo equals the
+canonical. Full suite **723 pass / 0 fail**.
+
+**COORDINATION INCIDENT (shared worktree):** a PARALLEL window did queue items F
+(primary access band, `PRIMARY_ACCESS_BAND_MIN/SEC` in R/contour_bands.R), G
+(`TRACT_REACHED_COVERAGE_PCT` in R/access_thresholds.R), and a denominator-category
+SSOT (`DENOMINATOR_CATEGORY` in R/access_categories.R) + `test-ssot-access-constants.R`
+— all as UNTRACKED files, intact. While fixing a parse error in my non-CONUS edit I ran
+`git checkout` on the 5 manuscript_catalog scripts, which REVERTED that parallel
+window's F/G catalog wiring (restored `BAND <- 3600L` / `range == 3600L` /
+`category == "total_female"`). I re-applied the wiring to match the parallel test's
+contract (`BAND <- PRIMARY_ACCESS_BAND_SEC`, `range == PRIMARY_ACCESS_BAND_SEC`,
+`category == DENOMINATOR_CATEGORY`, sourcing the modules); suite green again. LESSON:
+NEVER `git checkout` shared files in this tree — another window edits it (memory:
+"commit-first, stage only own files"). F and G are therefore effectively DONE (by the
+other window); do NOT re-audit them.
+
+## twostep -> mufflyaccess package lane (2026-07-25)
+
+The shared SSOTs now live in the `mufflyaccess` package (v0.1.2/0.1.3); twostep's
+local F/G modules were migrated to depend on it:
+- `R/access_categories.R`, `R/access_thresholds.R` -- already full shims (parallel window).
+- `R/contour_bands.R` -- **migrated here**: shared band SSOTs (CANONICAL_BANDS,
+  PRIMARY_ACCESS_BAND_MIN/SEC, get_canonical_bands, get_primary_access_band) now load
+  from the package; the twostep-specific `ACTIVE_BANDS_FALLBACK` + `get_active_bands()`
+  (read `config/isochrone_config.yaml`, NOT in the package) kept local. Partial shim.
+- `DESCRIPTION`: recorded the dependency (`Imports: mufflyaccess`,
+  `Remotes: mufflyt/mufflyaccess@v0.1.2`) so twostep stays reproducible.
+- Full twostep suite: **726 pass / 0 fail**.
+
+**Remaining duplication (follow-up):** the package also exports `CONUS_STATE_FIPS` /
+`NON_CONTIGUOUS_FIPS`, which DUPLICATE the local `CONUS_STATE_FIPS` / `NON_CONUS_FIPS`
+added to `scripts/manuscript_e2sfca_values.R` in iter 15-16. A future pass should have
+the loader re-export geography FROM the package (and retarget the conus/nonconus guard
+tests), so there is one geography source. Not done here (would edit those guards).
+
 ## Candidates queued (user priority, 2026-07-25)
-1. **CONUS state FIPS vector** `c(1,4:6,8:13,16:42,44:51,53:56)` — the `conus()` helper
-   is copy-pasted in ~12 files; strongest remaining structural duplicate.
+1. **CONUS state FIPS vector** — **DONE iter 15** (`CONUS_STATE_FIPS`).
+   - **DONE iter 16:** (B) PFD not present; (C) `NON_CONUS_FIPS` derived + guarded.
+   - **(F) primary band + (G) 50% cut: DONE by a PARALLEL window** (R/contour_bands.R,
+     R/access_thresholds.R, R/access_categories.R + test-ssot-access-constants.R).
+   - **(D) other-year ACS female pop + (E) RUCA metro/rural breakpoint: still open.**
 2. **PFD (pelvic floor disorder) prevalence** — clinical prevalence constant(s).
 3. **Non-contiguous / non-CONUS FIPS** (02,15,72,78,66,69,60) — ~7 files; must stay the
    exact complement of the CONUS set.

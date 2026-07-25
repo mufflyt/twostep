@@ -62,6 +62,7 @@ QUICK <- Sys.getenv("QUICK") == "1"
 RUN_COMPOSITE <- Sys.getenv("RUN_EXPLORATORY_COMPOSITE") == "1"
 YR <- 2020L; ACS_YR <- 2020L
 SUBS <- if (QUICK) c("GO") else c("GO","MFM","REI","FPMRS","MIGS","PAG","CFP")
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ---- parameter variants ------------------------------------------------------

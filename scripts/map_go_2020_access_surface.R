@@ -17,7 +17,7 @@ OUT <- file.path(ROOT, "artifacts", "2sfca_seam", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[go-map] %s\n", sprintf(...)))
 RES <- E2SFCA_PRODUCTION_RESOLUTION_M; YEAR <- 2020L; SUB <- "GO"   # SSOT: production 500 m
-conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+conus <- function() CONUS_STATE_FIPS   # SSOT: scripts/manuscript_e2sfca_values.R
 
 # ── providers + demand ───────────────────────────────────────────────────────
 newest <- function(p) { f <- list.files(file.path(ROOT,"artifacts"), p, recursive=TRUE, full.names=TRUE); f[order(file.info(f)$mtime, decreasing=TRUE)][1] }

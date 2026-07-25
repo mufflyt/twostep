@@ -30,6 +30,7 @@ CACHE  <- getA("--acs-cache", Sys.getenv("STRAT_CACHE", file.path(tempdir(),"acs
 OUT    <- file.path(ROOT,"artifacts","2sfca","figures")
 stopifnot(nzchar(ACCDIR), dir.exists(ACCDIR)); dir.create(CACHE,showWarnings=FALSE,recursive=TRUE)
 say <- function(...) cat(sprintf("[infer] %s\n", sprintf(...)))
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 VARS <- c(total_f="B01001_026", white_nh="B01001H_017", hispanic="B01001I_017",

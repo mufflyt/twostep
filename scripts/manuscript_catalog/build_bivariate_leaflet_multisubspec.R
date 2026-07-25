@@ -24,7 +24,8 @@ suppressWarnings(suppressMessages({
   library(geojsonsf)
 }))
 
-BAND   <- 3600L
+source("R/contour_bands.R"); source("R/access_categories.R")  # SSOT: F/G access constants (R/contour_bands.R, R/access_categories.R)
+BAND <- PRIMARY_ACCESS_BAND_SEC
 FIGDIR <- "manuscript/figures"
 OUT    <- file.path(FIGDIR, "figure6_bivariate_access_INTERACTIVE_multi.html")
 dir.create(FIGDIR, showWarnings = FALSE, recursive = TRUE)
@@ -57,6 +58,7 @@ g0 <- readRDS("data/cache/tract_boundaries/tracts_y2020_cb0_51st_v1.rds")
 gid <- intersect(c("GEOID","fips_tract"), names(g0))[1]
 g0 <- g0[, gid]; names(g0)[1] <- "fips_tract"
 g0$fips_tract <- as.character(g0$fips_tract)
+# SSOT anchor (NON_CONUS_FIPS): canonical non-contiguous set in scripts/manuscript_e2sfca_values.R (complement of CONUS_STATE_FIPS); guarded by tests/testthat/test-ssot-nonconus-fips.R
 g0 <- g0[!substr(g0$fips_tract, 1, 2) %in% c("02","15","60","66","69","72","78"), ]
 g0 <- st_transform(g0, 5070)
 # Light simplification only: 900 m erased the smallest (urban) tracts, leaving
@@ -73,7 +75,7 @@ g0 <- st_transform(g0, 4326)
 message("[2/6] read access (all subspec) + minority share ...")
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>%
-  filter(range == BAND, category == "total_female", subspecialty %in% unname(SUBS)) %>%
+  filter(range == BAND, category == DENOMINATOR_CATEGORY, subspecialty %in% unname(SUBS)) %>%
   select(fips_tract, subspecialty, percent) %>% collect())
 cov <- cov[is.finite(percent)]
 cov[, fips_tract := as.character(fips_tract)]

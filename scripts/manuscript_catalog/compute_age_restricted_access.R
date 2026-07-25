@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+source("R/contour_bands.R")      # SSOT: PRIMARY_ACCESS_BAND_SEC (60-min band)
+source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY (total-female denom)
 # ============================================================================
 # Age-restricted, subspecialty-specific denominators (Chien 2020 / Ray 2018
 # peds-workforce approach). The primary estimand uses the full female
@@ -20,7 +22,7 @@
 suppressWarnings(suppressMessages({
   library(tidycensus); library(arrow); library(dplyr); library(tidyr); library(data.table)
 }))
-BAND <- 3600L
+BAND <- PRIMARY_ACCESS_BAND_SEC
 PARQ <- "scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet"
 OUT  <- "manuscript/stats"; dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 CACHE <- "scratchpad/seam_tracts/acs_b01001_female_age_2023.rds"
@@ -68,7 +70,7 @@ ABBR <- c("Maternal-Fetal Medicine"="MFM","Gynecologic Oncology"="GO",
           "Complex Family Planning"="CFP","Pediatric & Adolescent Gynecology"="PAG")
 
 ds <- open_dataset(PARQ)
-cov <- as.data.table(ds %>% filter(range==BAND, category=="total_female") %>%
+cov <- as.data.table(ds %>% filter(range==BAND, category==DENOMINATOR_CATEGORY) %>%
   select(fips_tract, subspecialty, percent, total) %>% collect())
 setnames(cov, "total", "fem_all")
 cov <- merge(cov, A[, c("fips_tract","repro_15_44","ped_0_17","ge40","ge18"), with=FALSE],

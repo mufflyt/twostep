@@ -202,6 +202,7 @@ log_msg("isochrone rows (active origins x bands): %d", nrow(iso_sf))
 if (requireNamespace("tigris", quietly = TRUE)) options(tigris_use_cache = TRUE)
 
 # CONUS = 48 states + DC; excludes AK(02)/HI(15) and territories.
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus_states <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # Deterministic multi-year ACS bundle (no Census API on EC2). Structure:

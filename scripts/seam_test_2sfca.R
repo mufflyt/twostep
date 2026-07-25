@@ -151,6 +151,7 @@ say("specialty density ranking (by providers): %s",
 say("tested specialties: %s", paste(SUBSPECS, collapse=", "))
 
 # ── Fixed reference population + BOTH tract vintages ─────────────────────────
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 fetch_pop <- function(year, states) {
   st <- if (is.null(states)) conus() else states; ay <- max(min(year,2022L),2013L)

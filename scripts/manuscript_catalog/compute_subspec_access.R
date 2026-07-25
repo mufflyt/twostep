@@ -1,4 +1,6 @@
 #!/usr/bin/env Rscript
+source("R/contour_bands.R")      # SSOT: PRIMARY_ACCESS_BAND_SEC (60-min band)
+source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY (total-female denom)
 # PRIMARY ESTIMAND: subspecialty-specific geographic access.
 # For each of the 7 subspecialties separately: % of U.S. women (total_female)
 # within each drive-time threshold, per year. This is a per-discipline quantity
@@ -10,7 +12,7 @@ acc <- read.csv("scratchpad/manuscript_stage/ac587845_full/step_4_access_by_grou
 bands <- c(`30`=1800, `60`=3600, `120`=7200, `180`=10800)
 by <- min(acc$year); ly <- max(acc$year)
 
-tf <- acc %>% filter(category == "total_female")
+tf <- acc %>% filter(category == DENOMINATOR_CATEGORY)
 # per (subspecialty, band, year): percent already computed in the data
 subspec <- sort(unique(tf$subspecialty))
 
@@ -25,7 +27,7 @@ res <- grid %>% rowwise() %>% mutate(
 ) %>% ungroup() %>% mutate(change_pp = access_2023 - access_2013)
 
 # per-subspec annual trend slope (60-min)
-slopes <- tf %>% filter(range==3600) %>% group_by(subspecialty) %>%
+slopes <- tf %>% filter(range == PRIMARY_ACCESS_BAND_SEC) %>% group_by(subspecialty) %>%
   summarise(slope = coef(lm(percent ~ year))[2],
             r2 = summary(lm(percent ~ year))$r.squared,
             p = summary(lm(percent ~ year))$coefficients[2,4], .groups="drop")

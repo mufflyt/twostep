@@ -1,4 +1,7 @@
 #!/usr/bin/env Rscript
+source("R/contour_bands.R")      # SSOT: PRIMARY_ACCESS_BAND_SEC (60-min band)
+source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY (total-female denom)
+source("R/access_thresholds.R")  # SSOT: TRACT_REACHED_COVERAGE_PCT (50% reached)
 # ============================================================================
 # Comparator-informed manuscript additions (Green Journal revision).
 # Builds four PER-DISCIPLINE (never pooled) tract-derived products from the
@@ -14,7 +17,7 @@
 #   count/total/percent = covered / denom / % of that tract-category population.
 #   range in seconds: 1800/3600/7200/10800 = 30/60/120/180 min.
 # All access is POPULATION-WEIGHTED: sum(total*percent)/sum(total).
-# "reached" (binary, for exclusive-access + logistic) = tract percent >= 50
+# "reached" (binary, for exclusive-access + logistic) = tract percent >= TRACT_REACHED_COVERAGE_PCT
 #   (majority of the tract's women within 60 min of a subspecialist in THAT
 #   discipline); documented threshold, applied per discipline.
 # NO pooling across disciplines anywhere (subspecialists serve distinct
@@ -23,7 +26,7 @@
 suppressWarnings(suppressMessages({
   library(arrow); library(dplyr); library(tidyr); library(data.table)
 }))
-BAND <- 3600L
+BAND <- PRIMARY_ACCESS_BAND_SEC
 PARQ <- "scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet"
 OUT  <- "manuscript/stats"
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
@@ -43,11 +46,11 @@ ds <- open_dataset(PARQ)
 
 # --- 60-min coverage per (tract, subspecialty) + tract female pop + rurality ----
 cov <- as.data.table(ds %>%
-  filter(range == BAND, category == "total_female") %>%
+  filter(range == BAND, category == DENOMINATOR_CATEGORY) %>%
   select(fips_tract, subspecialty, percent, total, ruca_code) %>%
   collect())
 setnames(cov, "total", "fem")
-cov[, reached := as.integer(!is.na(percent) & percent >= 50)]
+cov[, reached := as.integer(!is.na(percent) & percent >= TRACT_REACHED_COVERAGE_PCT)]
 cov[, abbrev := ABBR[subspecialty]]
 
 # --- tract race/ethnicity composition (range-invariant; take band 3600, any subspec)

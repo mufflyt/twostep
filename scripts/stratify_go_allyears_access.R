@@ -18,6 +18,7 @@ OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 CACHE <- Sys.getenv("STRAT_CACHE", file.path(tempdir(), "acs_race_cache"))
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE); dir.create(CACHE, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[strat-all] %s\n", sprintf(...)))
+# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 ACCDIR <- Sys.getenv("GO_ACCESS_DIR")                       # dir holding step_4_2sfca_GO_<yr>.rds
 stopifnot(nzchar(ACCDIR), dir.exists(ACCDIR))

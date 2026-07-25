@@ -31,7 +31,7 @@ say <- function(...) cat(sprintf("[fpmrs-map] %s\n", sprintf(...)))
 RES <- E2SFCA_PRODUCTION_RESOLUTION_M; SUB <- Sys.getenv("E2SFCA_MAP_SUB", "FPMRS"); YEARS <- 2013:2023   # SSOT: production 500 m
 # SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
 BANDS <- c(30L, 60L, 120L, 180L)
-conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+conus <- function() CONUS_STATE_FIPS   # SSOT: scripts/manuscript_e2sfca_values.R
 vintage_of  <- function(y) if (y >= 2020L) 2020L else 2010L
 demand_year <- function(vint) if (vint == 2020L) 2020L else 2019L   # vintage-representative ACS
 

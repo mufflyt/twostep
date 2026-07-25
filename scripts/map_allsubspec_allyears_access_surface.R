@@ -43,7 +43,7 @@ ALL_SUB <- c("GO","MFM","REI","FPMRS","MIGS","PAG","CFP")
 SUBS <- { s <- Sys.getenv("E2SFCA_MAP_SUBS", ""); if (nzchar(s)) strsplit(s, ",")[[1]] else ALL_SUB }
 FORCE <- Sys.getenv("E2SFCA_MAP_FORCE", "0") == "1"
 stopifnot(all(SUBS %in% ALL_SUB))
-conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+conus <- function() CONUS_STATE_FIPS   # SSOT: scripts/manuscript_e2sfca_values.R
 vintage_of  <- function(y) if (y >= 2020L) 2020L else 2010L
 demand_year <- function(vint) if (vint == 2020L) 2020L else 2019L
 

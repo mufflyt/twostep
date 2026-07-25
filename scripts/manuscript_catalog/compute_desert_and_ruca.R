@@ -1,4 +1,7 @@
 #!/usr/bin/env Rscript
+source("R/contour_bands.R")      # SSOT: PRIMARY_ACCESS_BAND_SEC (60-min band)
+source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY (total-female denom)
+source("R/access_thresholds.R")  # SSOT: TRACT_REACHED_COVERAGE_PCT (50% reached)
 # ============================================================================
 # (a) Subspecialty Access Desert (SAD) — two-vector operational definition
 #     adapted from Ryerson 2022 (driver-training deserts): a tract is a desert
@@ -13,7 +16,7 @@
 # Output -> manuscript/stats/table_access_deserts.csv, tableS_ruca4_access.csv
 # ============================================================================
 suppressWarnings(suppressMessages({ library(arrow); library(dplyr); library(tidyr); library(data.table) }))
-BAND <- 3600L
+BAND <- PRIMARY_ACCESS_BAND_SEC
 PARQ <- "scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet"
 OUT  <- "manuscript/stats"; dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 ABBR <- c("Maternal-Fetal Medicine"="MFM","Gynecologic Oncology"="GO",
@@ -24,11 +27,11 @@ ABBR <- c("Maternal-Fetal Medicine"="MFM","Gynecologic Oncology"="GO",
 ORD <- c("MFM","GO","REI","URPS","MIGS","CFP","PAG")
 
 ds <- open_dataset(PARQ)
-cov <- as.data.table(ds %>% filter(range==BAND, category=="total_female") %>%
+cov <- as.data.table(ds %>% filter(range==BAND, category==DENOMINATOR_CATEGORY) %>%
   select(fips_tract, subspecialty, percent, total, ruca_code) %>% collect())
 setnames(cov, "total", "fem")
 cov[, abbrev := ABBR[subspecialty]]
-cov[, reached := as.integer(!is.na(percent) & percent >= 50)]
+cov[, reached := as.integer(!is.na(percent) & percent >= TRACT_REACHED_COVERAGE_PCT)]
 cov[, rural := as.integer(!is.na(ruca_code) & ruca_code >= 4)]
 # RUCA 4-level (standard: 1-3 metro, 4-6 micropolitan, 7-9 small town, 10 rural)
 cov[, ruca4 := fifelse(ruca_code <= 3, "Metropolitan",

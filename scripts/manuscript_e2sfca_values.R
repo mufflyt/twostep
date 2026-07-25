@@ -133,6 +133,38 @@ E2SFCA_SUBSPECIALTY_LABELS <- c(
 #' @export
 E2SFCA_PRODUCTION_RESOLUTION_M <- 500L
 
+# ---- canonical geographic scope (SSOT) ---------------------------------------
+
+#' CONUS state/DC FIPS codes (2-digit, zero-padded) — the study's geographic scope.
+#'
+#' The 48 contiguous states + DC (49 codes). Excludes Alaska (02), Hawaii (15), and
+#' the territories PR(72)/VI(78)/GU(66)/AS(60)/MP(69) — Valhalla models only
+#' road-based travel, so non-contiguous areas are out of scope by design. This is the
+#' single source for the `conus()`/`conus_states()` helpers copy-pasted across the
+#' analysis scripts; the non-CONUS exclusion list is its complement (see the guard).
+#'
+#' @format Character vector, length 49, each a 2-digit state FIPS.
+#' @export
+CONUS_STATE_FIPS <- sprintf("%02d", c(1, 4:6, 8:13, 16:42, 44:51, 53:56))
+
+#' All US state + territory FIPS (the fixed Census universe): 50 states + DC(11) +
+#' the territories AS(60)/GU(66)/MP(69)/PR(72)/VI(78) = 56 codes. CONUS and non-CONUS
+#' partition this universe; it is the ONLY independently-listed FIPS set.
+#' @export
+US_STATE_TERRITORY_FIPS <- sprintf("%02d",
+  c(1:2, 4:6, 8:13, 15:42, 44:51, 53:56, 60, 66, 69, 72, 78))
+
+#' Non-contiguous FIPS excluded from the study (Alaska, Hawaii, and the territories).
+#'
+#' DERIVED as the exact complement of [CONUS_STATE_FIPS] within
+#' [US_STATE_TERRITORY_FIPS] — never hardcoded independently, so it can never drift
+#' out of sync with the CONUS inclusion set. Valhalla models only road-based travel,
+#' so these areas are out of scope by design.
+#'
+#' @format Character vector of 2-digit FIPS (AK, HI, + 5 territories).
+#' @export
+NON_CONUS_FIPS <- setdiff(US_STATE_TERRITORY_FIPS, CONUS_STATE_FIPS)
+
 # ---- canonical national denominator (SSOT) -----------------------------------
 
 #' National ACS female population, 2020 (the national coverage denominator).
