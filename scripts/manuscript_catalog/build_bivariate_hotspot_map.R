@@ -36,6 +36,7 @@ g0 <- st_simplify(g0, dTolerance = 900, preserveTopology = TRUE)
 base <- g0[, "fips_tract"]
 
 message("[2/5] coverage + minority share ...")
+source("scripts/manuscript_catalog/_staging_guard.R")  # fail-loud if comparator inputs not staged
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>% filter(range == BAND, category == DENOMINATOR_CATEGORY) %>%
   select(fips_tract, subspecialty, percent) %>% collect())

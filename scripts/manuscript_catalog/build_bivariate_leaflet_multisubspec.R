@@ -73,6 +73,7 @@ if (nrow(g0) < n_before)
 g0 <- st_transform(g0, 4326)
 
 message("[2/6] read access (all subspec) + minority share ...")
+source("scripts/manuscript_catalog/_staging_guard.R")  # fail-loud if comparator inputs not staged
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>%
   filter(range == BAND, category == DENOMINATOR_CATEGORY, subspecialty %in% unname(SUBS)) %>%

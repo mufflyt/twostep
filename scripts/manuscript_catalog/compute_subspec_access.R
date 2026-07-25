@@ -7,8 +7,10 @@ source("R/access_categories.R")  # SSOT: DENOMINATOR_CATEGORY (total-female deno
 # (subspecialists serve DIFFERENT populations and are never pooled). The mean
 # across the seven is a clearly-labeled SECONDARY summary only.
 suppressWarnings(suppressMessages(library(dplyr)))
-acc <- read.csv("scratchpad/manuscript_stage/ac587845_full/step_4_access_by_group.csv",
-                stringsAsFactors = FALSE)
+.acc_csv <- "data/step_4_access_by_group.csv"   # vendored; see data/PROVENANCE_vendored_inputs.md
+stopifnot("[compute_subspec_access] missing data/step_4_access_by_group.csv (see data/PROVENANCE_vendored_inputs.md)" =
+            file.exists(.acc_csv))
+acc <- read.csv(.acc_csv, stringsAsFactors = FALSE)
 bands <- c(`30`=1800, `60`=3600, `120`=7200, `180`=10800)
 by <- min(acc$year); ly <- max(acc$year)
 
@@ -46,6 +48,7 @@ m <- res %>% select(subspecialty, band_min, access_2023) %>%
   tidyr::pivot_wider(names_from=band_min, values_from=access_2023)
 print(as.data.frame(m %>% mutate(across(where(is.numeric), ~round(.,1)))), row.names=FALSE)
 
+.out_dir <- "artifacts/manuscript_catalog"; dir.create(.out_dir, recursive = TRUE, showWarnings = FALSE)
 saveRDS(list(matrix=res, slopes=slopes, baseline_year=by, latest_year=ly),
-        "scratchpad/manuscript_stage/subspec_access.rds")
-cat("\nsaved subspec_access.rds\n")
+        file.path(.out_dir, "subspec_access.rds"))
+cat("\nsaved", file.path(.out_dir, "subspec_access.rds"), "\n")

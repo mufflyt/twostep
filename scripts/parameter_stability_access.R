@@ -53,8 +53,11 @@ W <- list(base    = c(1.00,0.68,0.22,0.09),
           steeper = c(1.00,0.50,0.10,0.02),
           flatter = c(1.00,0.85,0.55,0.30))
 
-# tract fem65 centroids + county
-tc <- readRDS(file.path(root,"scratchpad/urogyn_tract_fem65_centroids.rds"))   # GEOID, fem65, geom(4326)
+# tract fem65 centroids + county (vendored input; see data/PROVENANCE_vendored_inputs.md)
+.tc_rds <- file.path(root, "data", "urogyn_tract_fem65_centroids.rds")
+stopifnot("[param-stability] missing data/urogyn_tract_fem65_centroids.rds (see data/PROVENANCE_vendored_inputs.md)" =
+            file.exists(.tc_rds))
+tc <- readRDS(.tc_rds)   # GEOID, fem65, geom(4326)
 tc$fips <- substr(tc$GEOID,1,5); tc <- tc[!substr(tc$fips,1,2) %in% NONCONUS & !is.na(tc$fem65), ]
 
 # women 65+ within each cumulative band, per county. Enforce physical nesting
@@ -121,5 +124,5 @@ readr::write_csv(D, file.path(root,"manuscript/stats/parameter_stability_access.
 readr::write_csv(D[struct, c("fips","tot","pct30","pct180","decay_base")],
                  file.path(root,"manuscript/stats/parameter_stability_structural.csv"))
 saveRDS(list(D=D, tier=tier, struct=struct, W=W, specs=specs),
-        file.path(root,"scratchpad/parameter_stability_state.rds"))
+        file.path(tempdir(), "parameter_stability_state.rds"))   # transient checkpoint (nothing reads it)
 msg("\nDONE -> manuscript/stats/parameter_stability_access.csv (+ structural)")

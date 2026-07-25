@@ -179,6 +179,7 @@ states_gj <- tryCatch({
 }, error = function(e) { message("  state dissolve skipped: ", conditionMessage(e)); "null" })
 
 message("[3/8] access, all subspecialty x band (2023) ...")
+source("scripts/manuscript_catalog/_staging_guard.R")  # fail-loud if comparator inputs not staged
 ds <- open_dataset("scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet")
 cov <- as.data.table(ds %>%
   filter(range %in% unname(BANDS), category == DENOMINATOR_CATEGORY,

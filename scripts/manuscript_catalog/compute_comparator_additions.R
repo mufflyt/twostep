@@ -27,6 +27,7 @@ suppressWarnings(suppressMessages({
   library(arrow); library(dplyr); library(tidyr); library(data.table)
 }))
 BAND <- PRIMARY_ACCESS_BAND_SEC
+source("scripts/manuscript_catalog/_staging_guard.R")  # fail-loud if comparator inputs not staged
 PARQ <- "scratchpad/seam_tracts/step_4_access_by_tract_with_ruca_y2023.parquet"
 OUT  <- "manuscript/stats"
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
