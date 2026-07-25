@@ -719,11 +719,15 @@ local F/G modules were migrated to depend on it:
   `Remotes: mufflyt/mufflyaccess@v0.1.2`) so twostep stays reproducible.
 - Full twostep suite: **726 pass / 0 fail**.
 
-**Remaining duplication (follow-up):** the package also exports `CONUS_STATE_FIPS` /
-`NON_CONTIGUOUS_FIPS`, which DUPLICATE the local `CONUS_STATE_FIPS` / `NON_CONUS_FIPS`
-added to `scripts/manuscript_e2sfca_values.R` in iter 15-16. A future pass should have
-the loader re-export geography FROM the package (and retarget the conus/nonconus guard
-tests), so there is one geography source. Not done here (would edit those guards).
+**Geography duplication RESOLVED (2026-07-25):** `scripts/manuscript_e2sfca_values.R`
+now RE-EXPORTS geography from the package: `CONUS_STATE_FIPS <- mufflyaccess::CONUS_STATE_FIPS`,
+`NON_CONUS_FIPS <- mufflyaccess::NON_CONTIGUOUS_FIPS`, and `US_STATE_TERRITORY_FIPS`
+derived as their union. Values are identical, so the conus/nonconus guards pass
+unchanged (21/0 + 7/0); full suite 726/0. There is now ONE geography source (the
+package). Remaining twostep local duplication of a package constant: the ACS 2020
+denominator (`E2SFCA_ACS_FEMALE_POP_2020` local vs `ACS2020_CONUS_FEMALE_POP` in the
+package) — a separate follow-up (different name + provenance attrs; would touch the ACS
+guard).
 
 ## Candidates queued (user priority, 2026-07-25)
 1. **CONUS state FIPS vector** — **DONE iter 15** (`CONUS_STATE_FIPS`).

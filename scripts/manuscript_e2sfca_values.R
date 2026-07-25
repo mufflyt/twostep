@@ -133,37 +133,30 @@ E2SFCA_SUBSPECIALTY_LABELS <- c(
 #' @export
 E2SFCA_PRODUCTION_RESOLUTION_M <- 500L
 
-# ---- canonical geographic scope (SSOT) ---------------------------------------
+# ---- canonical geographic scope (re-exported from mufflyaccess) --------------
+# The geography SSOTs now live ONCE in the shared mufflyaccess package (single source
+# across isochrones / twostep / cliff). This loader re-exports them under the names its
+# consumers already use (CONUS_STATE_FIPS is identical; NON_CONUS_FIPS is the package's
+# NON_CONTIGUOUS_FIPS). US_STATE_TERRITORY_FIPS is derived as their union, so the
+# CONUS/non-CONUS partition can never drift. install: renv::install("mufflyt/mufflyaccess@v0.1.2")
+if (!requireNamespace("mufflyaccess", quietly = TRUE))
+  stop("Package 'mufflyaccess' is required. Install: renv::install(\"mufflyt/mufflyaccess@v0.1.2\").",
+       call. = FALSE)
 
-#' CONUS state/DC FIPS codes (2-digit, zero-padded) — the study's geographic scope.
-#'
-#' The 48 contiguous states + DC (49 codes). Excludes Alaska (02), Hawaii (15), and
-#' the territories PR(72)/VI(78)/GU(66)/AS(60)/MP(69) — Valhalla models only
-#' road-based travel, so non-contiguous areas are out of scope by design. This is the
-#' single source for the `conus()`/`conus_states()` helpers copy-pasted across the
-#' analysis scripts; the non-CONUS exclusion list is its complement (see the guard).
-#'
-#' @format Character vector, length 49, each a 2-digit state FIPS.
+#' CONUS state/DC FIPS (48 contiguous states + DC = 49 codes). Re-exported from
+#' mufflyaccess::CONUS_STATE_FIPS. Excludes AK(02), HI(15), territories.
 #' @export
-CONUS_STATE_FIPS <- sprintf("%02d", c(1, 4:6, 8:13, 16:42, 44:51, 53:56))
+CONUS_STATE_FIPS <- mufflyaccess::CONUS_STATE_FIPS
 
-#' All US state + territory FIPS (the fixed Census universe): 50 states + DC(11) +
-#' the territories AS(60)/GU(66)/MP(69)/PR(72)/VI(78) = 56 codes. CONUS and non-CONUS
-#' partition this universe; it is the ONLY independently-listed FIPS set.
+#' Non-contiguous FIPS excluded from the study (AK, HI, + 5 territories). Re-exported
+#' from mufflyaccess::NON_CONTIGUOUS_FIPS under the local consumer name NON_CONUS_FIPS.
 #' @export
-US_STATE_TERRITORY_FIPS <- sprintf("%02d",
-  c(1:2, 4:6, 8:13, 15:42, 44:51, 53:56, 60, 66, 69, 72, 78))
+NON_CONUS_FIPS <- mufflyaccess::NON_CONTIGUOUS_FIPS
 
-#' Non-contiguous FIPS excluded from the study (Alaska, Hawaii, and the territories).
-#'
-#' DERIVED as the exact complement of [CONUS_STATE_FIPS] within
-#' [US_STATE_TERRITORY_FIPS] — never hardcoded independently, so it can never drift
-#' out of sync with the CONUS inclusion set. Valhalla models only road-based travel,
-#' so these areas are out of scope by design.
-#'
-#' @format Character vector of 2-digit FIPS (AK, HI, + 5 territories).
+#' All US state + territory FIPS (56): the CONUS/non-CONUS union. DERIVED from the two
+#' package sets so the partition is exact and cannot drift.
 #' @export
-NON_CONUS_FIPS <- setdiff(US_STATE_TERRITORY_FIPS, CONUS_STATE_FIPS)
+US_STATE_TERRITORY_FIPS <- sort(union(CONUS_STATE_FIPS, NON_CONUS_FIPS))
 
 # ---- canonical national denominator (SSOT) -----------------------------------
 
