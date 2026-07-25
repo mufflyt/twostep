@@ -6,10 +6,14 @@ contiguous United States, 2013–2023, using an **Enhanced Two-Step Floating
 Catchment Area (E2SFCA)** method on road-network isochrones with a mass-conserving
 demand allocation and a Spatial Access Ratio (SPAR).
 
-This repository was extracted from the larger `isochrones` pipeline so the
-accessibility paper builds and reproduces on its own, independent of the physician
-distribution / workforce-cliff work. The manuscript renders entirely from the
-frozen artifacts shipped here — no upstream pipeline or network access needed.
+This repository was extracted from the larger **isochrones** pipeline
+(<https://github.com/mufflyt/isochrones>, private) so the accessibility paper builds
+and reproduces on its own, independent of the physician-distribution and
+workforce-cliff work. isochrones is the **source of record** that generates the
+road-network isochrones, the physician cohort, and the accessibility artifacts;
+twostep vends the small frozen subset those produce, so the manuscript renders with
+no upstream pipeline or network access (data lineage in
+[`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md)).
 
 ## Figures
 
@@ -107,5 +111,10 @@ documents the production run, gates, and frozen facts.
   but consume upstream pipeline inputs (isochrones, the year-cohort panel, ACS
   bundle) that are **not** shipped in this repo; they document how the artifacts
   were produced rather than re-running end to end here.
+- **Upstream pipeline (source of record):** the frozen artifacts, and the inputs the
+  generation scripts consume, are created and maintained in the isochrones pipeline
+  (<https://github.com/mufflyt/isochrones>, private; source commit `ff3aac4a`).
+  twostep vends a frozen, checksummed subset of that pipeline's output; you do **not**
+  need access to isochrones to reproduce the manuscript from this repo.
 - **Geographic scope:** contiguous U.S. (48 states + DC). Alaska and Hawaii are
   outside the road-network modeling framework; see the manuscript's limitations.
