@@ -60,6 +60,7 @@ test_that("no code file hardcodes the denominator literal except the canonical c
     hit <- grepl(LITERAL, lines, fixed = TRUE)
     if (any(hit)) offenders <- c(offenders, basename(f))
   }
-  # only the canonical definition may contain the literal
-  expect_identical(offenders, "manuscript_e2sfca_values.R")
+  # the literal now lives ONLY in the mufflyaccess package; the loader re-exports it
+  # (mufflyaccess::ACS2020_CONUS_FEMALE_POP), so NO twostep code file hardcodes it.
+  expect_identical(offenders, character(0))
 })

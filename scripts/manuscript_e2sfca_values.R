@@ -162,15 +162,15 @@ US_STATE_TERRITORY_FIPS <- sort(union(CONUS_STATE_FIPS, NON_CONUS_FIPS))
 
 #' National ACS female population, 2020 (the national coverage denominator).
 #'
-#' Authority = the frozen run's national summary (`acs_pop_source`, year 2020),
-#' which is subspecialty-invariant. This constant is the in-code copy for figures
-#' that do not load that table; [e2sfca_acs_female_pop] re-derives it live from the
-#' artifact, and the test suite pins the constant to the artifact so the two cannot
-#' drift.
+#' Re-exported from the shared package (`mufflyaccess::ACS2020_CONUS_FEMALE_POP`) so
+#' there is ONE source across repos; `as.integer()` strips the package's provenance
+#' attributes to keep this a plain integer (the form figures and the guard expect).
+#' Authority remains the frozen run's national summary (`acs_pop_source`, year 2020),
+#' which [e2sfca_acs_female_pop] re-derives live and the test suite pins to this value.
 #'
 #' @format Integer scalar; count of women (all ages) in the 2020 ACS, CONUS grid.
 #' @export
-E2SFCA_ACS_FEMALE_POP_2020 <- 164690617L
+E2SFCA_ACS_FEMALE_POP_2020 <- as.integer(mufflyaccess::ACS2020_CONUS_FEMALE_POP)
 
 #' Derive the national ACS female-population denominator for a year.
 #'
