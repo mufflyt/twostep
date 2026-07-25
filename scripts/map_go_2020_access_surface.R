@@ -11,11 +11,12 @@ suppressWarnings(suppressMessages({
 }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))  # SSOT constants
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca_seam", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[go-map] %s\n", sprintf(...)))
-RES <- 500; YEAR <- 2020L; SUB <- "GO"
+RES <- E2SFCA_PRODUCTION_RESOLUTION_M; YEAR <- 2020L; SUB <- "GO"   # SSOT: production 500 m
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ── providers + demand ───────────────────────────────────────────────────────
@@ -84,7 +85,7 @@ mk_map <- function(trans, title, subtitle, bartitle) {
 }
 
 m1 <- mk_map("sqrt",
-  "Access to Gynecologic Oncologists — E2SFCA, 2020",
+  "Access to Gynecologic Oncologists - E2SFCA, 2020",
   sprintf("Providers per 100,000 women (mass-conserving 500 m grid; national pop-wt mean %.3f)",
           res$national$mean_population_weighted_scaled),
   sprintf("Access per 100k women (√ scale, capped at p98=%.2f)", cap))

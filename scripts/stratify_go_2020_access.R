@@ -18,6 +18,8 @@
 # ==============================================================================
 suppressWarnings(suppressMessages({ library(dplyr); library(ggplot2); library(patchwork) }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
+# SSOT: frozen run id from the canonical constant (scripts/manuscript_e2sfca_values.R).
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
 OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[strat] %s\n", sprintf(...)))
@@ -25,8 +27,8 @@ conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ── 1. per-tract GO 2020 access (production, verified) ───────────────────────
 acc_rds <- Sys.getenv("GO2020_ACCESS_RDS",
-  file.path(ROOT, "artifacts", "2sfca", "ec2", "e2sfca_20260712_190734",
-            "run_e2sfca_20260712_190734", "step_4_2sfca_GO_2020.rds"))
+  file.path(ROOT, "artifacts", "2sfca", "ec2", E2SFCA_FROZEN_RUN_ID,
+            paste0("run_", E2SFCA_FROZEN_RUN_ID), "step_4_2sfca_GO_2020.rds"))
 if (!file.exists(acc_rds)) acc_rds <- Sys.getenv("GO2020_ACCESS_RDS_FALLBACK", acc_rds)
 stopifnot(file.exists(acc_rds))
 acc <- readRDS(acc_rds) |>
@@ -126,9 +128,9 @@ pB <- ggplot(race_p, aes(mean_access, group)) +
 fig <- (pA | pB) +
   plot_layout(widths = c(1, 1.6)) +
   plot_annotation(
-    title = "GO accessibility disparities by rurality and race/ethnicity — E2SFCA, 2020 (CONUS)",
+    title = "GO accessibility disparities by rurality and race/ethnicity - E2SFCA, 2020 (CONUS)",
     subtitle = "Parallel to Desjardins et al. 2023 (Obstet Gynecol): population-weighted E2SFCA access per 100,000 women; travel-time catchment, tract level",
-    caption = "Access = production mass-conserving E2SFCA (run e2sfca_20260712_190734). Rurality = USDA RUCA 2020 (Metro=1-3). Race = ACS 2020 B01001[*]_017 female totals (H=White NH, I=Hispanic; B/C/D/E race-alone, not mutually exclusive with H/I).",
+    caption = paste0("Access = production mass-conserving E2SFCA (run ", E2SFCA_FROZEN_RUN_ID, "). Rurality = USDA RUCA 2020 (Metro=1-3). Race = ACS 2020 B01001[*]_017 female totals (H=White NH, I=Hispanic; B/C/D/E race-alone, not mutually exclusive with H/I)."),
     theme = theme(plot.title = element_text(size = rel(1.25), face = "bold"),
                   plot.title.position = "plot"))
 

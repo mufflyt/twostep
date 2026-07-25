@@ -26,11 +26,14 @@ suppressWarnings(suppressMessages({
 source(here::here("scripts", "manuscript_e2sfca_values.R"))
 
 # ---- canonical objects (validated on load) ---------------------------------
-run_dir <- here::here("artifacts", "2sfca", "ec2", "e2sfca_20260712_190734")
+# run_dir resolves E2SFCA_FROZEN_RUN_ID and fails loudly if the manifest's
+# self-declared run_id disagrees (SSOT: scripts/manuscript_e2sfca_values.R).
+run_dir <- e2sfca_run_dir(root = here::here())
 national_tbl <- load_e2sfca_national_summary(run_dir)
 change_tbl   <- e2sfca_specialty_change(national_tbl)
 workforce_tbl <- e2sfca_workforce_counts(
-  here::here("manuscript", "data", "workforce_counts_2020.csv"))
+  here::here("manuscript", "data", "workforce_counts_2020.csv"),
+  national_tbl = national_tbl)   # SSOT: cross-check the staged CSV against the frozen run
 disparity_tbl <- e2sfca_disparity_2020(
   here::here("artifacts", "2sfca", "figures",
              "allsubspec_2020_inferential_TABLE.csv"))
@@ -87,7 +90,7 @@ eq20 <- dplyr::filter(strat_long, year == 2020L)
   r <- eq20$mean_access[eq20$subspec == subs & eq20$stratum == refstrat]
   100 * (g / r - 1)
 }
-subs7 <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP")
+subs7 <- E2SFCA_SUBSPECIALTIES   # SSOT: scripts/manuscript_e2sfca_values.R
 rural_pct <- vapply(subs7, function(s) .eq_pct(s, "Rural", "Metropolitan"), 0)
 aian_pct  <- vapply(subs7, function(s)
   .eq_pct(s, "Am. Indian/Alaska Native", "White, non-Hispanic"), 0)
@@ -673,7 +676,7 @@ fields are not only smaller but far more unevenly distributed (Table 2).
 ```{r table2sp}
 sp_tab <- spatial_tbl |>
   dplyr::mutate(subspec = factor(subspec,
-    levels = c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP"))) |>
+    levels = E2SFCA_SUBSPECIALTIES)) |>   # SSOT display order
   dplyr::arrange(subspec) |>
   dplyr::transmute(Subspecialty = subspec,
     `% outside 60 min` = sprintf("%.1f", pct_outside_60),
@@ -1124,7 +1127,7 @@ czw <- cell_zero_tbl |>
   dplyr::transmute(subspec, g, cell_tract = paste0(cell, " / ", tract)) |>
   tidyr::pivot_wider(names_from = g, values_from = cell_tract) |>
   dplyr::mutate(subspec = factor(subspec,
-    levels = c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP"))) |>
+    levels = E2SFCA_SUBSPECIALTIES)) |>   # SSOT display order
   dplyr::arrange(subspec) |>
   dplyr::transmute(Subspecialty = subspec, Metro, Rural, White, AIAN)
 knitr::kable(czw, align = c("l","r","r","r","r"),

@@ -14,11 +14,16 @@
 # =============================================================================
 suppressWarnings(suppressMessages({ library(sf); library(dplyr) }))
 ROOT <- if (requireNamespace("here", quietly=TRUE)) here::here() else normalizePath(".")
+# SSOT: frozen run id from the canonical constant (scripts/manuscript_e2sfca_values.R).
+source(file.path(ROOT,"scripts","manuscript_e2sfca_values.R"))
 OUT  <- file.path(ROOT,"artifacts","desjardins7")
-UNP  <- file.path(ROOT,"artifacts","2sfca","ec2","e2sfca_20260712_190734","unpacked")
+UNP  <- file.path(ROOT,"artifacts","2sfca","ec2",E2SFCA_FROZEN_RUN_ID,"unpacked")
 say  <- function(...) { cat(sprintf("[dj7-e2] %s\n", sprintf(...))); flush.console() }
 SUBS <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP")
 YR <- 2020L
+# SSOT anchor (E2SFCA_DEFAULT_WEIGHTS): identical to the engine's canonical weights in
+# R/two_step_floating_catchment.R; literal retained for standalone execution. Guarded by
+# tests/testthat/test-ssot-band-weights.R.
 Wc  <- c(`30`=1.00,`60`=0.68,`120`=0.22,`180`=0.09)          # cumulative band weights
 Wi  <- c(`30`=unname(Wc["30"]-Wc["60"]), `60`=unname(Wc["60"]-Wc["120"]),  # incremental (demand)
          `120`=unname(Wc["120"]-Wc["180"]), `180`=unname(Wc["180"]))

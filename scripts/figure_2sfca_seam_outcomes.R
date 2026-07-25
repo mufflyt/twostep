@@ -13,16 +13,22 @@ suppressWarnings(suppressMessages({
   library(ggplot2); library(dplyr); library(patchwork)
 }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
+# SSOT: national ACS female-pop denominator from the canonical constant
+# (scripts/manuscript_e2sfca_values.R), pinned to the frozen artifact by the tests.
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
 OUT  <- file.path(ROOT, "artifacts", "2sfca_seam", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 
-ACS <- 164690617                       # national ACS female pop (source of truth)
+ACS <- E2SFCA_ACS_FEMALE_POP_2020      # national ACS female pop (denominator / truth)
 
 # ── Panel A: population conserved on the 500 m grid, by allocation method ─────
+# Mass-conserving allocation recovers exactly the ACS population (the figure's
+# thesis), so its represented value IS the ACS denominator; the legacy center-based
+# value (162,947,926) is a distinct measured result and stays literal.
 pop_tbl <- tibble::tribble(
   ~method,                    ~represented, ~kind,
   "Center-based\n(legacy)",    162947926,   "legacy",
-  "Area-weighted\n(mass-conserving)", 164690617, "fix") |>
+  "Area-weighted\n(mass-conserving)", ACS,  "fix") |>
   mutate(pct_of_acs = 100 * represented / ACS,
          lost = ACS - represented,
          method = factor(method, levels = method))

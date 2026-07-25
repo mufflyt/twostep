@@ -44,6 +44,10 @@ datadir <- file.path(root, "vignettes/urogyn_app/data")
 msg <- function(...) message(sprintf(...))
 BANDS <- c(30,60,120,180)
 NONCONUS <- c("02","15","72","78","66","69","60")
+# SSOT anchor (E2SFCA_DEFAULT_WEIGHTS): `base` equals the engine's canonical weights
+# (R/two_step_floating_catchment.R); `steeper`/`flatter` are deliberate sensitivity
+# variants, not copies. This appendix script is standalone (no engine source), so the
+# literal is retained; base-equality is guarded by tests/testthat/test-ssot-band-weights.R.
 W <- list(base    = c(1.00,0.68,0.22,0.09),
           steeper = c(1.00,0.50,0.10,0.02),
           flatter = c(1.00,0.85,0.55,0.30))

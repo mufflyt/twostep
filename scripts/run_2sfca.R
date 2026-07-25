@@ -465,7 +465,12 @@ manifest <- list(
     module = basename(.module_path), module_sha256 = .module_sha,
     seam_validated_sha256 = SEAM_ALLOCATOR_SHA256,
     identity_verified = identical(.module_sha, SEAM_ALLOCATOR_SHA256)),
-  tolerances = list(allocator_conservation_tol = 1e-6,
+  # SSOT: record the allocator tolerance the engine actually uses (its function
+  # default), read live from the sourced engine, so the manifest can never restate a
+  # value that disagrees with allocate_pop_areaweighted(). The engine file is sha-gated
+  # (allocator identity, lines ~110-123), so we read its default rather than edit it.
+  tolerances = list(allocator_conservation_tol =
+                      eval(formals(allocate_pop_areaweighted)$conservation_tol),
                     national_conservation_tol = NATIONAL_CONSERVATION_TOL),
   seam_gate = list(
     artifact = if (is.null(SEAM_GATE_RDS)) NA_character_ else SEAM_GATE_RDS,

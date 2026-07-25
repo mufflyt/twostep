@@ -24,7 +24,11 @@ LONG <- readr::read_csv(file.path(ROOT, "artifacts", "2sfca", "figures",
 YR <- 2020L
 THR_LO <- 0.90; THR_HI <- 1.10
 
-full_name <- c(GO = "Gynecologic oncology", MFM = "Maternal–fetal medicine",
+# Deliberate SENTENCE-case variant of the canonical figure labels
+# (E2SFCA_SUBSPECIALTY_LABELS in scripts/manuscript_e2sfca_values.R). Kept literal
+# because a mechanical case transform would corrupt the FPMRS acronym; the guard
+# test enforces no en-dash/em-dash here. (Fixed en-dash -> hyphen in "Maternal-fetal".)
+full_name <- c(GO = "Gynecologic oncology", MFM = "Maternal-fetal medicine",
   REI = "Reproductive endocrinology", FPMRS = "Urogynecology (FPMRS)",
   MIGS = "Minimally invasive gyn surgery", PAG = "Pediatric & adolescent gyn",
   CFP = "Complex family planning")

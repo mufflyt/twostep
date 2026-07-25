@@ -27,7 +27,7 @@ say <- function(...) cat(sprintf("[cov-map] %s\n", sprintf(...)))
 SUB   <- Sys.getenv("E2SFCA_MAP_SUB", "GO")
 BAND  <- as.integer(Sys.getenv("E2SFCA_MAP_BAND", "60"))
 YEARS <- 2013:2023
-CRS5070 <- 5070L
+CRS5070 <- E2SFCA_AREA_CRS   # SSOT: engine's equal-area CRS (R/two_step_floating_catchment.R, sourced above)
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ── active cohort (coord_ids) per year ───────────────────────────────────────
@@ -71,10 +71,10 @@ say("built %d yearly footprints", nrow(foot))
 states <- suppressMessages(tigris::states(cb = TRUE, resolution = "20m", progress_bar = FALSE))
 states <- sf::st_transform(states[states$STATEFP %in% conus(), ], CRS5070)
 
-full_name <- c(GO="Gynecologic Oncology", MFM="Maternal-Fetal Medicine",
-  REI="Reproductive Endocrinology", FPMRS="Urogynecology (FPMRS)",
-  MIGS="Minimally Invasive Gyn Surgery", PAG="Pediatric & Adolescent Gyn",
-  CFP="Complex Family Planning")
+# SSOT: subspecialty figure labels from the canonical map
+# (scripts/manuscript_e2sfca_values.R).
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
+full_name <- E2SFCA_SUBSPECIALTY_LABELS
 
 fig <- ggplot() +
   geom_sf(data = states, fill = "grey93", colour = "white", linewidth = 0.15) +

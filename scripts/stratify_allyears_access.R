@@ -139,7 +139,7 @@ make_fig <- function(sub, rur, race){
     labs(title="C. Share of women with NO reachable subspecialist",
          subtitle="Does the gap improve over time? (== Desjardins Q1)",x=NULL,y="% women, access = 0")+th
   (pA|pB)/pC + plot_annotation(
-    title=sprintf("%s accessibility disparities over time, 2013-2023 — E2SFCA (CONUS)", FULL[[sub]]),
+    title=sprintf("%s accessibility disparities over time, 2013-2023 - E2SFCA (CONUS)", FULL[[sub]]),
     subtitle="Population-weighted travel-time catchment access by rurality and race/ethnicity",
     caption="Production mass-conserving E2SFCA. Rurality = USDA RUCA (vintage-matched). Race = ACS B01001[*]_017 female totals.",
     theme=theme(plot.title=element_text(size=rel(1.25),face="bold"),plot.title.position="plot"))
@@ -189,8 +189,11 @@ if (FIGURES && length(SUBS) > 1){
   pAIAN<- mk(long|>filter(stratum=="Am. Indian/Alaska Native"),
              "B. Am. Indian/Alaska Native women with NO reachable subspecialist", "by subspecialty, 2013-2023")
   sfig <- (pRur | pAIAN) + plot_annotation(
-    title="Access deserts by subspecialty — E2SFCA, 2013-2023 (CONUS)",
+    title="Access deserts by subspecialty - E2SFCA, 2013-2023 (CONUS)",
     subtitle="Share of at-risk women who cannot reach ANY subspecialist within the travel-time catchment; rarer subspecialties (CFP, PAG) leave the most women with zero access",
+    # SSOT anchor (E2SFCA_FROZEN_RUN_ID): display label for the frozen run
+    # (scripts/manuscript_e2sfca_values.R). Data dir is --access-dir / GO_ACCESS_DIR
+    # (line 36); update this label if that is pointed at a different run.
     caption="Production mass-conserving E2SFCA (run e2sfca_20260712_190734). Higher = worse. == Desjardins Q1 (zero-access quintile).",
     theme=theme(plot.title=element_text(size=rel(1.25),face="bold"),plot.title.position="plot"))
   sf <- file.path(OUT, "fig_allsubspec_equity_summary.png")

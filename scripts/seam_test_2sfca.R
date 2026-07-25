@@ -61,7 +61,12 @@ TOL_MEAN_REL  <- 0.02   # 2% rel national mean: within ACS 5-yr MOE / sub-year d
 TOL_SHARE_ABS <- 0.01   # 1 pp threshold share: below manuscript reporting precision
 THRESHOLDS    <- E2SFCA_DEFAULT_THRESHOLDS
 REL_CHANGE_BINS <- c(0.01, 0.05, 0.10)
-EXPECTED_METHODS <- c("raw","equal_total","mass_conserving","mass_conserving_eqtot")
+# SSOT: the four seam allocation methods, in reporting order. mass_conserving is the
+# production allocator (matches E2SFCA_ALLOCATOR_METHOD_ID); mass_conserving_eqtot is
+# the total-fixed GATE-basis diagnostic (a DISTINCT method, not an alias). Both
+# EXPECTED_METHODS (validation) and METHOD_ORDER (output order) derive from this vector.
+SEAM_METHODS <- c("raw", "equal_total", "mass_conserving", "mass_conserving_eqtot")
+EXPECTED_METHODS <- SEAM_METHODS
 
 # ── RUN CONTRACT — print + HARD-ASSERT the invariants before any computation. ─
 say("================= RUN CONTRACT =================")
@@ -332,7 +337,7 @@ say("wrote prespec manifest: %s", file.path(OUT, sprintf("seam_prespec_%d.json",
 
 # ── Per-specialty seam computation, all THREE methods side by side ───────────
 #  GATE basis = mass_conserving. raw + equal_total reported for decomposition.
-METHOD_ORDER <- c("raw", "equal_total", "mass_conserving", "mass_conserving_eqtot")
+METHOD_ORDER <- SEAM_METHODS   # SSOT: defined once near the run contract (line ~64)
 results <- list()
 for (sc in SUBSPECS) {
   supply <- supply_by[[sc]]

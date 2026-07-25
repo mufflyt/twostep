@@ -21,13 +21,18 @@ suppressWarnings(suppressMessages({
   library(ggplot2); library(dplyr); library(patchwork)
 }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
-RUN_ID <- Sys.getenv("E2SFCA_RUN_ID", "e2sfca_20260712_190734")
+# SSOT: frozen run id (and its E2SFCA_RUN_ID env override) come from the canonical
+# constant in scripts/manuscript_e2sfca_values.R; no local literal default.
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
+RUN_ID <- E2SFCA_FROZEN_RUN_ID
 NAT_CSV <- file.path(ROOT, "artifacts", "2sfca", "ec2", RUN_ID, "e2sfca_national_summary.csv")
 OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 stopifnot(file.exists(NAT_CSV))
 
-ACS2020 <- 164690617                     # national ACS female pop (2020, source of truth)
+# SSOT: national 2020 ACS female-pop denominator from the canonical constant
+# (scripts/manuscript_e2sfca_values.R), pinned to the frozen artifact by the tests.
+ACS2020 <- E2SFCA_ACS_FEMALE_POP_2020
 nat <- readr::read_csv(NAT_CSV, show_col_types = FALSE)
 mcol <- "mean_pop_weighted_per100k"
 stopifnot(mcol %in% names(nat), nrow(nat) == 77L)
@@ -59,7 +64,7 @@ pB <- ggplot(b, aes(mean, subspec)) +
   scale_x_continuous(expand = expansion(mult = c(0, 0.24)),
                      guide = guide_axis(check.overlap = TRUE)) +
   labs(title = "A. National accessibility by subspecialty (2020)",
-       subtitle = sprintf("E2SFCA providers per 100,000 women — a %.0f-fold spread from %s to %s",
+       subtitle = sprintf("E2SFCA providers per 100,000 women, a %.0f-fold spread from %s to %s",
                           fold, bot_lab, top_lab),
        x = "Accessibility (per 100k women)", y = NULL) +
   theme_minimal(base_size = 12) +

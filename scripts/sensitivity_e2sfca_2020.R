@@ -66,7 +66,10 @@ conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 
 # ---- parameter variants ------------------------------------------------------
 # Each: named cumulative-band weights (monotone non-increasing) + which bands.
-.BASE_W <- c("30"=1.00,"60"=0.68,"120"=0.22,"180"=0.09)
+# SSOT: canonical base weights come from the engine sourced above
+# (E2SFCA_DEFAULT_WEIGHTS in R/two_step_floating_catchment.R). The sharper/slower/
+# drop180 vectors below are deliberate sensitivity variants, not copies of the base.
+.BASE_W <- E2SFCA_DEFAULT_WEIGHTS
 VARIANTS <- list(
   base     = list(w = .BASE_W,                                     res = 1000L),
   sharper  = list(w = c("30"=1.00,"60"=0.42,"120"=0.09,"180"=0.02), res = 1000L),

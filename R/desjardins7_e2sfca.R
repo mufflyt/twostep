@@ -25,6 +25,9 @@
 
 #' Display order of the seven OB/GYN subspecialties.
 #' @export
+# SSOT anchor (E2SFCA_SUBSPECIALTIES): identical set + order to the canonical in
+# scripts/manuscript_e2sfca_values.R; literal retained so this module stays base-R
+# and standalone. Set-membership enforced by tests/testthat/test-ssot-subspecialties.R.
 DJ7_SUBS <- c("MFM", "GO", "REI", "FPMRS", "MIGS", "PAG", "CFP")
 
 #' Isochrone travel-time bands (minutes).
@@ -34,6 +37,10 @@ DJ7_BANDS <- c(30L, 60L, 120L, 180L)
 
 #' Primary cumulative Gaussian band weights (30/60/120/180 min).
 #' @export
+# SSOT anchor (E2SFCA_DEFAULT_WEIGHTS): identical to the engine's canonical weights
+# in R/two_step_floating_catchment.R; the literal is retained so this module stays
+# base-R and testable in isolation. Equality is enforced by
+# tests/testthat/test-ssot-band-weights.R.
 DJ7_WC_BASE <- c(`30` = 1.00, `60` = 0.68, `120` = 0.22, `180` = 0.09)
 
 #' Board-certification subspecialty name -> analysis code.

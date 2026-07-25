@@ -111,8 +111,11 @@ pC <- ggplot(zero_df, aes(year, pct_zero, colour=who)) +
 
 fig <- (pA | pB) / pC +
   plot_annotation(
-    title="GO accessibility disparities over time, 2013-2023 — E2SFCA (CONUS)",
+    title="GO accessibility disparities over time, 2013-2023 - E2SFCA (CONUS)",
     subtitle="Population-weighted travel-time catchment access by rurality and race/ethnicity; a temporal parallel to Desjardins et al. 2023",
+    # SSOT anchor (E2SFCA_FROZEN_RUN_ID): this display label names the frozen run
+    # (scripts/manuscript_e2sfca_values.R). The data dir is GO_ACCESS_DIR (line 22);
+    # if that is overridden to another run the label must be updated to match.
     caption="Production mass-conserving E2SFCA (run e2sfca_20260712_190734). Rurality = USDA RUCA (vintage-matched). Race = ACS B01001[*]_017 female totals (H=White NH, I=Hispanic; B/C/D/E race-alone).",
     theme=theme(plot.title=element_text(size=rel(1.25),face="bold"), plot.title.position="plot"))
 out_png <- file.path(OUT, "fig_go_allyears_access_stratified.png")

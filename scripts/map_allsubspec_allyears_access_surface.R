@@ -47,10 +47,10 @@ conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
 vintage_of  <- function(y) if (y >= 2020L) 2020L else 2010L
 demand_year <- function(vint) if (vint == 2020L) 2020L else 2019L
 
-full_name <- c(GO="Gynecologic Oncology", MFM="Maternal-Fetal Medicine",
-  REI="Reproductive Endocrinology", FPMRS="Urogynecology (FPMRS)",
-  MIGS="Minimally Invasive Gyn Surgery", PAG="Pediatric & Adolescent Gyn",
-  CFP="Complex Family Planning")
+# SSOT: subspecialty figure labels from the canonical map
+# (scripts/manuscript_e2sfca_values.R).
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
+full_name <- E2SFCA_SUBSPECIALTY_LABELS
 say("subspecialties: %s | force=%s", paste(SUBS, collapse=","), FORCE)
 
 # ── providers/demand inputs ──────────────────────────────────────────────────
@@ -139,7 +139,7 @@ render_sub <- function(sub) {
       guide = guide_colourbar(title.position = "top", title.hjust = 0.5)) +
     facet_wrap(~ facet, ncol = 4) +
     coord_sf(crs = E2SFCA_AREA_CRS, expand = FALSE, datum = NA) +
-    labs(title = sprintf("Access to %s — E2SFCA, 2013-2023", full_name[[sub]]),
+    labs(title = sprintf("Access to %s - E2SFCA, 2013-2023", full_name[[sub]]),
          subtitle = sprintf("Providers per 100,000 women on the mass-conserving %s m display grid. Cohort ACTIVE THAT YEAR varies with retirement / certification / relocation; isochrone geometry is year-agnostic, so the surface moves with the cohort. n = active origins.", format(RES, big.mark=",")),
          caption = "Demand denominator held at a vintage-representative ACS year (2019 for 2013-2019, 2020 for 2020-2023) so the panel-to-panel driver within a vintage is the provider cohort. CONUS, EPSG:5070.") +
     theme_void(base_size = 12) +

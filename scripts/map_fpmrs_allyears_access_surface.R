@@ -23,11 +23,12 @@ suppressWarnings(suppressMessages({
 }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
+source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))  # SSOT constants
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca_seam", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[fpmrs-map] %s\n", sprintf(...)))
-RES <- 500L; SUB <- Sys.getenv("E2SFCA_MAP_SUB", "FPMRS"); YEARS <- 2013:2023
+RES <- E2SFCA_PRODUCTION_RESOLUTION_M; SUB <- Sys.getenv("E2SFCA_MAP_SUB", "FPMRS"); YEARS <- 2013:2023   # SSOT: production 500 m
 # SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
 BANDS <- c(30L, 60L, 120L, 180L)
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
@@ -109,10 +110,8 @@ df$facet <- factor(df$facet, levels = lab$facet)
 states <- suppressMessages(tigris::states(cb = TRUE, resolution = "20m", progress_bar = FALSE))
 states <- sf::st_transform(states[states$STATEFP %in% conus(), ], E2SFCA_AREA_CRS)
 
-full_name <- c(GO="Gynecologic Oncology", MFM="Maternal-Fetal Medicine",
-  REI="Reproductive Endocrinology", FPMRS="Urogynecology (FPMRS)",
-  MIGS="Minimally Invasive Gyn Surgery", PAG="Pediatric & Adolescent Gyn",
-  CFP="Complex Family Planning")
+# SSOT: subspecialty figure labels from the canonical map (loader sourced at top).
+full_name <- E2SFCA_SUBSPECIALTY_LABELS
 
 fig <- ggplot() +
   geom_raster(data = df, aes(x, y, fill = pmin(access, cap))) +
@@ -123,7 +122,7 @@ fig <- ggplot() +
     guide = guide_colourbar(title.position = "top", title.hjust = 0.5)) +
   facet_wrap(~ facet, ncol = 4) +
   coord_sf(crs = E2SFCA_AREA_CRS, expand = FALSE, datum = NA) +
-  labs(title = sprintf("Access to %s — E2SFCA, 2013-2023", full_name[[SUB]]),
+  labs(title = sprintf("Access to %s - E2SFCA, 2013-2023", full_name[[SUB]]),
        subtitle = "Providers per 100,000 women on the mass-conserving 500 m grid. Cohort ACTIVE THAT YEAR varies with retirement / certification / relocation; isochrone geometry is year-agnostic, so the surface moves with the cohort. n = active origins.",
        caption = "Demand denominator held at a vintage-representative ACS year (2019 for 2013-2019, 2020 for 2020-2023) so the panel-to-panel driver within a vintage is the provider cohort. CONUS, EPSG:5070.") +
   theme_void(base_size = 12) +
