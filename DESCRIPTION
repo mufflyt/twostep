@@ -1,0 +1,44 @@
+Package: twostep
+Type: Package
+Title: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists
+Version: 0.1.0
+Date: 2026-07-24
+Authors@R: c(person(given = "Tyler", family = "Muffly", role = c("aut", "cre"),
+    email = "tyler.muffly@dhha.org", comment = c(ORCID = "0000-0002-5120-828X")))
+Description: Standalone analysis and manuscript for national travel-time
+    accessibility to the seven ABOG-certified obstetric and gynecologic
+    subspecialties across the contiguous United States, 2013-2023, using an
+    Enhanced Two-Step Floating Catchment Area (E2SFCA) method on road-network
+    isochrones with a mass-conserving demand allocation and a Spatial Access
+    Ratio (SPAR). Extracted from the isochrones pipeline so the accessibility
+    paper builds and reproduces independently. This DESCRIPTION also serves as
+    the project-root anchor for here/rprojroot.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports:
+    dplyr,
+    tidyr,
+    purrr,
+    tibble,
+    readr,
+    jsonlite,
+    checkmate,
+    sf,
+    terra,
+    exactextractr,
+    here,
+    rprojroot
+Suggests:
+    rmarkdown,
+    knitr,
+    kableExtra,
+    testthat (>= 3.0.0),
+    ggplot2,
+    patchwork,
+    tidycensus,
+    tigris,
+    digest
+URL: https://github.com/mufflyt/twostep
+BugReports: https://github.com/mufflyt/twostep/issues
+Config/testthat/edition: 3
+RoxygenNote: 7.3.1

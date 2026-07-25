@@ -1,0 +1,592 @@
+{
+  "run_id": "e2sfca_20260712_190734",
+  "created": "2026-07-13 00:30:21 UTC",
+  "git_sha": "ff3aac4a7aa97094fc3a9e69422425fe1a52b091",
+  "years": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
+  "subspecialties": ["CFP", "FPMRS", "GO", "MFM", "MIGS", "PAG", "REI"],
+  "engine": "raster",
+  "resolution_m": 500,
+  "crs": "5070",
+  "weights": {
+    "30": 1,
+    "60": 0.68,
+    "120": 0.22,
+    "180": 0.09
+  },
+  "allocator": {
+    "method_id": "mass_conserving",
+    "population_allocator": "allocate_pop_areaweighted",
+    "mode": "area",
+    "description": "polygon-cell area-overlap allocation; conserves every source tract; native annual totals; no center-based rasterization; no equal-total normalization",
+    "module": "two_step_floating_catchment.R",
+    "module_sha256": "2b78718bf65c2ecb7a1c99fb027d4aa52aeabc345faf6ec71291197e3fe25c43",
+    "seam_validated_sha256": "2b78718bf65c2ecb7a1c99fb027d4aa52aeabc345faf6ec71291197e3fe25c43",
+    "identity_verified": true
+  },
+  "tolerances": {
+    "allocator_conservation_tol": 1e-06,
+    "national_conservation_tol": 0.005
+  },
+  "seam_gate": {
+    "artifact": "/home/ec2-user/proj/artifacts/2sfca_seam/seam_report_all_2020.rds",
+    "sha256": "09482ddd051bf8df3bb21f8057f6f6ebd05944e1ccf129e4ce2dffbe8d289d33",
+    "authoritative_gate_method": "mass_conserving (area-overlap, native totals)"
+  },
+  "acs_source": {
+    "acs_bundle": "/home/ec2-user/proj/artifacts/2sfca_seam/acs_bundle_2013_2022.rds",
+    "acs_bundle_sha256": "b2a66353a2a601f5495285c5bd7b29685784d6c5abf24d4224bec80c4e18d8d5",
+    "tract_pop_rds": null
+  },
+  "environment": {
+    "r_version": "4.5.1",
+    "sf": "1.1.1",
+    "terra": "1.9.34",
+    "exactextractr": "0.10.1",
+    "geos": "3.13.0",
+    "gdal": "3.10.3",
+    "proj": "9.6.2"
+  },
+  "conservation": [
+    {
+      "subspecialty": "CFP",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2013,
+      "pop_raster_total": 157249325,
+      "acs_pop_source": 157249325,
+      "conservation_drop": 8.5487e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2014,
+      "pop_raster_total": 158545202,
+      "acs_pop_source": 158545202,
+      "conservation_drop": 4.885e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2015,
+      "pop_raster_total": 159735098,
+      "acs_pop_source": 159735098,
+      "conservation_drop": 7.3275e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2016,
+      "pop_raster_total": 160737478,
+      "acs_pop_source": 160737478,
+      "conservation_drop": 3.3307e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2017,
+      "pop_raster_total": 161925731,
+      "acs_pop_source": 161925731,
+      "conservation_drop": 1.0325e-14
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2018,
+      "pop_raster_total": 162857646,
+      "acs_pop_source": 162857646,
+      "conservation_drop": 7.8826e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2019,
+      "pop_raster_total": 163749889,
+      "acs_pop_source": 163749889,
+      "conservation_drop": 8.6597e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2020,
+      "pop_raster_total": 164690617,
+      "acs_pop_source": 164690617,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2021,
+      "pop_raster_total": 165446338,
+      "acs_pop_source": 165446338,
+      "conservation_drop": 8.8818e-16
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2022,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "CFP",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "FPMRS",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "GO",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "MFM",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "MIGS",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "PAG",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    },
+    {
+      "subspecialty": "REI",
+      "year": 2023,
+      "pop_raster_total": 163988473,
+      "acs_pop_source": 163988473,
+      "conservation_drop": 5.9952e-15
+    }
+  ],
+  "headline_source": "e2sfca_national_summary.csv (cell-level population-weighted)",
+  "n_outputs": 77
+}

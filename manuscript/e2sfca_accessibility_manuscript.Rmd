@@ -1,0 +1,1504 @@
+---
+title: "National travel-time accessibility to obstetrics–gynecology subspecialists, 2013–2023"
+subtitle: "Enhanced two-step floating catchment area (E2SFCA) analysis"
+author: "Tyler M. Muffly, MD, and co-authors"
+date: "Draft — internal co-author review"
+bibliography:
+  - references.bib
+  - e2sfca_extra_refs.bib
+csl: green-journal.csl
+link-citations: true
+output:
+  html_document:
+    theme: readable
+    toc: true
+    toc_float: true
+    self_contained: true
+    df_print: kable
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
+                      out.width = "100%", fig.align = "center")
+suppressWarnings(suppressMessages({
+  library(dplyr); library(knitr); library(kableExtra)
+}))
+source(here::here("scripts", "manuscript_e2sfca_values.R"))
+
+# ---- canonical objects (validated on load) ---------------------------------
+run_dir <- here::here("artifacts", "2sfca", "ec2", "e2sfca_20260712_190734")
+national_tbl <- load_e2sfca_national_summary(run_dir)
+change_tbl   <- e2sfca_specialty_change(national_tbl)
+workforce_tbl <- e2sfca_workforce_counts(
+  here::here("manuscript", "data", "workforce_counts_2020.csv"))
+disparity_tbl <- e2sfca_disparity_2020(
+  here::here("artifacts", "2sfca", "figures",
+             "allsubspec_2020_inferential_TABLE.csv"))
+go_ci_tbl <- readr::read_csv(
+  here::here("artifacts", "2sfca", "figures",
+             "GO_2020_inferential_MC_CI.csv"), show_col_types = FALSE)
+manifest_json <- jsonlite::read_json(
+  file.path(run_dir, "e2sfca_run_manifest.json"))
+trend_hac <- readRDS(here::here("artifacts", "2sfca", "figures", "trend_hac.rds"))
+trend_hac_tbl <- trend_hac$trend_tbl
+go_ratio_trend <- trend_hac$go_ratio
+gtr <- function(spec, grp) dplyr::filter(trend_hac_tbl,
+  subspecialty == spec, group == grp)
+fmt_p_txt <- function(p) if (is.na(p)) "NA" else if (p < 0.001) "P<.001" else
+  sub("=0\\.", "=.", sprintf(if (p < 0.01) "P=%.3f" else "P=%.2f", p))
+
+# ---- formatters ------------------------------------------------------------
+acc3 <- function(x) formatC(x, format = "f", digits = 3)
+acc2 <- function(x) formatC(x, format = "f", digits = 2)
+pp1  <- function(x) formatC(x, format = "f", digits = 1)
+en_dash <- function(x) gsub("(?<=[0-9])-(?=[0-9])", "–", x, perl = TRUE)
+intc <- function(x) formatC(round(x), format = "d", big.mark = ",")
+# Strip the ACS interval from "X (lo-hi)", leaving the point estimate "X" (#7:
+# independence makes pooled aggregate ratios' ACS intervals narrower than the
+# reported precision, so they are presented as point estimates; see Methods).
+point_only <- function(x) sub(" \\(.*\\)$", "", x)
+gci  <- function(metric_name) {
+  row <- dplyr::filter(go_ci_tbl, metric == metric_name)
+  c(point = row$point, lo = row$lo, hi = row$hi)
+}
+gci_acc <- function(metric_name) {
+  v <- gci(metric_name)
+  sprintf("%s (95%% CI %s–%s)", acc3(v["point"]), acc3(v["lo"]),
+          acc3(v["hi"]))
+}
+gci_pct <- function(metric_name) {
+  v <- gci(metric_name)
+  sprintf("%s%% (95%% CI %s–%s)", pp1(v["point"]), pp1(v["lo"]),
+          pp1(v["hi"]))
+}
+spec_chg <- function(spec) dplyr::filter(change_tbl, subspecialty == spec)
+spec_wk  <- function(spec) workforce_tbl$n_providers[
+  workforce_tbl$subspecialty == spec]
+
+# ---- cross-subspecialty equity summary (2020; drives the equity heatmap) ----
+# Group-vs-reference percent difference in 2020 population-weighted access,
+# WITHIN each subspecialty, from the canonical stratified series (same source
+# behind Figures 3-6). Reference: rurality -> metropolitan; race -> White.
+strat_long <- readr::read_csv(here::here("artifacts", "2sfca", "figures",
+  "allsubspec_allyears_stratified_LONG.csv"), show_col_types = FALSE)
+eq20 <- dplyr::filter(strat_long, year == 2020L)
+.eq_pct <- function(subs, grp, refstrat) {
+  g <- eq20$mean_access[eq20$subspec == subs & eq20$stratum == grp]
+  r <- eq20$mean_access[eq20$subspec == subs & eq20$stratum == refstrat]
+  100 * (g / r - 1)
+}
+subs7 <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP")
+rural_pct <- vapply(subs7, function(s) .eq_pct(s, "Rural", "Metropolitan"), 0)
+aian_pct  <- vapply(subs7, function(s)
+  .eq_pct(s, "Am. Indian/Alaska Native", "White, non-Hispanic"), 0)
+n_rural_lower  <- sum(rural_pct < 0)          # lower access than metro
+n_aian_worse   <- sum(aian_pct  < -10)        # materially (>=10%) lower than White
+rural_worst    <- names(which.min(rural_pct)) # deepest rural penalty
+rural_worst_pct <- min(rural_pct)
+rural_min_pen  <- max(rural_pct)              # smallest rural penalty (closest to 0)
+
+# ---- sensitivity analysis (2020 recompute under alternative assumptions) -----
+# Canonical: scripts/sensitivity_e2sfca_2020.R re-ran every 2020 surface under
+# alternative decay weights, catchment bands, and grid resolution.
+sens_tbl  <- readr::read_csv(here::here("artifacts", "2sfca", "sensitivity",
+  "sensitivity_2020.csv"), show_col_types = FALSE)
+sens_base <- dplyr::filter(sens_tbl, variant == "base")
+sens_lab  <- c(base = "Sensitivity reference (1,000-m grid)",
+  sharper = "Sharper distance decay", slower = "Slower distance decay",
+  drop180 = "Drop 180-min band (30/60/120)",
+  res500 = "Production resolution (500-m grid)")
+sens_summary <- purrr::map_dfr(setdiff(unique(sens_tbl$variant), "base"), function(vn) {
+  vv <- dplyr::filter(sens_tbl, variant == vn)
+  j  <- dplyr::inner_join(sens_base, vv, by = "subspec", suffix = c("_b", "_v"))
+  tibble::tibble(variant = vn,
+    rho = suppressWarnings(cor(j$national_b, j$national_v, method = "spearman")),
+    rm_med = stats::median(vv$rural_metro_ratio, na.rm = TRUE),   # magnitude, not just direction
+    aw_med = stats::median(vv$aian_white_ratio,  na.rm = TRUE),
+    n_rural = sum(vv$rural_metro_ratio < 1, na.rm = TRUE),
+    n_aian  = sum(vv$aian_white_ratio  < 1, na.rm = TRUE),
+    n = nrow(vv))
+})
+base_rm_med <- stats::median(sens_base$rural_metro_ratio, na.rm = TRUE)  # base rural:metro
+base_aw_med <- stats::median(sens_base$aian_white_ratio,  na.rm = TRUE)  # base AIAN:White
+sens_rho_identical <- all(abs(sens_summary$rho - 1) < 1e-9)             # ranks identical?
+
+# ---- Figure 7 winsorization (numeric threshold + % of cells clipped) --------
+.chg_df <- readRDS(here::here("artifacts", "2sfca_seam", "change_faceted_df.rds"))
+chg_dcap <- as.numeric(stats::quantile(abs(.chg_df$diff)[.chg_df$diff != 0],
+                                       0.98, na.rm = TRUE))
+chg_pct_clipped <- 100 * mean(abs(.chg_df$diff) > chg_dcap, na.rm = TRUE)
+rm(.chg_df)  # ~9 MB; drop after computing the two scalars
+
+# ---- cell-level zero-access validation (#6) ---------------------------------
+# scripts/cell_level_zero_access_2020.R: direct grid-cell zero-access share vs
+# the tract-mean metric. Resolution-stable (500-m and 1,000-m agree to <=0.1 pp
+# for the subspecialties checked); values here are the 1,000-m computation.
+cell_zero_tbl <- readr::read_csv(here::here("artifacts", "2sfca", "cell_zero",
+  "cell_zero_2020.csv"), show_col_types = FALSE)
+.cz <- dplyr::filter(cell_zero_tbl, !is.na(diff_pp))
+cz_med      <- stats::median(.cz$diff_pp)
+cz_max      <- max(.cz$diff_pp)
+cz_aian_max <- max(.cz$diff_pp[.cz$group == "Am. Indian/Alaska Native"])
+cz_rural_max<- max(.cz$diff_pp[.cz$group == "Rural"])
+czval <- function(sub, grp, col)
+  cell_zero_tbl[[col]][cell_zero_tbl$subspec == sub & cell_zero_tbl$group == grp][1]
+
+# ---- subgroup tract-vintage seam test (#5) ----------------------------------
+# scripts/seam_test_subgroup.R: 2020 cohort held FIXED, each subgroup's estimate
+# computed under the 2010-vintage (2019 ACS) vs 2020-vintage (2020 ACS)
+# framework; the difference isolates the pure vintage-seam effect on the subgroup
+# series from the cohort change.
+seam_tbl <- readr::read_csv(here::here("artifacts", "2sfca", "seam_subgroup",
+  "seam_subgroup.csv"), show_col_types = FALSE)
+seam_zero_med <- stats::median(abs(seam_tbl$seam_zero), na.rm = TRUE)
+seam_zero_max <- max(abs(seam_tbl$seam_zero), na.rm = TRUE)
+.smx <- which.max(abs(seam_tbl$seam_zero))
+seam_max_grp  <- seam_tbl$group[.smx]
+seam_ra_max   <- max(abs(seam_tbl$seam_zero[seam_tbl$group %in%
+  c("Rural", "Am. Indian/Alaska Native")]), na.rm = TRUE)
+seam_mean_max <- max(abs(seam_tbl$seam_mean), na.rm = TRUE)
+
+# ---- spatial-distribution outcomes (reframe; second review #1) ---------------
+# scripts/spatial_outcomes_2020.R: outcomes that DO depend on provider geography
+# (unlike the national mean, which equals supply/population).
+spatial_tbl <- readr::read_csv(here::here("artifacts", "2sfca", "spatial_outcomes",
+  "spatial_outcomes_2020.csv"), show_col_types = FALSE)
+sp <- function(subspec, col) spatial_tbl[[col]][spatial_tbl$subspec == subspec][1]
+sp_gini_min <- min(spatial_tbl$gini); sp_gini_max <- max(spatial_tbl$gini)
+sp_gini_min_sub <- spatial_tbl$subspec[which.min(spatial_tbl$gini)]
+sp_gini_max_sub <- spatial_tbl$subspec[which.max(spatial_tbl$gini)]
+sens_n <- nrow(sens_base)                                # subspecialties (7)
+sens_nvar <- dplyr::n_distinct(sens_tbl$variant)         # total variants (5)
+sens_min_rho <- min(sens_summary$rho)                    # worst rank preservation
+sens_all_rural <- all(c(sens_base$rural_metro_ratio < 1,
+                        sens_tbl$rural_metro_ratio < 1)) # rural<metro everywhere?
+
+
+# ---- derived scalars -------------------------------------------------------
+pop_2020 <- national_tbl |> dplyr::filter(year == 2020L) |>
+  dplyr::pull(acs_pop_source) |> (\(x) x[1])()
+rank_2020 <- national_tbl |> dplyr::filter(year == 2020L) |>
+  dplyr::arrange(dplyr::desc(mean_pop_weighted_per100k))
+top_2020_spec <- rank_2020$subspecialty[1]
+top_2020_val  <- rank_2020$mean_pop_weighted_per100k[1]
+bot_2020_spec <- rank_2020$subspecialty[7]
+bot_2020_val  <- rank_2020$mean_pop_weighted_per100k[7]
+fold_2020 <- top_2020_val / bot_2020_val
+migs_c <- spec_chg("MIGS"); go_c <- spec_chg("GO"); mfm_c <- spec_chg("MFM")
+first_year <- 2013L; last_year <- 2023L
+figdir <- here::here("manuscript", "figures")
+
+# 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
+# retirements) and reported as a provisional most-recent observation (#3).
+primary_last <- 2022L
+change_tbl_22 <- e2sfca_specialty_change(national_tbl, last_year = primary_last)
+spec_chg22 <- function(spec) dplyr::filter(change_tbl_22, subspecialty == spec)
+migs_c22 <- spec_chg22("MIGS"); go_c22 <- spec_chg22("GO"); mfm_c22 <- spec_chg22("MFM")
+top_gain22 <- change_tbl_22 |> dplyr::arrange(dplyr::desc(rel_change_pct)) |>
+  dplyr::slice(1)
+decliners22 <- change_tbl_22 |> dplyr::filter(abs_change < 0) |>
+  dplyr::arrange(rel_change_pct)
+# 2013->2023 descriptive endpoint change (for the Figure 7 change map)
+top_gain <- change_tbl |> dplyr::arrange(dplyr::desc(rel_change_pct)) |>
+  dplyr::slice(1)
+decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
+  dplyr::arrange(rel_change_pct)
+full_name <- c(GO="gynecologic oncology", MFM="maternal–fetal medicine",
+  REI="reproductive endocrinology and infertility",
+  FPMRS="female pelvic medicine and reconstructive surgery",
+  MIGS="minimally invasive gynecologic surgery",
+  PAG="pediatric and adolescent gynecology", CFP="complex family planning")
+
+# Study-structure scalars, live from the run manifest (never hardcode 11 / 77).
+n_years <- length(manifest_json$years)        # study window length (2013–2023 = 11)
+n_subspec <- length(full_name)                # 7 subspecialties
+n_cells <- n_subspec * n_years                # subspecialty-year cells (= 77)
+
+# Rural zero-access share (%) by subspecialty, live from disparity_tbl (eResults S7).
+# rural_pct_zero is stored "point (lo-hi)"; strip the interval, then take min/max.
+.rz_pt <- suppressWarnings(as.numeric(point_only(disparity_tbl$rural_pct_zero)))
+.code_of <- stats::setNames(names(full_name), unname(full_name))
+.lab2code <- function(l) ifelse(l %in% names(.code_of), unname(.code_of[l]), l)
+rural_zero_min <- min(.rz_pt, na.rm = TRUE)
+rural_zero_max <- max(.rz_pt, na.rm = TRUE)
+rural_zero_min_sub <- .lab2code(disparity_tbl$subspecialty[which.min(.rz_pt)])
+rural_zero_max_sub <- .lab2code(disparity_tbl$subspecialty[which.max(.rz_pt)])
+
+# Mass-conservation loss of the area-weighted allocator vs centroid allocation,
+# measured once from the production run and single-sourced across Methods, Results,
+# and eMethods S2 (not yet emitted to the manifest; update here if the allocator changes).
+cons_loss_area <- 0.00      # % of at-risk population lost under area-weighted allocation
+cons_loss_centroid <- 1.06  # % lost under conventional centroid allocation
+cons_pct <- function(x) sprintf("%.2f", x)
+
+# ---- self-referential word counts: computed LIVE at render, never hardcoded ----
+# The precis is fully static, so its count is exact and single-sourced here:
+precis_text <- paste(
+  "Potential travel-time accessibility to board-certified obstetrics–gynecology",
+  "subspecialists shows large, persistent rural and racial disparities, worst for",
+  "American Indian or Alaska Native and rural women.")
+precis_word_count <- length(strsplit(trimws(precis_text), "\\s+")[[1]])
+
+# Abstract, main-text, and supplement counts are measured from the FINAL knitted
+# markdown by a `document` hook (after inline code is evaluated) and substituted in
+# for @@...@@ tokens, so a stale literal can never silently ship (cf. the 5,200-word
+# drift). Exclusions mirror the audit counter: code, rendered tables, captions,
+# citation keys, and subsection headings.
+.wc_clean <- function(md) {
+  md <- gsub("(?s)```.*?```", " ", md, perl = TRUE)         # fenced code
+  md <- gsub("(?s)<table.*?</table>", " ", md, perl = TRUE) # rendered tables
+  md <- gsub("(?s)<caption.*?</caption>", " ", md, perl = TRUE)
+  md <- gsub("(?s)<!--.*?-->", " ", md, perl = TRUE)        # html comments
+  md <- gsub("<[^>]+>", " ", md)                             # remaining html tags
+  md <- gsub("\\[[-@;A-Za-z0-9 ]+\\]", " ", md)             # [@cite] keys
+  md <- gsub("[#*_>`|]", " ", md)                            # markdown syntax
+  md <- gsub("[[:space:]]+", " ", md)
+  w <- strsplit(trimws(md), " ")[[1]]; length(w[nzchar(w)])
+}
+.wc_section <- function(lines, start_re, stop_re) {
+  h <- grep("^#{1,3} ", lines)
+  st <- h[grepl(start_re, lines[h])]; if (!length(st)) return(NA_integer_)
+  s <- st[1]; after <- h[h > s]
+  sp <- after[grepl(stop_re, lines[after])]
+  e <- if (length(sp)) sp[1] - 1L else length(lines)
+  blk <- lines[(s + 1L):e]; blk <- blk[!grepl("^#{1,6} ", blk)]  # drop subsection headings
+  .wc_clean(paste(blk, collapse = "\n"))
+}
+knitr::knit_hooks$set(document = function(x) {
+  md <- paste(x, collapse = "\n"); L <- strsplit(md, "\n")[[1]]
+  reps <- list(
+    "@@ABSTRACT_WC@@" = .wc_section(L, "^#+ +Abstract", "^#+ +Introduction"),
+    "@@MAIN_WC@@"     = .wc_section(L, "^#+ +Introduction",
+                          "^#+ +(Supplemental Digital Content|Reproducibility|References)"),
+    "@@SUPP_WC@@"     = .wc_section(L, "^#+ +Supplemental Digital Content",
+                          "^#+ +(Reproducibility|References)"))
+  for (tok in names(reps)) md <- gsub(tok, format(reps[[tok]], big.mark = ","), md, fixed = TRUE)
+  md
+})
+```
+
+# Title Page {-}
+
+**Full title.** National travel-time accessibility to board-certified
+obstetrics–gynecology subspecialists in the contiguous United States, 2013–2023
+
+**Short title (running head).** Access to board-certified obstetrics–gynecology
+subspecialists
+
+**Authors.** *[Author names and academic degrees — to be completed by the
+authors.]*
+
+**Affiliations.** *[Departments and institutions — to be completed.]*
+
+**Corresponding author.** *[Name; mailing address; telephone; email — to be
+completed.]*
+
+**Financial Disclosure.** *[Conflict-of-interest disclosure for each author — to
+be completed.]*
+
+**Funding.** *[Funding source(s), or a statement that the study received no
+external funding — to be completed.]*
+
+**Institutional Review Board.** This analysis used only publicly available,
+de-identified board-certification and U.S. Census data; *[confirm the IRB
+exemption determination — to be completed].*
+
+**Précis.** `r precis_text` *(`r precis_word_count` words;
+O&G limit 25.)*
+
+**Word count.** Abstract, @@ABSTRACT_WC@@ words (O&G limit 300); main
+text, approximately @@MAIN_WC@@ words, above the *Obstetrics &
+Gynecology* Original Research target of roughly 2,500 to 3,000 words. Method and
+result detail has been moved to the Supplemental Digital Content (about
+@@SUPP_WC@@ words across nine appendices); the residual excess is
+concentrated in the Discussion and can be trimmed further at the editor's request.
+
+**Data source.** Validated production run `r manifest_json$run_id`
+(mass-conserving area-overlap allocator; `r n_subspec` subspecialties × `r n_years` years = `r n_cells`
+population-weighted national cells).
+
+---
+
+```{r diff-distance, include=FALSE}
+# Complementary provider-referenced access metric (differential distance, Herb 2021):
+# additional straight-line travel to the nearest urogynecologist (FPMRS) beyond the
+# nearest general OB/GYN, women 65+. Source: scripts/urps_module_d_differential_distance.R.
+.dd_f <- here::here("cliff", "data", "urps_module_d_differential_distance_2026-07-23.csv")
+if (file.exists(.dd_f)) {
+  .dd <- readr::read_csv(.dd_f, show_col_types = FALSE)
+  diff_median_mi <- round(stats::median(.dd$differential_miles, na.rm = TRUE))
+  diff_pct_gt30  <- round(100 * sum(.dd$women_65plus[.dd$differential_miles > 30], na.rm = TRUE) /
+                          sum(.dd$women_65plus, na.rm = TRUE))
+} else { diff_median_mi <- NA_integer_; diff_pct_gt30 <- NA_integer_ }
+```
+
+## Abstract {-}
+
+*Précis.* `r precis_text`
+
+**Objective.** To characterize the geographic distribution of, and inequality in,
+potential spatial accessibility to the seven obstetrics–gynecology subspecialties
+across the contiguous United States, `r first_year`–`r last_year`, with disparities
+by rurality and by race and ethnicity.
+
+**Methods.** In this population-based geospatial analysis, we identified
+board-certified subspecialists active in each year and modeled potential
+accessibility with an enhanced two-step floating catchment area method on
+travel-time isochrones (30–180 minutes) for the 2020 female population
+(American Community Survey [ACS]: `r intc(pop_2020)` residents), using
+mass-conserving demand allocation to a 500-m grid. Cell-level estimates were
+population-weighted and stratified by rurality and by race and ethnicity; intervals
+reflect ACS sampling uncertainty. Change over `r first_year`–`r primary_last` was
+summarized descriptively (`r last_year` provisional).
+
+**Results.** In 2020, geographic access was highly uneven. About one in five female
+residents lived more than a 60-minute drive from the nearest gynecologic oncology
+(`r pp1(sp("GO","pct_outside_60"))`%) or maternal–fetal medicine
+(`r pp1(sp("MFM","pct_outside_60"))`%) subspecialist, rising to
+`r pp1(sp("CFP","pct_outside_60"))`% for complex family planning; even within a
+three-hour drive, `r pp1(sp("CFP","pct_outside_180"))`% remained outside any
+complex-family-planning catchment.
+Metropolitan accessibility exceeded rural more than twofold
+(gynecologic oncology ratio `r acc2(gci("metro_rural_ratio")["point"])`), and the
+share in tracts with zero mean access was about sixfold higher for rural residents
+(`r pp1(gci("rural_zero")["point"])`% vs `r pp1(gci("metro_zero")["point"])`%).
+American Indian or Alaska Native women had the highest zero-access share
+(`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
+points higher than non-Hispanic White women. From `r first_year` to
+`r primary_last`, minimally invasive gynecologic surgery increased most
+(`r pp1(migs_c22$rel_change_pct)`%) and maternal–fetal medicine alone declined
+(`r pp1(mfm_c22$rel_change_pct)`%). Disparities held in direction across sensitivity
+analyses varying decay weights, catchment, and resolution.
+
+**Conclusion.** Access to obstetrics–gynecology subspecialists shows large,
+persistent rural and racial disparities — greatest for the rarest subspecialties
+and for American Indian or Alaska Native and rural women — that narrowed little
+over the decade.
+
+```{r abstract-wordcount, results="asis"}
+abstract_body <- paste(
+  "Objective", "Methods", "Results", "Conclusion")  # labels excluded below
+# count only rendered body words is done post-render; here note the source
+cat(sprintf(
+  "<!-- Abstract values sourced from run %s; allocator %s -->",
+  manifest_json$run_id, manifest_json$allocator$method_id))
+```
+
+---
+
+## Introduction
+
+Access to subspecialty obstetric and gynecologic care depends not only on the
+size of the workforce but on where subspecialists practice relative to where
+patients live. The seven subspecialties certified by the American Board of
+Obstetrics and Gynecology (ABOG)—complex family planning, female pelvic medicine
+and reconstructive surgery, gynecologic oncology, maternal–fetal medicine,
+minimally invasive gynecologic surgery, pediatric and adolescent gynecology, and
+reproductive endocrinology and infertility—are concentrated in metropolitan
+academic centers, raising concern that rural and other underserved populations
+face substantial travel burdens for specialized care.
+
+Health care access is a composite of five dimensions—affordability,
+availability, accessibility, accommodation, and acceptability [@Penchansky1981;
+@McLaughlin2002]. Spatial models such as the floating catchment area methods
+address two of these: availability (the number and spatial distribution of
+subspecialists) and accessibility (the travel impedance between subspecialists
+and patients). This spatial component is consequential because travel distance
+is itself a barrier to specialty care—longer travel is associated with
+later-stage diagnosis and worse cancer outcomes, and with lower receipt of
+guideline-concordant treatment [@Ambroggi2015; @Stitzenberg2009; @Bristow2010]—a
+consideration that is especially salient for the oncologic and time-sensitive
+subspecialties of obstetrics and gynecology.
+
+Prior geographic-access research in this area has focused largely on single
+subspecialties and on straight-line or county-level distance. Desjardins and
+colleagues described county-level, distance-based disparities in potential access
+to gynecologic oncologists over 2001–2020 and reported that access did not
+improve for rural or American Indian or Alaska Native populations despite a
+doubling of the workforce and of fellowship programs [@Desjardins2023]; Ackroyd
+and colleagues, using National Provider Identifier records, found that
+approximately 91% of U.S. counties had no practicing gynecologic oncologist
+[@Ackroyd2021]. More broadly, nearly half of U.S. counties—home to roughly
+20 million people—lack any obstetrician–gynecologist [@Chen2026], and travel-time
+analyses of individual OB/GYN subspecialty services have found substantial travel
+burdens: several million reproductive-aged women live beyond a two-hour drive of an
+oncofertility center [@Peipert2023], and a nearest-provider drive-time analysis of
+urogynecology access found that barely 1% of U.S. ZIP codes contain a
+urogynecologist, with American Indian or Alaska Native women bearing the greatest
+travel burden [@Schmidt2024]. These studies, however, characterize access as
+county-level presence, a single travel-time threshold, or nearest-provider distance
+for one service at a time, none of which accounts for the population competing for a
+given subspecialist's time; the authors of the county-level work note that they
+cannot distinguish true care deserts from access in an adjacent county [@Chen2026]. Less is known about how
+potential accessibility compares across
+the full set of OB/GYN subspecialties, how it has changed as the workforce has
+entered, retired, and relocated, and how it is distributed by rurality and by
+race and ethnicity at a fine geographic scale. The present study advances this
+literature in four ways: it spans all seven ABOG subspecialties on one framework;
+it measures accessibility as travel time along the actual road network rather than
+straight-line or county-centroid distance; it resolves demand at the census-tract
+level on a mass-conserving 500-m grid rather than the county; and it uses a
+near-census of board-certified subspecialists—the certification standard used to
+define subspecialty—rather than society rosters or provider registries, computed
+annually across more than a decade.
+
+We therefore estimated potential spatial accessibility to each of the seven ABOG
+subspecialties across the contiguous United States from `r first_year` to
+`r last_year`, using an enhanced two-step floating catchment area model on
+road-network travel-time isochrones with a mass-conserving demand allocation.
+Our objectives were to characterize national accessibility levels and their
+temporal trends by subspecialty and to quantify disparities by rurality and by
+race and ethnicity. Gynecologic oncology was designated a priori as the detailed
+exemplar for the stratified disparity analyses, both because it is an oncologic
+subspecialty for which timely access is prognostically important and to permit
+direct comparison with existing distance-based estimates [@Desjardins2023].
+
+---
+
+## Materials and Methods
+
+### Study design and data sources
+
+This was a retrospective, population-based geospatial analysis of potential
+spatial accessibility to the seven American Board of Obstetrics and Gynecology
+(ABOG)–certified subspecialties across the 48 contiguous United States and the
+District of Columbia, `r first_year` through `r last_year`. Subspecialist
+identity and board certification were ascertained from ABOG certification data.
+Population (demand) came from the U.S. Census Bureau American Community Survey
+(ACS) 5-year estimates [@Census2021ACS]; census-tract geometry and demographic
+tables were retrieved with the tidycensus interface [@Walker2024], and spatial
+operations used the sf and terra frameworks [@Pebesma2018]. Only publicly
+available, de-identified aggregate data were used; the study did not involve human
+participants and was determined to be exempt from institutional review board
+review. [Author to confirm the reviewing IRB and determination number.]
+
+### Subspecialist cohort
+
+For each calendar year, the analytic cohort comprised board-certified
+subspecialists who were clinically active in that year. Subspecialty was assigned
+from American Board of Obstetrics and Gynecology (ABOG) board-certification
+records—the certification standard used to define each subspecialty—rather than
+from self-reported specialty codes, under which all obstetrics–gynecology
+subspecialists are classified as generic obstetrics–gynecology. A physician was
+counted as clinically active in year *Y* when their estimated retirement year
+exceeded *Y* (strict inequality; retirement was estimated from a multi-source
+consensus of practice-activity signals, and certification dated the physician's
+entry to the subspecialty), so a physician contributed to a subspecialty's
+accessibility surface only in the years in which they were active, and relocations
+were tracked so that each physician was placed at their practice location for the
+year in question. A physician practicing at multiple locations contributed fully at
+each location (no fractional allocation; Limitations). Physicians were included only
+if their practice address geocoded successfully to a contiguous-U.S. location;
+unmatched, ungeocoded, or non-contiguous records were excluded. In 2020,
+`r intc(sum(workforce_tbl$n_providers))` subspecialists were active across the seven
+subspecialties (Table 1), and the panel comprises `r nrow(national_tbl)`
+subspecialty-year cells (`r n_subspec` subspecialties × `r n_years` years). *[Authors to add a
+cohort-flow diagram reporting: total certified physicians identified, the National
+Provider Identifier match rate, the geocoding success rate, the annual
+activity-classification counts, the number of unique physicians and physician-years,
+frequency of multiple practice locations, and validation against an independent
+roster or claims-based activity measure.]*
+
+### Population, denominators, and geographic units
+
+The demand denominator was the total female population by census tract (ACS table
+B01001). The same total-female-population denominator was applied to all seven
+subspecialties to yield a reproducible, standardized index; because the
+subspecialties serve different age ranges (for example, pediatric and adolescent
+gynecology serves children and adolescents, whereas female pelvic medicine and
+reconstructive surgery serves a predominantly older population), across-subspecialty
+rate comparisons reflect workforce size and clinical scope in addition to access,
+and are interpreted accordingly (Discussion). For race and ethnicity, non-Hispanic
+White (ACS table B01001H) and Hispanic-origin (any race; B01001I) female residents
+were analyzed alongside race-alone groups (Black, Asian, American Indian or Alaska
+Native, and Native Hawaiian or Other Pacific Islander; B01001B–E); these do not
+form a single mutually exclusive partition, because race-alone counts can include
+persons of Hispanic origin, so comparisons are among separately defined groups
+rather than across a complete classification. Rurality was classified with U.S.
+Department of Agriculture Rural-Urban Commuting Area (RUCA) codes [@usda_ruca],
+grouping primary codes 1–3 as metropolitan and 4–10 as rural. Census tract vintage
+changed between 2019 and 2020; `r first_year`–2019 used 2010-vintage tracts and
+2020–`r last_year` used 2020-vintage tracts, each with its contemporaneous ACS
+estimates, and a prespecified seam analysis showed that this vintage change had
+negligible effects on the national population-weighted estimates under the
+mass-conserving production allocator. Because the stratified trends span the
+boundary, we also ran a subgroup-specific seam test: holding the 2020 cohort fixed,
+we recomputed each subgroup's mean access and zero-access share under the
+2010-vintage (2019 ACS) and 2020-vintage (2020 ACS) frameworks; the pure
+vintage-induced shift was small for every reported group (median
+`r sprintf("%.2f", seam_zero_med)` percentage point in the zero-access share, at most
+`r pp1(seam_ra_max)` for rural or American Indian or Alaska Native residents, and
+`r pp1(seam_zero_max)` at most across all groups, in the small
+`r seam_max_grp` group; mean-access shift ≤`r acc3(seam_mean_max)` per 100,000),
+indicating the subgroup trends are not artifacts of the tract-vintage change
+(Discussion). The analysis was restricted to the 48 contiguous
+states and the District of Columbia; Alaska was therefore excluded, which is
+relevant to interpretation of the American Indian or Alaska Native findings
+(Discussion). The 2020 analysis represented `r intc(pop_2020)` female residents.
+
+### Travel-time isochrones
+
+Drive-time isochrones of 30, 60, 120, and 180 minutes were generated around each
+physician practice location with the Valhalla routing engine on OpenStreetMap
+road networks [@Valhalla2023]. We deliberately held the routing network constant
+across all study years—rather than re-routing on a per-year network—so that
+year-to-year change in the accessible footprint reflects only the change in the
+active physician cohort and not incidental differences in the road extract; the
+OpenStreetMap extract and Valhalla tiles were built from a single snapshot
+(*[extract date to be confirmed by the authors]*). Holding the network fixed is a
+design choice to isolate the cohort effect, not a claim that road travel conditions
+were unchanged over the study period.
+
+### Enhanced two-step floating catchment area accessibility
+
+Potential spatial accessibility was estimated with the enhanced two-step floating catchment area (E2SFCA) method [@luoqi2009; @luowang2003], using road-network travel time and a Gaussian distance-decay across the four bands (weights `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`, `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for 30/60/120/180 minutes). Supply is the count of distinct active subspecialists at each location; accessibility is a relative index (subspecialists per 100,000 women) and, equivalently, a Spatial Access Ratio normalized to the national mean of 1.00 [@Wan2012spar], the absolute per-100,000 value retained alongside it. Because the same weights enter both steps, the national population-weighted mean reduces algebraically to supply per population (a conservation property) and is reported only as a standardized workforce index; spatial variation resides in the *distribution* of the surface (rurality and race/ethnicity contrasts, the share outside the catchment, and geographic inequality), which we treat as the primary spatial outcomes. The full algorithm, the incremental-band derivation and provider-to-population and accessibility equations, the weight rationale, and the alternative-specification sensitivity framework (Gaussian-derived zonal reparameterization, variable urban/rural catchments, and an M2SFCA maldistribution penalty) are in eMethods S4.
+
+### Mass-conserving demand allocation
+
+Demand was allocated from census tracts to a 500-m equal-area grid (EPSG:5070) by polygon–cell area overlap, conserving every tract's population (`r cons_pct(cons_loss_area)`% loss vs `r cons_pct(cons_loss_centroid)`% under centroid allocation); the 500-m and 1,000-m surfaces gave near-identical results. The method assumes uniform within-tract density, least tenable in large rural and tribal tracts; detail is in eMethods S2.
+
+### Temporal comparison
+
+National accessibility was computed for every subspecialty-year cell; the `r first_year`–`r last_year` comparison surfaces were computed on a single common grid and denominator (2020 vintage; ACS 2020) so the difference reflects only the change in the active cohort (eMethods S3).
+
+### Statistical analysis
+
+National accessibility was summarized as the population-weighted mean at the raster-cell level, with intervals reflecting only ACS sampling error; because the physician catchments are deterministic and tracts were treated as independent, pooled intervals are near-zero-width and are reported as point estimates whose honest uncertainty envelope is the sensitivity range. Temporal change was summarized by ordinary least-squares slopes with Newey–West HAC P values, excluding the most recent (right-censored) year; stratified trend analyses are exploratory. Full detail on the uncertainty model, the zero-access estimators, the trend specification, and the robustness analyses is in eMethods S1. Analyses used R version `r manifest_json$environment$r_version`.
+
+---
+
+## Results
+
+### Subspecialist workforce and study population
+
+We identified board-certified obstetrics–gynecology subspecialists active in each
+year from `r first_year` through `r last_year` and modeled potential spatial
+accessibility with an enhanced two-step floating catchment area method
+[@luoqi2009; @luowang2003] for the `r intc(pop_2020)` women represented by the
+2020 American Community Survey [@Census2021ACS] across the 48 contiguous United
+States and the District of Columbia. In 2020, the active
+workforce comprised `r intc(spec_wk("MFM"))` maternal–fetal medicine (MFM),
+`r intc(spec_wk("GO"))` gynecologic oncology (GO), `r intc(spec_wk("REI"))`
+reproductive endocrinology and infertility (REI), `r intc(spec_wk("FPMRS"))`
+female pelvic medicine and reconstructive surgery (FPMRS; urogynecology),
+`r intc(spec_wk("MIGS"))` minimally invasive gynecologic surgery (MIGS),
+`r intc(spec_wk("PAG"))` pediatric and adolescent gynecology (PAG), and
+`r intc(spec_wk("CFP"))` complex family planning (CFP) physicians. Because the
+area-weighted demand allocation conserved the full at-risk population (`r cons_pct(cons_loss_area)`%
+loss, vs `r cons_pct(cons_loss_centroid)`% under conventional centroid allocation), the full modeled female
+population was represented in the accessibility estimates (Table 1).
+
+```{r table1}
+abbr_note <- paste0("AIAN, American Indian or Alaska Native; CFP, complex family ",
+  "planning; FPMRS, female pelvic medicine and reconstructive surgery; GO, ",
+  "gynecologic oncology; MFM, maternal–fetal medicine; MIGS, minimally invasive ",
+  "gynecologic surgery; PAG, pediatric and adolescent gynecology; REI, ",
+  "reproductive endocrinology and infertility.")
+tbl1 <- workforce_tbl |>
+  dplyr::transmute(subspecialty, physicians = n_providers) |>
+  dplyr::left_join(national_tbl |> dplyr::filter(year == 2020L) |>
+    dplyr::transmute(subspecialty, access = mean_pop_weighted_per100k),
+    by = "subspecialty") |>
+  dplyr::left_join(change_tbl_22 |>
+    dplyr::transmute(subspecialty, relc = rel_change_pct), by = "subspecialty") |>
+  dplyr::arrange(dplyr::desc(access)) |>
+  dplyr::transmute(Subspecialty = subspecialty,
+    `Active physicians, 2020` = formatC(physicians, format = "d", big.mark = ","),
+    `Supply per 100,000, 2020` = sprintf("%.3f", access),
+    `Change, 2013–2022` = sprintf("%+.1f%%", relc))
+knitr::kable(tbl1, align = c("l", "r", "r", "r"),
+  caption = paste0("Table 1. Active Workforce and Standardized Supply per ",
+    "Population by Obstetrics–Gynecology Subspecialty, 2020")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
+                            font_size = 12, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Active physicians are the 2020 board-certified, contiguous-U.S., geocoded ",
+    "provider counts. The supply-per-population column is the national ",
+    "population-weighted mean of the enhanced two-step floating catchment area ",
+    "surface, which by a conservation property of the method equals subspecialist ",
+    "supply per 100,000 female residents (Methods); it is a standardized ",
+    "workforce-distribution index, not a spatial-accessibility measure, and its ",
+    "ranking is the workforce-size ranking. Spatial distribution and disparities ",
+    "are reported in Tables 2–3 and Figures 3–6. Change is the ",
+    "descriptive relative change from ", first_year, " to ",
+    primary_last, "; ", last_year, " is right-censored and reported provisionally. ",
+    "Trend inference is given in Appendix Table S1. ", abbr_note))
+```
+
+### Spatial distribution and inequality of access
+
+Because the national population-weighted mean is algebraically a
+supply-per-population index and carries no spatial information (Methods), we report
+the *geographic distribution* of access as the primary description. Potential
+accessibility in 2020 was strongly concentrated in metropolitan areas of
+the eastern and midwestern United States, with large contiguous regions of the
+Mountain West and Great Plains lying outside the catchment of any subspecialist;
+the scarcest subspecialties—complex family planning and pediatric and adolescent
+gynecology—showed geographically extensive areas of zero modeled access, covering
+most of the land area outside major metropolitan regions (Figure 1).
+
+```{r figlevel}
+knitr::include_graphics(file.path(figdir, "fig0_level2020.jpg"))
+```
+**Figure 1.** Potential spatial accessibility to each obstetrics–gynecology
+subspecialty, 2020, per 100,000 female residents, estimated with an enhanced
+two-step floating catchment area model on 30-, 60-, 120-, and 180-minute
+travel-time isochrones. Brighter shading indicates greater potential accessibility;
+black indicates no modeled access (a desert). One panel per subspecialty on a
+shared square-root color scale (capped at the 98th percentile); the number in each
+label is the national population-weighted mean. Mass-conserving 500-m demand grid
+aggregated to a 1,000-m display surface; contiguous United States.
+
+Quantifying that distribution, in 2020 roughly one in five female residents lived
+outside a 60-minute drive of the nearest subspecialist for the more common
+fields—`r pp1(sp("GO","pct_outside_60"))`% for gynecologic oncology,
+`r pp1(sp("MFM","pct_outside_60"))`% for maternal–fetal medicine, and
+`r pp1(sp("FPMRS","pct_outside_60"))`% for female pelvic medicine—rising to
+`r pp1(sp("PAG","pct_outside_60"))`% for pediatric and adolescent gynecology and
+`r pp1(sp("CFP","pct_outside_60"))`% for complex family planning (Table 2). Even
+within a three-hour drive, `r pp1(sp("CFP","pct_outside_180"))`% of women remained
+outside any complex-family-planning catchment and `r pp1(sp("PAG","pct_outside_180"))`%
+outside any pediatric and adolescent gynecology catchment, versus
+`r pp1(sp("GO","pct_outside_180"))`% for gynecologic oncology. The spatial
+concentration of access, summarized by the population-weighted Gini index, was
+lowest for `r full_name[sp_gini_min_sub]` (`r acc2(sp_gini_min)`) and highest for
+`r full_name[sp_gini_max_sub]` (`r acc2(sp_gini_max)`), indicating that the scarcest
+fields are not only smaller but far more unevenly distributed (Table 2).
+
+```{r table2sp}
+sp_tab <- spatial_tbl |>
+  dplyr::mutate(subspec = factor(subspec,
+    levels = c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP"))) |>
+  dplyr::arrange(subspec) |>
+  dplyr::transmute(Subspecialty = subspec,
+    `% outside 60 min` = sprintf("%.1f", pct_outside_60),
+    `% outside 120 min` = sprintf("%.1f", pct_outside_120),
+    `% outside 180 min` = sprintf("%.1f", pct_outside_180),
+    `Gini` = sprintf("%.2f", gini))
+knitr::kable(sp_tab, align = c("l","r","r","r","r"),
+  caption = paste0("Table 2. Spatial Distribution and Inequality of Potential ",
+    "Accessibility by Subspecialty, 2020")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),
+                            font_size = 12, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "“% outside t min” is the share of female residents with no subspecialist ",
+    "reachable within a t-minute drive (population-weighted, road-network ",
+    "travel time). Gini is the population-weighted Gini index of the accessibility ",
+    "surface (0 = perfectly even; higher = more spatially concentrated). These are ",
+    "spatial-distribution measures and, unlike the standardized supply index in ",
+    "Table 1, depend on provider geography. Computed on a 1-km demand grid. ",
+    abbr_note))
+```
+
+On the common denominator, the standardized supply index (Table 1) was highest for
+maternal–fetal medicine and lowest for complex family planning (Figure 2A); because
+this index equals workforce supply per population (Methods), it reflects workforce
+size and clinical scope rather than spatial access and is not comparable across
+subspecialties.
+
+```{r fig1}
+knitr::include_graphics(file.path(figdir, "fig1_national.jpg"))
+```
+**Figure 2.** National potential accessibility to OB/GYN subspecialists,
+`r first_year`–`r last_year` (E2SFCA on travel-time isochrones). (A)
+Population-weighted accessibility by subspecialty, 2020. (B) By subspecialty,
+`r first_year`–`r last_year` (log scale). Cell-level population-weighted; per
+100,000 women.
+
+### Temporal trends
+
+From `r first_year` to `r primary_last` (the primary period; `r last_year` was
+right-censored and is reported provisionally), minimally invasive gynecologic
+surgery increased from `r acc3(migs_c22[["y2013"]])` to
+`r acc3(migs_c22[[paste0("y", primary_last)]])` per 100,000 female residents (a
+`r pp1(migs_c22$rel_change_pct)`% relative change), the largest relative increase
+among the subspecialties, and maternal–fetal medicine was the only subspecialty to
+decline (`r acc3(mfm_c22[["y2013"]])` to
+`r acc3(mfm_c22[[paste0("y", primary_last)]])`; `r pp1(mfm_c22$rel_change_pct)`%),
+reaching a mid-series low of `r acc3(mfm_c22$series_min)` in
+`r mfm_c22$series_min_year`. Gynecologic oncology increased from
+`r acc3(go_c22[["y2013"]])` to `r acc3(go_c22[[paste0("y", primary_last)]])`
+(`r pp1(go_c22$rel_change_pct)`%). Each annual estimate used only physicians active
+in that year, reflecting retirement, new board certification, and relocation
+(Figure 2B). On a provisional basis, minimally invasive gynecologic surgery reached
+`r acc3(migs_c[["y2023"]])` and maternal–fetal medicine `r acc3(mfm_c[["y2023"]])`
+per 100,000 female residents in `r last_year`.
+
+### Disparities by rurality
+
+For gynecologic oncology in 2020, population-weighted accessibility was
+`r acc2(gci("metro_mean")["point"])` per 100,000 female residents in metropolitan
+areas versus `r acc2(gci("rural_mean")["point"])` in rural areas — a
+metropolitan-to-rural ratio of `r acc2(gci("metro_rural_ratio")["point"])`
+(Figure 3A; ACS uncertainty intervals for all estimates appear in Table 3). At the
+extreme of no access, `r pp1(gci("rural_zero")["point"])`% of rural female
+residents lived in a census tract whose mean modeled access to a gynecologic
+oncologist was zero, versus `r pp1(gci("metro_zero")["point"])`% of metropolitan
+female residents — an approximately sixfold higher rate.
+
+### Disparities by race and ethnicity
+
+American Indian or Alaska Native female residents had the lowest gynecologic
+oncology accessibility (`r acc3(gci("mean_aian")["point"])` per 100,000) and the
+highest share living in census tracts with zero mean modeled access
+(`r pp1(gci("zero_aian")["point"])`%); the zero-access share was
+`r pp1(gci("aianzero_minus_whitezero")["point"])` percentage points higher than for
+non-Hispanic White female residents (ACS uncertainty interval excluding zero).
+Asian female residents had the highest modeled accessibility (Figure 3B). Because
+race-alone and Hispanic-origin groups do not form a mutually exclusive
+classification (Methods), these are comparisons among separately defined groups.
+
+```{r fig3}
+knitr::include_graphics(file.path(figdir, "fig3_go2020.jpg"))
+```
+**Figure 3.** Gynecologic oncology accessibility in 2020 by (A) rurality and (B)
+race and ethnicity, population-weighted per 100,000 women. "% zero" = share of the
+group's population living in census tracts whose mean modeled access to a
+gynecologic oncologist is zero (a tract-level, not individual-level, measure).
+
+### Disparities across all subspecialties
+
+The rurality and race/ethnicity disparities were directionally consistent across all seven subspecialties; per-subspecialty estimates are reported in eResults S5.
+
+### Persistence of disparities over time
+
+The rural and racial disparities persisted with little narrowing across `r first_year`–`r last_year`; the year-by-year detail is in eResults S6.
+
+### Access deserts across subspecialties
+
+The share of women outside any modeled catchment ("access deserts") varied widely by subspecialty; per-subspecialty values are in eResults S7.
+
+---
+
+### Change in accessibility by subspecialty
+
+Decade-scale change differed by subspecialty—minimally invasive gynecologic surgery increased most and maternal–fetal medicine alone declined; the per-subspecialty change is in eResults S8.
+
+## Discussion
+
+In this national analysis of potential spatial accessibility to the seven
+ABOG-certified obstetric and gynecologic subspecialties, accessibility was
+consistently concentrated in metropolitan areas and lowest for rural residents and
+for American Indian or Alaska Native residents, and these disparities changed
+little across the study period. The subspecialties differed markedly in absolute accessibility and in their
+temporal trajectories.
+
+These findings extend prior geographic-access research, which has largely examined
+single subspecialties or straight-line, county-level distance. For gynecologic
+oncology, our results reproduce and refine the county-level, straight-line two-step
+floating catchment model of Desjardins and colleagues, who found most gynecologic
+oncologists in urban counties, 95.2% of counties (roughly 54.7 million at-risk
+women) with none, and, critically, no improvement over two decades in the share of
+American Indian or Alaska Native women beyond 100 miles (25.6% to 23.7%; P=.866)
+[@Desjardins2023]. Our year-specific, board-certified cohort is smaller by design,
+so the counts are not directly comparable, but our travel-time, tract-level surface
+independently corroborates the same inequities at finer resolution and across all
+seven subspecialties. A state-level E2SFCA analysis similarly found 18.4% of Georgia
+tracts with zero access and, by combining spatial access with social vulnerability,
+doubly disadvantaged communities invisible to either measure alone [@Graham2019],
+the logic behind our stratified, group-versus-reference synthesis (Figure 4).
+
+A complementary, provider-referenced metric reinforces this for female pelvic
+medicine and reconstructive surgery. Using differential distance, the extra travel
+to the nearest urogynecologist beyond the nearest general obstetrician-gynecologist,
+against more than 40,000 geocoded general obstetrician-gynecologists [@Herb2021],
+women 65 or older in the median county faced roughly `r diff_median_mi` additional
+miles, and `r diff_pct_gt30`% lived where this marginal burden exceeded 30 miles,
+concentrated in the rural Plains and Mountain West. By isolating the incremental
+cost of *needing* a subspecialist, it shows that subspecialty maldistribution,
+rather than an absence of gynecologic care, drives the rural access gap.
+
+Our other-subspecialty findings are likewise consistent with the literature. The
+extensive reproductive endocrinology and infertility zero-access areas echo estimates
+that roughly 29% of reproductive-aged U.S. women live without an assisted reproductive
+technology clinic, with well-documented racial and ethnic disparities [@Beroukhim2023],
+and an oncofertility travel-time analysis found the share beyond a two-hour drive
+nearly doubled from general to subspecialized fertility care (3.4% to 5.7%),
+paralleling our deeper deserts in narrower subspecialties [@Peipert2023]. These
+literatures emphasize that such disparities are multifactorial—the Disparities in
+Assisted Reproductive Technology framework attributes them to delayed presentation,
+discontinuation, provider, and patient-level factors beyond structural access
+[@Seifer2022]—framing how our geographic measure should be read.
+
+The persistence of these disparities is consistent with access gradients documented
+across many specialized services, including cardiac rehabilitation, transplantation,
+pediatric and specialized cancer care, lung-cancer screening, mental health, and
+rehabilitation therapy, where rural and American Indian or Alaska Native populations
+are consistently farther from care [@Ebinger2022; @Yilma2023; @Liu2023; @Towne2014;
+@ElKhoury2024; @Hecox2026; @Welch2024; @Campbell2025; @Charlesworth2024]. The most
+comparable prior work, a national E2SFCA analysis of six dental specialties,
+reproduced our central patterns: more than 98% of specialists urban and rural
+residents driving roughly three times as far [@Rahman2026]. Subspecialists cluster
+in metropolitan academic and referral centers, and many rural regions, and areas
+with large American Indian or Alaska Native populations, lie beyond even a 180-minute
+drive of any, so incremental workforce growth need not reach them; indeed the
+workforce grew over the study period even as rural and American Indian or Alaska
+Native access held nearly constant. The core inequity is thus a mismatch of supply
+relative to population, and because the denominator is total population rather than
+disease or procedure demand, these estimates locate where the geographic component
+of access is most deficient, not where clinical need is greatest. Narrowing the gaps
+therefore likely requires strategies that decouple access from physician relocation,
+such as hub-and-spoke models, telehealth, provider knowledge-sharing networks like
+Project ECHO [@Arora2023], placement incentives such as the National Health Service
+Corps, and visiting-specialist clinics, each warranting formal evaluation rather
+than presumed benefit. Because our measure captures potential rather than realized
+access, its value is in identifying where such strategies are most needed.
+
+Potential accessibility is not a surrogate for realized use or outcomes: of the five
+dimensions of access, the model captures only availability and geographic
+accessibility [@Penchansky1981; @McLaughlin2002], not affordability, accommodation,
+or acceptability. Populations with high modeled proximity can still fare poorly, as
+groups near referral centers may register favorable access yet face systemic racism,
+insurance and scheduling barriers, and higher disease burden [@Bassett2020]. This
+metropolitan concentration, and its reversal outside metros where minority
+populations fare worse, mirrors the race-by-rurality intersection reported for
+emergency surgical services [@McCrum2022] and mammography access [@Campbell2026];
+and because racial outcome disparities attenuate after adjustment for structural
+factors such as insurance, income, and education [@Greenberg2023], a geographic
+access difference becomes an inequity when patterned by unequally distributed social
+factors, most pronounced where low socioeconomic status and isolation coincide
+[@Hod2014]. Modeled proximity should therefore be read as one necessary but
+insufficient condition for equitable care, its use being to localize where the
+geographic gap is deepest rather than to certify adequacy where proximity is high.
+
+The study has several strengths: a near-census of board-certified subspecialists
+rather than a sample; road-network travel times rather than straight-line distance;
+a mass-conserving demand allocation that represented the full female population
+rather than discarding population near tract centroids, mitigating the distance-type
+and population-aggregation errors documented for potential-access measures
+[@Apparicio2017]; year-specific active
+cohorts that reflect real workforce entry, exit, and relocation; and fully
+reproducible, canonical-source computation of every reported value. Unlike
+nearest-provider travel time or administrative-area provider ratios, the
+floating-catchment design jointly incorporates provider availability, competing
+population demand, and travel impedance, and flags low-access areas that those
+simpler measures do not [@Drake2021].
+
+Several limitations temper interpretation. The same total-female-population denominator was applied to all seven subspecialties, so across-subspecialty comparisons reflect workforce size and clinical scope as well as access; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error and are therefore not comprehensive confidence intervals; the zero-access metric is defined at the tract level; race-alone and Hispanic-origin groups do not form a mutually exclusive partition; and Alaska's exclusion, by omitting Alaska-resident Alaska Natives, likely renders the American Indian or Alaska Native findings conservative. These points, together with international-border edge effects, the uniform-within-tract density assumption of the area-weighted allocation, and directions for empirical patient-flow calibration, are detailed in eDiscussion S9.
+
+## Conclusion
+
+Across the contiguous United States, potential accessibility to board-certified
+obstetric and
+gynecologic subspecialists was persistently lower for rural residents and for
+American Indian or Alaska Native residents, and these disparities narrowed little
+over more than a decade. Interpreted as a measure of where specialized care is
+potentially reachable—rather than of realized or clinically sufficient access—these
+findings identify the populations and regions that may benefit most from
+regionalized care, outreach, telehealth, and targeted workforce strategies.
+
+---
+
+## Supplemental Digital Content {-}
+
+
+## eMethods S1: Statistical analysis {-}
+
+National accessibility was summarized as the population-weighted mean at the
+raster-cell level. Uncertainty intervals reflect only sampling error in the ACS
+population weights: because the physician catchments and cell-level accessibility
+values are deterministic (a near-census of active physicians on fixed isochrones),
+we propagated the ACS margins of error by Monte-Carlo simulation (2,000 draws;
+each tract's female population drawn from a Normal distribution with SD = margin of
+error ÷ 1.645) and summarized each estimate by the 2.5th and 97.5th percentiles.
+Draws were not truncated at zero: because they enter only aggregate weighted sums
+(where the expectation equals the sum of the tract estimates), clamping would inject
+spurious positive weight into the many zero-population tracts and bias sparse groups
+(for example, American Indian or Alaska Native) upward. Tracts were treated as
+independent, so the variance of an aggregate is the sum of tract variances; this
+does not use the ACS covariance structure or replicate weights, and because errors
+average out across the tens of thousands of tracts, the intervals for pooled
+quantities—especially aggregate ratios such as the metropolitan-to-rural
+ratio—collapse to implausibly narrow ranges. Such intervals should be read as point
+estimates whose honest uncertainty envelope is the sensitivity range (Appendix
+Table S2) rather than as informative confidence intervals; we accordingly report a
+point estimate alone where the interval is narrower than the reported precision. We
+refer to these
+as ACS uncertainty intervals; they do not incorporate uncertainty from physician
+ascertainment, clinical-activity classification, geocoding, multiple practice
+locations, practice capacity, travel-time modeling, catchment thresholds, or
+distance-decay weights, and are therefore narrower than a comprehensive confidence
+interval would be. Rurality- and race/ethnicity-stratified estimates were computed
+at the tract level (required to attach RUCA rurality and race-specific
+denominators) and reconcile with the cell-level national summary to within 0.001
+per 100,000 female residents. The zero-access metric (“% zero”) is the share of a
+group’s population living in census tracts whose mean modeled access is zero. As a
+sensitivity comparison, we also computed a cell-level estimator for 2020—the
+area-weighted share of each tract lying in grid cells with zero access, weighted by
+the tract's group population—which was stable between the 500-m and 1,000-m grids
+(agreement within 0.1 percentage point for the subspecialties checked) and gave
+higher zero-access shares than the tract-mean definition (Appendix Table S3).
+Because both estimators rest on the same area-weighted (uniform within-tract
+density) allocation, this difference reflects the choice of definition, not
+independent evidence that either value is more accurate; a dasymetric or block-level
+allocation would be required to establish that (Discussion). A subspecialist was considered reachable if the practice location
+fell within the 180-minute maximum travel-time catchment. Temporal change was
+summarized by ordinary least-squares slopes of the annual estimate on calendar year
+over `r first_year`–`r primary_last`. Because successive ACS 5-year estimates
+overlap and provider cohorts are serially correlated, we also computed Newey–West
+heteroskedasticity- and autocorrelation-consistent (HAC) P values, with the lag
+prespecified at `r trend_hac$hac_lag` to reflect the overlap of the 5-year ACS
+window (Appendix Table S1); because only 10 annual estimates were available, these
+trend tests are imprecise and are interpreted descriptively. The stratified trend
+analyses across the seven subspecialties and multiple groups are exploratory: we
+prespecified no primary comparison and applied no multiple-comparisons correction,
+and we therefore emphasize the direction and magnitude of change over statistical
+significance. The most recent year (`r last_year`) was excluded from trend
+estimation and is reported as a provisional observation because its workforce panel
+is subject to right-censoring. To assess robustness to modeling choices, we
+recomputed the 2020 accessibility surface for every subspecialty under alternative
+distance-decay weights (sharper and slower falloff), a reduced catchment (dropping
+the 180-minute band), and a finer 500-m grid, and compared the national ranking and
+the rurality and race contrasts with the base specification (Appendix Table S2).
+Analyses used R version `r manifest_json$environment$r_version`.
+
+## eMethods S2: Mass-conserving demand allocation {-}
+
+Demand was allocated from census tracts to a 500-m equal-area analysis grid
+(EPSG:5070) by polygon–cell area overlap, conserving every tract's population
+(mass-conserving area-weighted allocation). This recovered the full at-risk
+population (`r cons_pct(cons_loss_area)`% loss) versus a `r cons_pct(cons_loss_centroid)`% loss under conventional centroid-based
+allocation; per-year national totals were conserved to within 10⁻⁶. Conserving
+population prevents the loss that centroid allocation incurs and reduces the
+display-scale aggregation that coarser zone centroids impose [@BryantDelamater2019];
+it does not, however, improve the underlying spatial precision, because population
+is distributed by land-area overlap and the method therefore assumes uniform
+population density within each tract. This assumption is least tenable in large
+rural and tribal tracts, where residents occupy a small fraction of the land area,
+so the 500-m surface can appear more spatially precise than the tract-level input
+justifies (see Limitations). The 500-m and 1,000-m surfaces nonetheless gave
+near-identical results (Appendix Table S2).
+
+## eMethods S3: Temporal comparison, 2013–2023 {-}
+
+National accessibility was computed for every subspecialty-year cell. To visualize
+decade-scale change while isolating the cohort effect, the `r first_year` and
+`r last_year` accessibility surfaces for each subspecialty were computed on a
+single common grid and demand denominator (2020 tract vintage; ACS 2020), so the
+difference reflects only the change in the active physician cohort.
+
+
+*Appendix 1. Accessibility change by subspecialty, `r first_year`–`r last_year`
+(to be posted online as Supplemental Digital Content).*
+
+Level maps look similar year-to-year because the workforce is ~85–95% persistent
+between consecutive years; the change accumulates. To isolate the cohort signal,
+each figure below computes the `r first_year` and `r last_year` surfaces on one
+common grid (2020 tract vintage; ACS 2020), so the difference (panel C) reflects
+only the change in the active physician cohort. Red = access grew; blue = shrank.
+Because both years are placed on the 2020 grid, the national means and percentage
+changes annotated on these figures are computed on that common (cohort-isolated)
+basis and differ by up to about 5 percentage points from the vintage-matched
+canonical national changes reported in the Results, Table 1, and Figure 7; those
+canonical values (e.g., minimally invasive gynecologic surgery
+`r sprintf("%+.0f%%", migs_c$rel_change_pct)`, maternal–fetal medicine
+`r sprintf("%+.0f%%", mfm_c$rel_change_pct)`) are the authoritative national
+estimates, and these appendix figures are provided to show the underlying spatial
+pattern and the 2013 baseline versus 2023 endpoint.
+
+```{r figS, fig.show="hold"}
+knitr::include_graphics(file.path(figdir,
+  paste0("figS_", c("go","mfm","rei","fpmrs","migs","pag","cfp"), ".jpg")))
+```
+**Figures S1–S7.** Access change `r first_year` → `r last_year` for gynecologic
+oncology, maternal–fetal medicine, reproductive endocrinology and infertility,
+urogynecology (FPMRS), minimally invasive gynecologic surgery, pediatric and
+adolescent gynecology, and complex family planning. Both years computed on one
+2020 grid and demand so panel C isolates workforce change.
+
+```{r tableS1}
+tblS1 <- trend_hac_tbl |>
+  dplyr::transmute(Subspecialty = subspecialty, Group = group,
+    `Slope (pp/y)` = sprintf("%+.3f", slope_pp_yr),
+    `P, OLS` = vapply(p_ols, function(p) if (is.na(p)) "NA" else
+      if (p < 0.001) "<.001" else sub("^0", "", sprintf("%.3f", p)), ""),
+    `P, HAC` = vapply(p_hac, function(p) if (is.na(p)) "NA" else
+      if (p < 0.001) "<.001" else sub("^0", "", sprintf("%.3f", p)), ""))
+knitr::kable(tblS1, align = c("l", "l", "r", "r", "r"),
+  caption = paste0("Appendix Table S1. Trends in the Zero-Access Share by ",
+    "Subspecialty, ", first_year, "–", primary_last)) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Slope is the ordinary least-squares change per year in the percentage of a ",
+    "group’s population living in census tracts with zero mean modeled access, over ",
+    first_year, "–", primary_last, " (10 annual estimates; ", last_year, " excluded ",
+    "as right-censored). P, OLS is the naive ordinary least-squares P value; P, HAC ",
+    "is a Newey–West heteroskedasticity- and autocorrelation-consistent P value with ",
+    "the lag prespecified at ", trend_hac$hac_lag, " to reflect the overlap of ",
+    "American Community Survey 5-year estimates. With only 10 observations these ",
+    "trend tests are imprecise and are interpreted descriptively. HAC, ",
+    "heteroskedasticity- and autocorrelation-consistent; OLS, ordinary least squares; ",
+    abbr_note))
+```
+
+*Appendix 2. Sensitivity of the 2020 findings to modeling assumptions.*
+
+The 2020 accessibility surface for each subspecialty was recomputed under
+alternative distance-decay weights (sharper and slower falloff than the base
+Gaussian weights), a reduced catchment that dropped the 180-minute band, and the
+production 500-m grid (the sensitivity was computed on a 1,000-m reference grid for
+efficiency; the 500-m specification reproduces the resolution that generated the
+production national values). The national population-weighted mean and its induced
+subspecialty ranking were identical across every specification (Spearman
+`r if (sens_rho_identical) "ρ = 1.00" else sprintf("ρ ≥ %.2f", sens_min_rho)`); this
+is *not* evidence of spatial robustness but a direct consequence of the conservation
+property (Methods)—the national mean equals supply divided by population and does
+not depend on the decay weights, catchment bands, or grid resolution. The meaningful
+sensitivity is therefore in the *spatial* quantities. Rural residents had lower
+accessibility
+than metropolitan residents for all `r sens_n` subspecialties under every
+specification. American Indian or Alaska Native residents had lower accessibility
+than non-Hispanic White residents for all `r sens_n` subspecialties under the
+base, sharper-decay, dropped-band, and production-resolution specifications, and for
+`r min(sens_summary$n_aian)` of `r sens_n` under the slowest decay (complex family
+planning, already near parity, crossed to a slight advantage). Magnitudes did move, and Table S2
+reports them: the median rural:metro accessibility ratio was `r acc2(base_rm_med)`
+at the reference specification and ranged from `r acc2(min(sens_summary$rm_med))`
+(sharper decay; deeper rural gap) to `r acc2(max(sens_summary$rm_med))` (slower
+decay; shallower gap), while the median AIAN:White ratio moved only within
+`r acc2(min(sens_summary$aw_med))`–`r acc2(max(sens_summary$aw_med))`
+(reference `r acc2(base_aw_med)`); direction never reversed, and the
+production-resolution (500-m) grid reproduced the reference results almost exactly. This insensitivity
+of direction to the distance-decay weights is consistent with prior
+enhanced two-step floating catchment area analyses—including studies of mental
+health and of maternal-health services—in which access estimates were
+likewise robust to varying the decay parameter [@Charlesworth2024; @Vadrevu2016].
+
+```{r tableS2}
+tblS2 <- sens_summary |>
+  dplyr::transmute(Specification = sens_lab[variant],
+    `Rank ρ` = sprintf("%.2f", rho),
+    `Rural:metro ratio (median)` = sprintf("%.2f", rm_med),
+    `AIAN:White ratio (median)` = sprintf("%.2f", aw_med),
+    `Rural < metro` = sprintf("%d/%d", n_rural, n),
+    `AIAN < White` = sprintf("%d/%d", n_aian, n))
+knitr::kable(tblS2, align = c("l", "r", "r", "r", "r", "r"),
+  caption = paste0("Appendix Table S2. Sensitivity of 2020 Findings to Modeling ",
+    "Assumptions (Seven Subspecialties)")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Each 2020 accessibility surface was recomputed under the listed specification ",
+    "and compared with the reference specification (Gaussian band weights ",
+    manifest_json$weights[["30"]], "/", manifest_json$weights[["60"]], "/",
+    manifest_json$weights[["120"]], "/", manifest_json$weights[["180"]],
+    " for the 30/60/120/180-minute bands). The sensitivity was computed on a ",
+    "1,000-m reference grid for efficiency; the production/authoritative national ",
+    "values use a 500-m grid (Methods), reproduced by the 'Production resolution' ",
+    "row. Rank ρ is the Spearman correlation of the seven subspecialties' national ",
+    "population-weighted mean accessibility with the reference ranking (reference ",
+    "median rural:metro ratio ", sprintf("%.2f", base_rm_med), ", AIAN:White ratio ",
+    sprintf("%.2f", base_aw_med), "). The ratio columns are the median across the ",
+    "seven subspecialties; a ratio below 1 means the disadvantaged group had lower ",
+    "accessibility. “Rural < metro” and “AIAN < White” count the subspecialties in ",
+    "which that held. ", abbr_note))
+```
+
+*Appendix 3. Cell-level versus tract-level zero-access, 2020.*
+
+The zero-access share reported throughout is defined at the census-tract level (the
+share of a group's population in tracts whose *mean* modeled access is zero). As a
+sensitivity comparison, a cell-level estimator was computed for 2020: for each
+tract, the area-weighted fraction lying in 500-m grid cells with zero access,
+aggregated by the tract's group population. The cell-level estimate exceeded the
+tract-mean estimate for every group and subspecialty (median
++`r pp1(cz_med)` percentage points; maximum +`r pp1(cz_max)`), and the divergence
+was largest for the most disadvantaged groups. Because both estimators assume
+uniform population density within each tract, this comparison shows only that the
+two definitions differ—not that either is the more accurate estimate of the true
+burden; a dasymetric or block-level allocation would be needed to adjudicate.
+Values agreed between the 500-m and 1,000-m grids to within 0.1 percentage point.
+
+```{r tableS3}
+czw <- cell_zero_tbl |>
+  dplyr::filter(group %in% c("Metropolitan","Rural","White, non-Hispanic",
+                             "Am. Indian/Alaska Native")) |>
+  dplyr::mutate(g = dplyr::recode(group, "Metropolitan"="Metro", "Rural"="Rural",
+    "White, non-Hispanic"="White", "Am. Indian/Alaska Native"="AIAN"),
+    cell = sprintf("%.1f", cell_zero_pct), tract = sprintf("%.1f", tract_zero_pct)) |>
+  dplyr::transmute(subspec, g, cell_tract = paste0(cell, " / ", tract)) |>
+  tidyr::pivot_wider(names_from = g, values_from = cell_tract) |>
+  dplyr::mutate(subspec = factor(subspec,
+    levels = c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP"))) |>
+  dplyr::arrange(subspec) |>
+  dplyr::transmute(Subspecialty = subspec, Metro, Rural, White, AIAN)
+knitr::kable(czw, align = c("l","r","r","r","r"),
+  caption = paste0("Appendix Table S3. Cell-Level vs Tract-Level Zero-Access ",
+    "Share (%), 2020 (cell / tract)")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped","condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Each cell shows the cell-level zero-access share / the tract-level share (%). ",
+    "Cell-level is the group-population-weighted mean of each tract's area fraction ",
+    "in 500-m grid cells with zero modeled access; tract-level is the share in ",
+    "tracts whose mean access is zero. Both estimators assume uniform within-tract ",
+    "density, so the higher cell-level values reflect the definition, not evidence ",
+    "that either is more accurate. ", abbr_note))
+```
+
+---
+
+
+## eMethods S4: Enhanced two-step floating catchment area — algorithm, weights, and sensitivity {-}
+
+Potential spatial accessibility was estimated with the enhanced two-step floating
+catchment area (E2SFCA) method [@luoqi2009], an extension of the two-step floating
+catchment area approach [@luowang2003] that is now widely applied to physician,
+screening, surgical, and other health-service access [@Gilliland2019;
+@Wurdeman2026; @Welch2024; @Campbell2025; @Charlesworth2024; @Utaka2026;
+@Petzold2025; @Arora2025], and a recent systematic review situates them within the broader gravity-model family of potential spatial-access measures [@Stacherl2023]. Floating catchment methods were chosen over
+crude provider-to-population ratios, which ignore where supply sits relative to
+demand and capture a distinct dimension of access that binary distance or
+travel-time thresholds undercount [@Nakamura2017; @SanchezCardenas2024;
+@McCrum2022], and travel time along the road network was used
+rather than straight-line distance, which overstates reachability where terrain or
+road structure lengthens the true trip [@Ebinger2022]. Demand within each catchment
+was weighted
+by a Gaussian distance-decay across the four travel-time bands (weights
+`r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`,
+`r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for the
+30-, 60-, 120-, and 180-minute zones); these Gaussian band weights follow the
+published E2SFCA formulation and match values in common use (the inner-band weights
+are identical to those applied in recent screening-access studies), and a slower
+distance decay with a wider catchment is appropriate for specialized care that
+patients travel farther to reach than primary care [@luoqi2009; @Campbell2025];
+studies contrasting generalist and subspecialty access likewise assign
+subspecialists materially wider catchments than primary care providers
+[@Liu2026].
+No single distance-decay function is empirically established as correct, and the
+floating-catchment literature has called for finer spatial demand units and refined
+decay functions than the coarse zone centroids and step weights used in most prior
+work [@Hong2023; @Weng2025]; we therefore resolved demand on a fine grid, adopted
+the conventional Gaussian weights, and confirmed that the findings were insensitive
+to this choice, to the catchment bands, and to the grid resolution in a sensitivity
+analysis (Appendix Table S2). That sensitivity framework additionally supports a
+Gaussian-derived versus purely zonal band-weight parameterization (a four-band
+approximation, not a continuous distance function) [@McGrail2012], variable urban and
+rural catchments that widen the effective catchment for rural populations
+[@McGrail2009], and a modified two-step specification that penalizes suboptimally
+configured supply (M2SFCA) [@Delamater2013]. The M2SFCA second application of the
+distance weight is intentional and method-specific, not the inadvertent reuse of the
+same weights in both steps cautioned against elsewhere [@Zhang2023trap]; a fully
+dynamic variable-catchment implementation would expand each catchment until a
+population and provider criterion is met rather than compositing separate fixed urban
+and rural surfaces [@Luo2012var]. The four listed values are cumulative-band weights
+$W_b$ (applied to the population reachable within band $b$); they enter the
+computation as incremental band weights $w'_b = W_b - W_{b+1}$ (with $W$ beyond the
+outermost band set to 0), which makes the cumulative-isochrone implementation
+equivalent to a ring-based E2SFCA. In the first step, each physician location $j$
+receives a provider-to-population ratio
+$$R_j = \frac{S_j}{\sum_b w'_b\, P_{jb}},$$
+where $S_j$ is the subspecialist supply at $j$ and $P_{jb}$ is the female population
+reachable from $j$ within band $b$. In the second step, the accessibility at demand
+cell $i$ is the band-weighted sum of the ratios of all physician locations whose
+band-$b$ catchment contains $i$,
+$$A_i = \sum_{j}\sum_{b} w'_b\, R_j .$$
+Supply $S_j$ is the count of distinct active subspecialists (unique National
+Provider Identifiers) whose practice location maps to $j$. A quality-control check
+confirmed that every physician had exactly one active practice location in each
+study year, so supply reflects one physician-equivalent per physician and no
+multisite duplication occurred; had a physician held multiple locations the
+estimator would have counted them fully at each, so fractional (1/$k$) allocation
+would be required only for an extension of the cohort to multisite practice
+(Limitations). Accessibility
+is a relative index expressed as subspecialists per 100,000 women; it is not a raw
+physician-to-population density and is not directly numerically comparable with
+distance-based accessibility scores [@Desjardins2023]. We also express it as a
+Spatial Access Ratio normalized to the national population-weighted mean of 1.00,
+with values above 1 indicating better-than-average spatial access [@Wan2012spar];
+the absolute per-100,000 index is retained alongside it so that normalization cannot
+conceal changes in the absolute national supply-demand balance.
+
+A structural property of the two-step method is important for interpretation.
+Because the same band weights enter both steps, the population-weighted mean of the
+accessibility surface over *all* demand reduces algebraically to the total supply
+divided by the total population,
+$$\frac{\sum_i P_i A_i}{\sum_i P_i}=\frac{\sum_j R_j\sum_i w'_{ij}P_i}{\sum_i P_i}=\frac{\sum_j S_j}{\sum_i P_i},$$
+which we verified numerically (the national means in Table 1 equal
+subspecialist counts per 100,000 female residents to within 0.02%). The *national*
+mean is therefore a **standardized supply-per-population index** and carries no
+spatial information; the across-subspecialty ranking it induces is the
+workforce-size ranking. Spatial variation is expressed only in the *distribution* of
+the surface—the rurality and race/ethnicity contrasts, the share of the population
+outside the modeled catchment, and geographic inequality—which we accordingly treat
+as the primary spatial outcomes. National means and their ranking are reported as
+standardized workforce measures, not as spatial accessibility.
+
+## eResults S5: Disparities across all subspecialties {-}
+
+Viewed across all seven subspecialties, the disparity pattern was consistent
+(Figure 4). In 2020, rural female residents had lower potential accessibility than
+metropolitan residents for every subspecialty—by as much as
+`r pp1(abs(rural_worst_pct))`% for `r full_name[rural_worst]` and by at least
+`r pp1(abs(rural_min_pen))`% even for the least affected subspecialty. American
+Indian or Alaska Native residents had lower accessibility than non-Hispanic White
+residents for `r n_aian_worse` of the seven subspecialties. By contrast, Black,
+Hispanic, Asian, and Native Hawaiian or Other Pacific Islander residents generally
+had higher modeled accessibility than non-Hispanic White residents, reflecting their
+greater concentration in metropolitan areas where subspecialists practice—a pattern
+of potential proximity that, as discussed below, does not imply equivalent realized
+access or outcomes. These spatial patterns were robust to the modeling assumptions:
+in a sensitivity analysis that varied the distance-decay weights, the catchment
+bands, and the grid resolution, the rural disadvantage held for all `r sens_n`
+subspecialties under every specification, and the rural and race contrasts moved in
+magnitude but never reversed in direction (Appendix Table S2).
+
+```{r fig_equity_hm}
+knitr::include_graphics(file.path(figdir, "fig_equity_heatmap.jpg"))
+```
+**Figure 4.** Potential accessibility for disadvantaged groups relative to their
+reference group in 2020, across all seven subspecialties. Each cell is the percent
+difference in 2020 population-weighted accessibility between a group and its
+reference group *within* that subspecialty:
+red = at least 10% lower access, blue = at least 10% higher, gray = within ±10%.
+Reference groups: rurality, metropolitan; race and ethnicity, non-Hispanic White.
+Within-subspecialty relative contrasts facilitate comparison across subspecialties
+of differing scarcity, but should be interpreted cautiously where absolute
+accessibility is low (for example, complex family planning and pediatric and
+adolescent gynecology), because relative differences become unstable at very small
+baseline values. Enhanced two-step floating catchment area access per 100,000
+female residents;
+tract-level population-weighted; contiguous United States. AIAN, American Indian or
+Alaska Native; NHOPI, Native Hawaiian or Other Pacific Islander.
+
+## eResults S6: Persistence of disparities over time {-}
+
+Rural and racial disparities persisted across the decade (Figure 5; Appendix
+Table S1). Over `r first_year`–`r primary_last`, the metropolitan-to-rural
+gynecologic oncology accessibility ratio narrowed by
+`r sprintf("%.3f", abs(go_ratio_trend[["slope"]]))` per year
+(`r fmt_p_txt(go_ratio_trend[["p_ols"]])`; Newey–West
+`r fmt_p_txt(go_ratio_trend[["p_hac"]])`), and the American Indian or Alaska Native
+zero-access share for gynecologic oncology declined by
+`r sprintf("%.2f", abs(gtr("GO","AIAN")$slope_pp_yr))` percentage points per year
+(`r fmt_p_txt(gtr("GO","AIAN")$p_ols)`; Newey–West
+`r fmt_p_txt(gtr("GO","AIAN")$p_hac)`) while remaining the highest of any group in
+every year. Directions were unchanged under autocorrelation-robust inference,
+although with only 10 annual estimates the trend tests are imprecise (Appendix
+Table S1).
+
+```{r fig4}
+knitr::include_graphics(file.path(figdir, "fig4_gotrends.jpg"))
+```
+**Figure 5.** Trends in gynecologic oncology potential accessibility disparities,
+`r first_year`–`r last_year`, tract-level population-weighted (per 100,000 female
+residents; enhanced two-step floating catchment area on 30/60/120/180-minute
+isochrones). (A) Mean accessibility by rurality. (B) Mean accessibility by race and
+ethnicity, with American Indian or Alaska Native (AIAN), non-Hispanic White, and
+Asian groups highlighted and the remaining groups in gray. (C) Share of each
+group’s population living in census tracts with zero mean modeled access.
+
+## eResults S7: Access deserts across subspecialties {-}
+
+The magnitude of inaccessibility depended strongly on subspecialty scarcity
+(Figure 6; Table 3). The rural zero-access share ranged from about `r pp1(rural_zero_min)`% for `r rural_zero_min_sub`
+to about `r pp1(rural_zero_max)`% for `r rural_zero_max_sub`, and was consistently highest for American Indian or Alaska
+Native female residents (Table 3). These tract-level, travel-time patterns parallel
+the
+county-level, distance-based gynecologic oncology access disparities reported by
+Desjardins and colleagues [@Desjardins2023].
+
+```{r fig5}
+knitr::include_graphics(file.path(figdir, "fig5_equity.jpg"))
+```
+**Figure 6.** Change in the share of (A) rural and (B) American Indian or Alaska
+Native female residents living in census tracts with zero mean modeled access, by
+subspecialty, `r first_year`→`r primary_last`. The gray dot marks the `r first_year`
+value and the arrowhead the `r primary_last` value, so the arrow's length is the
+absolute change and its head shows the direction; blue arrows indicate an
+improvement (falling zero-access share) and red arrows a worsening, with the
+absolute change (percentage points) labeled. Tract-level population-weighted;
+enhanced two-step floating catchment area on 30/60/120/180-minute isochrones;
+contiguous United States.
+
+
+```{r table2}
+tbl2 <- disparity_tbl |>
+  dplyr::mutate(metro_rural_ratio = point_only(metro_rural_ratio)) |>
+  dplyr::mutate(dplyr::across(c(metro_rural_ratio, rural_pct_zero, aian_mean,
+    aian_pct_zero, aian_minus_white_zero), en_dash)) |>
+  dplyr::transmute(Subspecialty = subspecialty,
+    `Metro:rural ratio` = metro_rural_ratio,
+    `Rural, % zero` = rural_pct_zero,
+    `AIAN, access` = aian_mean,
+    `AIAN, % zero` = aian_pct_zero,
+    `AIAN − White, % zero` = aian_minus_white_zero)
+knitr::kable(tbl2, align = c("l", rep("r", 5)), escape = FALSE,
+  caption = paste0("Table 3. Rural and Racial/Ethnic Disparities in Potential ",
+    "Accessibility, 2020")) |>
+  kableExtra::kable_styling(bootstrap_options = c("condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Values are point estimate (95% ACS uncertainty interval). Access is per ",
+    "100,000 female residents. Stratified estimates are tract-level ",
+    "population-weighted (required to attach rurality and race-specific ",
+    "denominators) and reconcile with the cell-level national means (Table 1) to ",
+    "within 0.001. “% zero” is the share of a group’s population living in census ",
+    "tracts with zero mean modeled access. Intervals quantify ACS sampling ",
+    "uncertainty only and are narrower than comprehensive confidence intervals; ",
+    "the metropolitan-to-rural ratio pools over tens of thousands of tracts, so its ",
+    "ACS interval is narrower than the reported precision and it is shown as a point ",
+    "estimate (its honest uncertainty envelope is the sensitivity range, Appendix ",
+    "Table S2; Methods). ",
+    "Race-alone and Hispanic-origin groups are not mutually exclusive. ", abbr_note))
+```
+
+## eResults S8: Change in accessibility by subspecialty {-}
+
+Descriptive changes in potential accessibility from `r first_year` to
+`r last_year` were geographically heterogeneous across subspecialties (Figure 7).
+This `r first_year`–`r last_year` endpoint comparison, in which `r last_year` is
+provisional, is distinct from the `r first_year`–`r primary_last` modeled trends
+reported above. Nationally, population-weighted accessibility increased most for
+`r full_name[top_gain$subspecialty]` (`r pp1(top_gain$rel_change_pct)`%), and
+`r full_name[decliners$subspecialty[1]]` was the only subspecialty to decline
+(`r pp1(decliners$rel_change_pct[1])`%); however, both gains and losses were
+spatially concentrated rather than uniform across the country. Figure 7 shows the
+absolute cell-level change, while the facet labels report the national relative
+change (Table 1).
+
+```{r figchange}
+knitr::include_graphics(file.path(figdir, "fig5_change_faceted.jpg"))
+```
+**Figure 7.** Change in potential accessibility by subspecialty, `r first_year` →
+`r last_year`. This figure combines two distinct quantities: the map **colors**
+show the absolute cell-level change in access (per 100,000 female residents; *not*
+population-weighted), computed with both years on a common 2020 grid so the spatial
+pattern isolates the change in the active physician cohort, whereas the
+**percentage in each panel** is the national population-weighted *relative* change
+over the full `r first_year`→`r last_year` endpoint. Because `r last_year` is
+provisional, this endpoint differs from the `r first_year`–`r primary_last` primary
+period reported in Table 1, and the panel percentages should not be read against
+Table 1. Red indicates access grew, blue that it shrank. Mass-conserving
+500-m demand grid aggregated to a 1,000-m display surface; the shared symmetric
+color scale is winsorized at ±`r acc2(chg_dcap)` per 100,000 female residents (the
+98th percentile of the absolute cell-level change), which clipped
+`r pp1(chg_pct_clipped)`% of cells.
+
+## eDiscussion S9: Limitations {-}
+
+Several limitations temper interpretation. First, and most important, the same
+total-female-population denominator was applied to all seven subspecialties. Because
+the subspecialties serve different populations—pediatric and adolescent gynecology
+serves children and adolescents; maternal–fetal medicine, reproductive
+endocrinology, and complex family planning serve predominantly reproductive-aged
+patients; and female pelvic medicine and reconstructive surgery serves an older
+population—the large across-subspecialty differences in the standardized index
+reflect workforce size and clinical scope as well as access, and the rates should
+not be read as directly comparable measures of clinical adequacy; age-specific,
+within-specialty denominators are a priority for future work, alongside supply- and
+demand-adjusted catchments that model service-specific capacity and age-specific
+need [@ShaoLuo2022] and distance-decay functions empirically calibrated from observed
+patient-flow data rather than prespecified [@KhosraviKazazi2026; @FloridaV2SFCA2026]. Second, the measure
+reflects potential (modeled) rather than realized access and does not capture
+practice capacity, appointment availability, insurance acceptance, or patient
+travel behavior; in particular, because higher-socioeconomic-status patients more
+readily overcome distance by traveling to distant centers, a spatially uniform
+potential-access measure may understate realized disadvantage for lower-income and
+rural populations [@Yilma2023]. Third, the reported intervals quantify only ACS sampling
+uncertainty and omit uncertainty from physician ascertainment and activity
+classification, geocoding, multiple practice locations, and the travel-time,
+catchment, and distance-decay assumptions of the model and are therefore not
+comprehensive confidence intervals; Monte Carlo propagation of supply, activity,
+geocoding, and parameter uncertainty through the model is a natural extension
+[@Park2023], and potential edge effects at the international borders and coastlines
+(providers and population outside the United States were unavailable) could not be
+captured [@Gao2017]; however, a sensitivity analysis varying the
+distance-decay weights, the catchment bands, and the grid resolution left the
+direction of the rurality and race disparities unchanged (Appendix Table S2; the
+national mean and its ranking are invariant to these choices by the conservation
+property and are not a robustness result). Fourth, the zero-access metric is defined at the tract level (the share of
+a group living in tracts with zero mean modeled access) and may undercount people
+in zero-access locations within partially served tracts. A cell-level
+estimator for 2020 (the area-weighted share of each tract that lies in grid cells
+with zero access, weighted by the tract's group population) gave
+higher zero-access shares than the tract-mean metric (median
++`r pp1(cz_med)` percentage points across groups and subspecialties, and up to
++`r pp1(cz_aian_max)` for American Indian or Alaska Native and +`r pp1(cz_rural_max)`
+for rural residents; Appendix Table S3). However, both estimators assume uniform
+population density within each tract, so this difference does not establish that the
+tract-mean metric understates the true burden; it shows only that the two
+definitions diverge, and resolving which is more accurate would require a dasymetric
+or block-level population allocation, which we did not perform. Relatedly, spatial associations can depend on the choice of areal unit
+(the modifiable areal unit problem); we resolved demand at a fine scale (census
+tract allocated to a 500-m grid) to limit this, but stratified estimates could
+differ under coarser units [@ElKhoury2024]. The area-weighted allocation also
+conserves population without validating its within-tract placement: it assumes
+uniform density within each tract, which is least tenable in large rural and tribal
+tracts, and a dasymetric or block-level allocation would better locate residents;
+mass conservation prevents loss but does not by itself certify spatial precision.
+Fifth, race-alone and Hispanic-origin groups do not form a mutually
+exclusive classification, so between-group contrasts are among separately defined
+groups; moreover, the broad American Community Survey categories mask substantial
+within-group heterogeneity (for example, across Asian-origin subgroups), and finer
+disaggregation—shown elsewhere to reveal disparities that pooled categories
+conceal—is a priority for future work [@Greenberg2023]. These stratified estimates
+are ecological: they are computed at the census-tract level from group-specific
+population denominators and describe the accessibility of the areas where each group
+lives, not the realized access of individual patients, and within-tract residential
+patterns may differ by group. Sixth, overlapping ACS
+5-year estimates and serially correlated cohorts
+make ordinary least-squares trend inference optimistic; we therefore report
+Newey–West autocorrelation-consistent P values alongside the ordinary least-squares
+values (Appendix Table S1), although with only 10 annual estimates these remain
+imprecise, and the maternal–fetal medicine trajectory is nonlinear (decline then
+rebound), which a single linear slope summarizes incompletely. Moreover, the
+2019–2020 census-tract vintage change falls within the trend window; a
+subgroup-specific seam test (2020 cohort held fixed, each subgroup recomputed under
+the 2010- and 2020-vintage frameworks; Methods) found the pure vintage shift to be
+small (median `r sprintf("%.2f", seam_zero_med)` percentage point in the zero-access share, and
+at most `r pp1(seam_ra_max)` for the rural and American Indian or Alaska Native
+series), so the subgroup trends crossing the boundary are not attributable to the
+vintage change—with the exception of the Native Hawaiian or Other Pacific Islander
+series, whose smaller population produced the largest shift
+(`r pp1(seam_zero_max)` percentage point) and which is already limited by the
+exclusion of Hawaii. Seventh, the most recent year (`r last_year`) is
+right-censored and is reported provisionally. Eighth, we summarized accessibility
+descriptively and did not model residual spatial autocorrelation, which
+spatially explicit approaches address directly [@McCrum2022]. Finally, the analysis
+was restricted to the contiguous United States because road-network routing cannot
+represent the air and water travel on which access in Alaska, and in much of Hawaii,
+depends; the closest prior urogynecology-access study likewise restricted its main
+analysis to the continental United States for the same reason [@Schmidt2024]. Alaska
+is therefore a boundary of the modeling framework rather than an omission:
+quantifying access there would require an air- and maritime-inclusive travel model,
+not the road-network isochrones on which this entire study is built. This
+exclusion bears most on the American Indian or Alaska Native category, whose very
+name includes Alaska Natives: our estimates pertain to the contiguous-U.S. members
+of that group and omit Alaska-resident Alaska Natives, who face distinct and
+frequently non-road access barriers that are typically more severe. Because the
+excluded population is among the least geographically served, the American Indian or
+Alaska Native disadvantage reported here is, if anything, conservative with respect
+to the full national population. The exclusion of Hawaii is equally relevant to the
+Native Hawaiian or Other Pacific Islander results, which should likewise be read as
+pertaining only to the contiguous-U.S. members of that group.
+
+## Reproducibility record (supplement — not part of the typeset manuscript) {-}
+
+*The following provenance metadata is provided for the reproducibility repository
+and peer review; it is not intended for the submitted/typeset article.*
+
+```{r provenance, results="asis"}
+cat(sprintf(paste0(
+  "- **Run:** `%s` (git `%s`)\n",
+  "- **Allocator:** %s / `%s` (mode %s; module sha256 `%s`)\n",
+  "- **Headline source:** %s\n",
+  "- **Cells:** %d specialty-year national rows (7 specialties × 11 years)\n"),
+  manifest_json$run_id, substr(manifest_json$git_sha, 1, 8),
+  manifest_json$allocator$method_id,
+  manifest_json$allocator$population_allocator,
+  manifest_json$allocator$mode,
+  substr(manifest_json$allocator$module_sha256, 1, 16),
+  manifest_json$headline_source, nrow(national_tbl)))
+```
+
+*All scientific values above are inline R expressions evaluated from the canonical
+run objects at render time; none are hardcoded in prose.*
+
+---
+
+# References {-}
+
+<div id="refs"></div>
+

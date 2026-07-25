@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software or analysis, please cite it as below."
+title: "twostep: E2SFCA Accessibility to OB/GYN Subspecialists in the Contiguous United States"
+abstract: >-
+  Standalone analysis and manuscript for national travel-time accessibility to the
+  seven ABOG-certified obstetric and gynecologic subspecialties across the
+  contiguous United States, 2013 to 2023, using an Enhanced Two-Step Floating
+  Catchment Area (E2SFCA) method on road-network isochrones with a mass-conserving
+  demand allocation and a Spatial Access Ratio (SPAR). Extracted from the
+  isochrones pipeline so the accessibility paper builds and reproduces
+  independently.
+type: software
+version: 0.1.0
+date-released: 2026-07-24
+license: MIT
+repository-code: "https://github.com/mufflyt/twostep"
+url: "https://github.com/mufflyt/twostep"
+authors:
+  - family-names: Muffly
+    given-names: Tyler
+    orcid: "https://orcid.org/0000-0002-5120-828X"
+    email: tyler.muffly@dhha.org
+    affiliation: "Department of Obstetrics and Gynecology, Denver Health"
+keywords:
+  - E2SFCA
+  - two-step floating catchment area
+  - spatial accessibility
+  - SPAR
+  - OBGYN subspecialties
+  - isochrones
+  - drive-time access
+  - health disparities
+  - reproducible research
