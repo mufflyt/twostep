@@ -56,7 +56,10 @@ documents the production run, gates, and frozen facts.
 ## Provenance and scope
 
 - **Frozen run:** `e2sfca_20260712_190734` (raster engine, 500 m EPSG:5070, 77/77
-  subspecialty-year cells, conservation to 1e-14).
+  subspecialty-year cells, conservation to 1e-14). Every frozen artifact used by the
+  manuscript, its provenance, and what it feeds are documented in
+  [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md); their SHA-256 checksums are
+  pinned in [`SHA256SUMS.txt`](SHA256SUMS.txt) (`shasum -a 256 -c SHA256SUMS.txt`).
 - **Analysis scripts vs manuscript:** the manuscript reproduces from the frozen
   output artifacts here. The heavy generation scripts (`scripts/run_2sfca.R`,
   `sensitivity_e2sfca_2020.R`, the map/seam scripts) are included for provenance
