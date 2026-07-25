@@ -1,0 +1,5 @@
+# Reference-only generation + EC2 scripts (not in the render/test path).
+scripts/*
+!scripts/manuscript_e2sfca_values.R
+# Rendered outputs.
+*.html

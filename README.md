@@ -14,15 +14,21 @@ frozen artifacts shipped here — no upstream pipeline or network access needed.
 ## Reproduce the manuscript
 
 ```r
-# from the repo root
+# from the repo root — one time, to install the exact pinned package versions
+Rscript -e 'renv::restore()'
+
+# then render
 Rscript render.R
 # -> manuscript/e2sfca_accessibility_manuscript.html (self-contained)
 ```
 
-Required packages: `rmarkdown`, `knitr`, `kableExtra`, `dplyr`, `tidyr`, `purrr`,
-`tibble`, `readr`, `jsonlite`, `here`. All manuscript inputs are the small CSV/RDS/
-JSON files under `artifacts/2sfca/**`, `manuscript/data/`, and the figures under
-`manuscript/figures/`.
+Package versions are pinned in `renv.lock` (renv activates automatically via
+`.Rprofile`), so the render and tests are hermetic down to the package version.
+The render itself uses `rmarkdown`, `knitr`, `kableExtra`, `dplyr`, `tidyr`,
+`purrr`, `tibble`, `readr`, `jsonlite`, `here`; the tests add `testthat`, `sf`,
+`terra`, `exactextractr`, `checkmate`, `rprojroot`. All manuscript inputs are the
+small CSV/RDS/JSON files under `artifacts/2sfca/**`, `manuscript/data/`, and the
+figures under `manuscript/figures/`.
 
 ## Run the method tests
 
