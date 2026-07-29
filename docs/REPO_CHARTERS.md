@@ -1,7 +1,7 @@
 # Repository Charters and Dependency Contract
 
-**Single rule:** isochrones builds the roster, mufflyaccess certifies and serves the
-number, and cliff models what happens next.
+**Single rule:** isochrones determines who and where, mufflyaccess certifies how
+many, twostep measures access, and cliff projects the future.
 
 This document is the authoritative charter for the four-repo workforce lineage. It
 fixes **one direction of dependency** so that provider-level truth is built once,
@@ -195,25 +195,68 @@ redefine the baseline.
 
 ---
 
-## Charter: twostep - consume the SSOT (access / E2SFCA)
+## Charter: twostep - measure access (accessibility methodology)
 
-**Owns the accessibility manuscript, not any shared constant.** twostep is a
-consumer on the same tier as cliff. It does not produce rosters, workforce counts,
-or shared constants; it produces the E2SFCA access analysis.
+**Owns the accessibility methodology, not the roster or the count.** twostep sits
+beside cliff as a consumer of mufflyaccess, with a different analytical role: given
+the canonical providers and the population, how accessible was care?
 
 Responsibilities:
-- E2SFCA accessibility surfaces and the access manuscript
-- Consuming shared geography / access / denominator constants from mufflyaccess
-- Never independently redefining a shared constant it consumes
+- E2SFCA calculations
+- Catchment definitions
+- Travel-time decay weights
+- Supply-to-demand ratios
+- Census denominator integration
+- Geography aggregation
+- Accessibility outputs by year, specialty, and travel-time band
 
-Note on scope: twostep consumes the **access and geography** SSOTs (CONUS FIPS,
-drive-time bands, ACS denominators, disparity statistics). It does **not** consume
-the URPS workforce count (that is cliff's baseline). The workforce charter above
-still binds twostep only in principle: any shared quantity twostep uses flows down
-from mufflyaccess, never sideways or up.
+It does NOT own:
+- Raw ABOG or ABU roster cleaning
+- National URPS baseline definitions
+- Retirement classification
+- ABOG/ABU deduplication
+- Independent headline provider counts
 
-**Critical rule:** twostep may transform shared constants into access measures, but
-it cannot redefine them.
+**The isochrones vs twostep boundary (the names overlap; the roles do not):**
+
+| | isochrones answers | twostep answers |
+|---|---|---|
+| question | which providers existed, were active, and where, in each year? | given those providers and the population, how accessible was care? |
+| grain | one row per provider-year | one row per (year, specialty, geography, band) |
+| canonical columns | `provider_id`, `specialty`, `board_pathway`, `year`, `active_in_year`, `latitude`, `longitude`, `provider_snapshot_version` | `year`, `specialty`, `geography`, `geoid`, `travel_time_band`, `provider_supply`, `population_demand`, `accessibility_score`, `method_version`, `provider_snapshot_version` |
+
+**How twostep consumes (preferred design):** counts flow through mufflyaccess;
+provider rows come directly from an isochrones release artifact.
+
+```
+isochrones -- provider artifact --> twostep
+     |
+     +-- count artifact --> mufflyaccess --> twostep
+```
+
+```r
+providers      <- load_twostep_provider_input(specialty = "URPS", year = 2023L,
+                                              include_urology = TRUE)
+expected_count <- mufflyaccess::urps_count(year = 2023L, include_urology = TRUE)
+stopifnot(dplyr::n_distinct(providers$provider_id) == expected_count)
+```
+
+This keeps mufflyaccess lightweight (it ships counts + provenance, not a large
+provider-level dataset). An alternative, exposing provider rows through
+`mufflyaccess::urps_providers()`, is warranted ONLY if several repos routinely need
+provider-level rows and artifact retrieval is otherwise inconsistent; it makes the
+package heavier and more tightly coupled to large data releases.
+
+twostep must reconcile its provider input to the SSOT count and carry provider
+provenance (`provider_snapshot_version`, `provider_source_sha256`) into its
+accessibility outputs, but it VALIDATES the total, never redefines it.
+
+Guarded by `tests/testthat/test-urps-consumer-contract.R` (reconcile to the SSOT +
+provenance retention) and `tests/testthat/test-no-urps-count-derivation.R` (no
+hardcoded or derived counts in twostep production code).
+
+**Critical rule:** twostep may transform the canonical roster and population into
+access measures, but it cannot redefine who, where, or how many.
 
 ---
 
@@ -222,12 +265,26 @@ it cannot redefine them.
 These are the points where the current repos do NOT yet satisfy the charter. They
 are recorded here so the gap is explicit, not hidden.
 
-1. **The 2023 baseline is a target, not yet a validated artifact.** The values
-   1,031 / 1,339 / 308 are the charter's expected 2023 numbers. isochrones has not
-   yet emitted `artifacts/workforce/urps_counts_by_year.csv` with a 2023 row, and
-   mufflyaccess has not yet imported it. Until it does, these numbers must be
-   treated as the specification to build toward, validated against the artifact
-   before any manuscript cites them.
+> **v2.1 contract supersedes the headline numbers below (2026-07-29).** The
+> measure-by-year-by-geography contract distinguishes two measures, so the single
+> "2023 combined = 1,339" figure used earlier in this doc is superseded:
+> - 2023, `board_certified_active`, national, with urology = **1,332**
+> - 2023, `board_certified_active`, CONUS, with urology = **1,329**
+> - 2025, `roster_snapshot`, national, with urology = **1,339** (a snapshot, NOT
+>   the 2023 active count)
+>
+> So **1,339 is the 2025 roster snapshot, not the 2023 active count** (that is
+> 1,332). Earlier lines in the mufflyaccess charter section that read "2023 -> 1339"
+> and "1031 + 308 == 1339" describe the pre-v2.1 single-measure framing and are
+> retained only for history. The `urps_count()` signature is now explicit on year,
+> measure, geography, pathway, and incomplete-data policy. twostep's consumer tests
+> (`test-urps-consumer-contract.R`) already pin the v2.1 values.
+
+1. **The 2023 baseline is a target, not yet a validated artifact.** These figures
+   are the specification to build toward. isochrones has not yet emitted
+   `artifacts/workforce/urps_counts_by_year.csv` with a 2023 row, and mufflyaccess
+   has not shipped `urps_count()` at all. Until both exist, the numbers must be
+   validated against the artifact before any manuscript cites them.
 
 2. **The currently frozen constants are 2025, not 2023.** mufflyaccess currently
    ships `URPS_COUNT_ABOG_ONLY_2025 = 1031`, `URPS_COUNT_ABOG_PLUS_ABU_2025 = 1295`
