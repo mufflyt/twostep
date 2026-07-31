@@ -1,5 +1,10 @@
 #!/usr/bin/env Rscript
 # ============================================================================
+# ARCHIVED / LEGACY exhibit -- NOT part of the render (render.R) or
+# test-execution path. This secondary catalog map depends on a helper
+# (R/guard_simplified_map.R) that is not vendored in this repo, so it will
+# not run as-is; it is kept for reference/provenance only.
+# ----------------------------------------------------------------------------
 # Executive access-equity map (interactive) for the seven OB/GYN subspecialties.
 #
 # An access-disparity exhibit built on the bivariate idea but re-weighted so the

@@ -22,16 +22,22 @@
 set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$PROJECT_ROOT"
 
+# Private infrastructure identifiers (bucket / AMI / SSH key / IAM / security
+# group) are NOT committed. Copy scripts/ec2.env.example to scripts/ec2.env and
+# fill in your values (or export the same vars in your shell). The CHANGEME-*
+# defaults below are non-functional placeholders so a public clone leaks nothing.
+[ -f scripts/ec2.env ] && . scripts/ec2.env
+
 REGION="${EC2_REGION:-us-east-2}"
-BUCKET="${S3_BUCKET:-tyler-valhalla-tiles}"
+BUCKET="${S3_BUCKET:-CHANGEME-tiles-bucket}"
 PFX="${S3_PREFIX:-e2sfca_run}"
 ISO_PFX="${ISO_S3_PREFIX:-seam_run/inputs/isochrones}"   # reuse verified isochrones
-AMI="${AMI_ID:-ami-081b31d5df91089c4}"
+AMI="${AMI_ID:-ami-CHANGEME}"
 ITYPE="${INSTANCE_TYPE:-r6i.2xlarge}"
-KEY_PATH="${KEY_PATH:-$HOME/.ssh/valhalla-key-tmuff2.pem}"
-KEY_NAME="${KEY_NAME:-valhalla-key-tmuff2}"
-PROFILE="${IAM_PROFILE:-valhalla-ec2-profile}"
-SGNAME="${SG_NAME:-valhalla-sg}"
+KEY_PATH="${KEY_PATH:-$HOME/.ssh/CHANGEME.pem}"
+KEY_NAME="${KEY_NAME:-CHANGEME-key}"
+PROFILE="${IAM_PROFILE:-CHANGEME-ec2-profile}"
+SGNAME="${SG_NAME:-CHANGEME-sg}"
 SRCRUN="${SRCRUN:-20260702_120134_90bf52ef}"          # ycm/cohort source artifacts dir
 RUN_ID="${RUN_ID:-e2sfca_$(date -u +%Y%m%d_%H%M%S)}"  # immutable per launch
 GIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo unknown)"

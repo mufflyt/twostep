@@ -1,5 +1,13 @@
 #!/usr/bin/env Rscript
 
+# -----------------------------------------------------------------------------
+# ARCHIVED / LEGACY -- NOT part of the render (render.R) or test-execution path.
+# Belongs to the older subspecialty/bivariate-map subsystem, preserved for
+# provenance (see docs/SSOT_LEDGER.md, CRS-9311 entry) and intentionally
+# renv-ignored (.renvignore). Some source() helpers it references are not
+# vendored in this repo, so it will not run as-is; kept for reference only.
+# -----------------------------------------------------------------------------
+
 #' @title Calculate Subspecialty-Specific Accessibility with Age-Appropriate
 #'   Denominators
 #'

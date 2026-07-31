@@ -32,7 +32,7 @@ and re-pin from that run instead of editing the constant.
 | Method | **E2SFCA is authoritative** (`step2_power = 1`). M2SFCA (`= 2`), Gaussian-zonal, and SPAR relative access are **sensitivity variants only** (`scripts/sensitivity_e2sfca_2020.R`), never the headline |
 | National conservation tol | 0.005 (`E2SFCA_NATIONAL_CONS_TOL`); breach ⇒ **stop the year** |
 | SSOT stats module | `R/accessibility_stratification.R` (guarded by `tests/testthat/test-accessibility-stratification.R`, 397 checks) |
-| EC2 AMI | `overlap-r45-spatial` (R 4.5.1); IAM `valhalla-ec2-profile`; region us-east-2; bucket `tyler-valhalla-tiles` |
+| EC2 infra | Prebuilt R 4.5.1 spatial AMI; region us-east-2. Bucket / AMI id / IAM profile / SSH key / security group are private and set via `scripts/ec2.env` (see `scripts/ec2.env.example`), never committed. |
 | Env lock | R 4.5.1 / sf 1.1.1 / terra 1.9.34 / exactextractr 0.10.1 / GEOS 3.13.0 / GDAL 3.10.3 / PROJ 9.6.2 |
 | Output dirs | `artifacts/2sfca/` (production), `artifacts/2sfca/figures/` (downstream), `artifacts/2sfca_seam/` (seam gate + surface maps), `artifacts/2sfca_superseded/` (dead runs — do NOT read) |
 

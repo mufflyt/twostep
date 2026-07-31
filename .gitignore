@@ -1,3 +1,6 @@
+# Private EC2/S3 infrastructure values (copy scripts/ec2.env.example -> scripts/ec2.env)
+scripts/ec2.env
+
 # R / RStudio
 .Rproj.user/
 .Rhistory

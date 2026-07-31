@@ -44,9 +44,11 @@ test_that("the intentional 4-band SET map is preserved (NOT collapsed)", {
               info = "the 4-band generation set map must remain a literal set")
 })
 
-test_that("repo SSOT values equal the shared mufflyaccess package (no cross-repo drift)", {
-  skip_if_not(requireNamespace("mufflyaccess", quietly = TRUE))
-  expect_identical(PRIMARY_ACCESS_BAND_SEC,     mufflyaccess::PRIMARY_ACCESS_BAND_SEC)
-  expect_identical(DENOMINATOR_CATEGORY,        mufflyaccess::DENOMINATOR_CATEGORY)
-  expect_identical(TRACT_REACHED_COVERAGE_PCT,  mufflyaccess::TRACT_REACHED_COVERAGE_PCT)
+test_that("vendored SSOT values equal the frozen upstream (mufflyaccess) contract", {
+  # These constants were promoted to the private mufflyaccess package and are now
+  # VENDORED into twostep (behavior-identical). This pins them to the frozen
+  # upstream values so a silent edit is caught without needing the private package.
+  expect_identical(PRIMARY_ACCESS_BAND_SEC,     3600L)
+  expect_identical(DENOMINATOR_CATEGORY,        "total_female")
+  expect_identical(TRACT_REACHED_COVERAGE_PCT,  50L)
 })

@@ -133,44 +133,57 @@ E2SFCA_SUBSPECIALTY_LABELS <- c(
 #' @export
 E2SFCA_PRODUCTION_RESOLUTION_M <- 500L
 
-# ---- canonical geographic scope (re-exported from mufflyaccess) --------------
-# The geography SSOTs now live ONCE in the shared mufflyaccess package (single source
-# across isochrones / twostep / cliff). This loader re-exports them under the names its
-# consumers already use (CONUS_STATE_FIPS is identical; NON_CONUS_FIPS is the package's
-# NON_CONTIGUOUS_FIPS). US_STATE_TERRITORY_FIPS is derived as their union, so the
-# CONUS/non-CONUS partition can never drift. install: renv::install("mufflyt/mufflyaccess@v0.1.2")
-if (!requireNamespace("mufflyaccess", quietly = TRUE))
-  stop("Package 'mufflyaccess' is required. Install: renv::install(\"mufflyt/mufflyaccess@v0.1.2\").",
-       call. = FALSE)
+# ---- canonical geographic scope (twostep-local, VENDORED) --------------------
+# These geography SSOTs were promoted to the shared mufflyaccess package, but that
+# package is private, so to keep twostep self-contained and reproducible by
+# outsiders they are VENDORED here (single in-repo source of truth). Upstream
+# origin: mufflyaccess::CONUS_STATE_FIPS / ::NON_CONTIGUOUS_FIPS (from
+# isochrones/R/geographic_classification.R). NON_CONUS_FIPS and
+# US_STATE_TERRITORY_FIPS are DERIVED below so the CONUS/non-CONUS partition can
+# never drift. Guarded by tests/testthat/test-ssot-{conus,nonconus}-fips.R.
 
-#' CONUS state/DC FIPS (48 contiguous states + DC = 49 codes). Re-exported from
-#' mufflyaccess::CONUS_STATE_FIPS. Excludes AK(02), HI(15), territories.
+#' CONUS state/DC FIPS (48 contiguous states + DC = 49 codes). Excludes AK(02),
+#' HI(15), and the five territories.
 #' @export
-CONUS_STATE_FIPS <- mufflyaccess::CONUS_STATE_FIPS
+CONUS_STATE_FIPS <- c(
+  "01", "04", "05", "06", "08", "09", "10", "11", "12", "13",
+  "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
+  "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
+  "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
+  "49", "50", "51", "53", "54", "55", "56"
+)
 
-#' Non-contiguous FIPS excluded from the study (AK, HI, + 5 territories). Re-exported
-#' from mufflyaccess::NON_CONTIGUOUS_FIPS under the local consumer name NON_CONUS_FIPS.
+#' Non-contiguous FIPS excluded from the study (AK, HI, + 5 territories), under
+#' the local consumer name NON_CONUS_FIPS.
 #' @export
-NON_CONUS_FIPS <- mufflyaccess::NON_CONTIGUOUS_FIPS
+NON_CONUS_FIPS <- c("02", "15", "60", "66", "69", "72", "78")
 
-#' All US state + territory FIPS (56): the CONUS/non-CONUS union. DERIVED from the two
-#' package sets so the partition is exact and cannot drift.
+#' All US state + territory FIPS (56): the CONUS/non-CONUS union. DERIVED from the
+#' two sets so the partition is exact and cannot drift.
 #' @export
 US_STATE_TERRITORY_FIPS <- sort(union(CONUS_STATE_FIPS, NON_CONUS_FIPS))
+
+stopifnot(
+  "CONUS_STATE_FIPS must be 49 unique 2-char codes" =
+    length(CONUS_STATE_FIPS) == 49L && !anyDuplicated(CONUS_STATE_FIPS) &&
+    all(nchar(CONUS_STATE_FIPS) == 2L),
+  "NON_CONUS_FIPS must be 7 codes disjoint from CONUS" =
+    length(NON_CONUS_FIPS) == 7L && !any(NON_CONUS_FIPS %in% CONUS_STATE_FIPS)
+)
 
 # ---- canonical national denominator (SSOT) -----------------------------------
 
 #' National ACS female population, 2020 (the national coverage denominator).
 #'
-#' Re-exported from the shared package (`mufflyaccess::ACS2020_CONUS_FEMALE_POP`) so
-#' there is ONE source across repos; `as.integer()` strips the package's provenance
-#' attributes to keep this a plain integer (the form figures and the guard expect).
-#' Authority remains the frozen run's national summary (`acs_pop_source`, year 2020),
-#' which [e2sfca_acs_female_pop] re-derives live and the test suite pins to this value.
+#' VENDORED from the shared package (`mufflyaccess::ACS2020_CONUS_FEMALE_POP`, in
+#' turn from isochrones) so twostep is self-contained; kept a plain integer (the
+#' form figures and the guard expect). Authority remains the frozen run's national
+#' summary (`acs_pop_source`, year 2020), which [e2sfca_acs_female_pop] re-derives
+#' live and the test suite pins to this value.
 #'
 #' @format Integer scalar; count of women (all ages) in the 2020 ACS, CONUS grid.
 #' @export
-E2SFCA_ACS_FEMALE_POP_2020 <- as.integer(mufflyaccess::ACS2020_CONUS_FEMALE_POP)
+E2SFCA_ACS_FEMALE_POP_2020 <- 164690617L
 
 #' Derive the national ACS female-population denominator for a year.
 #'

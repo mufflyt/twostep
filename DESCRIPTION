@@ -27,8 +27,7 @@ Imports:
     terra,
     exactextractr,
     here,
-    rprojroot,
-    mufflyaccess
+    rprojroot
 Suggests:
     rmarkdown,
     knitr,
@@ -39,8 +38,6 @@ Suggests:
     tidycensus,
     tigris,
     digest
-Remotes:
-    mufflyt/mufflyaccess@v0.1.2
 URL: https://github.com/mufflyt/twostep
 BugReports: https://github.com/mufflyt/twostep/issues
 Config/testthat/edition: 3

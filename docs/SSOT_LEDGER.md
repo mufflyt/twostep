@@ -708,6 +708,23 @@ other window); do NOT re-audit them.
 
 ## twostep -> mufflyaccess package lane (2026-07-25)
 
+> **SUPERSEDED / VENDORED (2026-07-27):** the `mufflyaccess` GitHub repo is private,
+> which made twostep un-reproducible for outside readers (`renv::restore()` and the
+> tests both hard-required an inaccessible package). For publication self-containment
+> the shared SSOTs were **vendored back into twostep** (single in-repo source of
+> truth), and the package dependency was removed: `DESCRIPTION` (`Imports`/`Remotes`)
+> and `renv.lock` no longer reference `mufflyaccess`. The vendored definitions live in
+> `R/contour_bands.R` (bands), `R/access_categories.R` (`DENOMINATOR_CATEGORY`),
+> `R/access_thresholds.R` (`TRACT_REACHED_COVERAGE_PCT`),
+> `R/accessibility_stratification.R` (the 7 disparity-stat functions +
+> `TOTAL_FEMALE_VAR`/`RACE_FEMALE_VARS` + `RUCA_NONMETRO_MIN`), and
+> `scripts/manuscript_e2sfca_values.R` (`CONUS_STATE_FIPS`, `NON_CONUS_FIPS`,
+> `E2SFCA_ACS_FEMALE_POP_2020`). Values are behavior-identical to the package; each
+> file names its upstream origin in a header comment. The consistency guard
+> (`test-mufflyaccess-consistency.R`) and the SSOT guards were converted to
+> frozen-literal contracts. Full suite **742 pass / 0 fail**. The historical
+> package-lane notes below are retained for provenance.
+
 The shared SSOTs now live in the `mufflyaccess` package (v0.1.2/0.1.3); twostep's
 local F/G modules were migrated to depend on it:
 - `R/access_categories.R`, `R/access_thresholds.R` -- already full shims (parallel window).
@@ -716,7 +733,7 @@ local F/G modules were migrated to depend on it:
   from the package; the twostep-specific `ACTIVE_BANDS_FALLBACK` + `get_active_bands()`
   (read `config/isochrone_config.yaml`, NOT in the package) kept local. Partial shim.
 - `DESCRIPTION`: recorded the dependency (`Imports: mufflyaccess`,
-  `Remotes: mufflyt/mufflyaccess@v0.1.2`) so twostep stays reproducible.
+  `Remotes: mufflyt/mufflyaccess@v0.1.4`) so twostep stays reproducible.
 - Full twostep suite: **726 pass / 0 fail**.
 
 **Geography duplication RESOLVED (2026-07-25):** `scripts/manuscript_e2sfca_values.R`
