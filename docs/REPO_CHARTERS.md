@@ -109,11 +109,13 @@ Responsibilities:
 - Carrying provenance with every returned number
 - Deprecating ambiguous constants
 
-Primary API:
+Primary API (the example return values below are the PRE-3.0.0 framing and are
+SUPERSEDED, see the contract-3.0.0 reconciliation note in the section below;
+current 2023 with-urology national = 1,306, not 1,339):
 
 ```r
-mufflyaccess::urps_count(year = 2023L, include_urology = FALSE)  # -> 1031
-mufflyaccess::urps_count(year = 2023L, include_urology = TRUE)   # -> 1339
+mufflyaccess::urps_count(year = 2023L, include_urology = FALSE)  # pre-3.0.0 example only
+mufflyaccess::urps_count(year = 2023L, include_urology = TRUE)   # pre-3.0.0 example only
 ```
 
 Also provide:
@@ -124,15 +126,19 @@ mufflyaccess::urps_provenance()    # source files, hashes, dates, method, git SH
 mufflyaccess::validate_urps_ssot() # re-checks schema/hashes/counts; fails loudly on drift
 ```
 
-Expected headline values (measure year 2023):
+Expected headline values: **SUPERSEDED by contract 3.0.0** (see the reconciliation
+note below). The current 2023 `board_certified_active`, with-urology cells are
+national **1,306** (1,027 ABOG + 279 ABU net-new) and CONUS **1,303**. The table
+below is the retired pre-3.0.0 framing, kept only for lineage:
 
-| cohort | value |
+| cohort (RETIRED framing) | value |
 |---|---|
-| 2023 without urology (ABOG only) | **1,031** |
-| 2023 with urology (ABOG + ABU) | **1,339** |
-| ABU net-new | **308** |
+| 2023 without urology (ABOG only) | 1,031 |
+| 2023 with urology (ABOG + ABU) | 1,339 |
+| ABU net-new | 308 |
 
-Invariant: `1031 + 308 == 1339`. `validate_urps_ssot()` must assert it.
+Invariant under contract 3.0.0: `1027 + 279 == 1306`; `validate_urps_artifact()`
+must assert it. (The retired `1031 + 308 == 1339` is history, not a target.)
 
 **Three distinct time attributes, never collapsed into one ambiguous `year`:**
 
@@ -265,20 +271,20 @@ access measures, but it cannot redefine who, where, or how many.
 These are the points where the current repos do NOT yet satisfy the charter. They
 are recorded here so the gap is explicit, not hidden.
 
-> **v2.1 contract supersedes the headline numbers below (2026-07-29).** The
-> measure-by-year-by-geography contract distinguishes two measures, so the single
-> "2023 combined = 1,339" figure used earlier in this doc is superseded:
-> - 2023, `board_certified_active`, national, with urology = **1,332**
-> - 2023, `board_certified_active`, CONUS, with urology = **1,329**
-> - 2025, `roster_snapshot`, national, with urology = **1,339** (a snapshot, NOT
->   the 2023 active count)
+> **CONTRACT 3.0.0 is current (2026-07-29). It supersedes v2.1.0 AND the earlier
+> single-measure framing; the superseded numbers are history, not targets.** The
+> current canonical 2023 `board_certified_active`, with-urology cells are:
+> - national = **1,306**  (reconciliation: 1,027 ABOG + 279 ABU net-new)
+> - CONUS = **1,303**
 >
-> So **1,339 is the 2025 roster snapshot, not the 2023 active count** (that is
-> 1,332). Earlier lines in the mufflyaccess charter section that read "2023 -> 1339"
-> and "1031 + 308 == 1339" describe the pre-v2.1 single-measure framing and are
-> retained only for history. The `urps_count()` signature is now explicit on year,
-> measure, geography, pathway, and incomplete-data policy. twostep's consumer tests
-> (`test-urps-consumer-contract.R`) already pin the v2.1 values.
+> **Retired v2.1.0 cells: 1,332 (national) / 1,329 (CONUS). These must NEVER appear
+> as current expected values, anywhere.** Likewise the pre-v2.1 lines earlier in
+> the mufflyaccess charter section ("2023 -> 1339", "1031 + 308 == 1339") are
+> doubly-retired history. The **2025 `roster_snapshot`** value is NOT hand-assumed
+> here (it is not necessarily 1,339); it must be read from the contract-3.0.0
+> artifact or left pending until mufflyaccess 0.7.0 exposes it. twostep's consumer
+> tests (`test-urps-consumer-contract.R`) pin 1,306 / 1,303 and skip until
+> mufflyaccess 0.7.0 (contract 3.0.0) is installed.
 
 1. **The 2023 baseline is a target, not yet a validated artifact.** These figures
    are the specification to build toward. isochrones has not yet emitted

@@ -1,10 +1,10 @@
 # tests/testthat/test-no-urps-count-derivation.R
 # CONSUMER GUARD: twostep must CONSUME canonical URPS counts from mufflyaccess
 # (mufflyaccess::urps_count()), never DERIVE or hardcode them. This static scan
-# fails if any forbidden token appears in twostep PRODUCTION code (R/ + scripts/):
-#   - the SSOT symbol family URPS_COUNT*, or
-#   - the headline literals 1031 / 1339 / 308 (and the deprecated 1295 / 264).
-# tests/ and docs/ are NOT scanned (they legitimately pin expected values).
+# fails if any forbidden URPS workforce scalar appears in twostep PRODUCTION code
+# (R/ + scripts/): the SSOT symbol family URPS_COUNT*, or the workforce-count
+# literals enumerated below. tests/ and docs/ are NOT scanned (they legitimately
+# reference expected, retired, and rejected values).
 #
 # Bug-fixed vs the naive version:
 #   (1) numeric literals use perl word-boundary look-arounds, so 308 is NOT
@@ -19,12 +19,21 @@ test_that("twostep production code does not derive or hardcode canonical URPS co
   files <- list.files(dirs[dir.exists(dirs)], pattern = "\\.[Rr]$",
                       recursive = TRUE, full.names = TRUE)
 
-  # finalized headline literals + deprecated ones. Under the v2.1 contract:
-  #   1332 = 2023 board_certified_active, national, with urology
-  #   1329 = 2023 board_certified_active, CONUS,    with urology
-  #   1339 = 2025 roster_snapshot,        national, with urology (NOT the 2023 active count)
-  # Consumers must obtain all of these via mufflyaccess::urps_count(), never hardcode them.
-  num_forbidden <- c("1031", "1332", "1329", "1339", "308", "1295", "264")
+  # Canonical URPS workforce scalars must be obtained through
+  # mufflyaccess::urps_count(), never derived or hardcoded in twostep production.
+  #   CURRENT (contract 3.0.0):
+  #     1306 = 2023 board_certified_active, national, with urology
+  #     1303 = 2023 board_certified_active, CONUS,    with urology
+  #   RETIRED (contract v2.1.0) -- must NEVER appear as current expected values:
+  #     1332 / 1329 = the superseded 2023 national / CONUS cells
+  #   ROSTER SNAPSHOT (unconfirmed until contract 3.0.0 exposes it):
+  #     1339 = 2025 roster_snapshot (NOT a 2023 active count)
+  #   CLIFF LEGACY frozen projection cohort:
+  #     1295
+  # A literal is allowed ONLY when it is obtained via the canonical API, explicitly
+  # labeled a retired historical cell, explicitly labeled Cliff's legacy frozen
+  # projection, or used in a test that verifies rejection / historical lineage.
+  num_forbidden <- c("1306", "1303", "1332", "1329", "1339", "1295")
   sym_forbidden <- c("URPS_COUNT")
 
   offenders <- character(0)

@@ -4,33 +4,36 @@ Concise companion to [`REPO_CHARTERS.md`](REPO_CHARTERS.md). It fixes which repo
 owns which class of truth so the four repos never drift back into overlapping
 sources of truth. One direction of dependency only (see the charter diagram).
 
+## isochrones owns
+
+- **Builds and owns the workforce artifact** (the provider-level roster and the
+  derived counts, under a versioned artifact contract, currently 3.0.0)
+- Travel-time bands, reachability calculations, spatial access surfaces, and
+  geographic routing artifacts
+
 ## mufflyaccess owns
 
+- **Validates and serves** the isochrones workforce artifact through a stable,
+  lightweight API (`urps_count()` and friends); it does not rebuild the roster
 - Workforce **measure definitions** (`board_certified_active`, `roster_snapshot`)
-- Provider **pathway reconciliation** (ABOG / ABU net-new / combined)
-- **National, CONUS, and state workforce counts**
-- Artifact **provenance**
-- **Semantic validation** of counts
-- The **snapshot vs active-workforce** distinction (e.g. 2025 roster_snapshot 1,339
-  is NOT the 2023 board_certified_active count 1,332)
+  and the **snapshot vs active-workforce** distinction
+- Provider **pathway reconciliation** as published (ABOG / ABU net-new / combined)
+- Artifact **provenance** and **semantic validation** of the served counts
 
 ## twostep owns
 
-- **Population denominators** (ACS)
-- **Supply-to-population** measures
-- **E2SFCA** calculations
+- **ACS population denominators**
+- **E2SFCA / accessibility** calculations and supply-to-population measures
 - **Geography-specific demand** estimates
 
-## isochrones owns
+## Cliff owns
 
-- **Travel-time bands**
-- **Reachability** calculations
-- **Spatial access surfaces**
-- **Geographic routing** artifacts
+- **Projections and scenarios** built on the served baseline (preserving its own
+  frozen legacy projection cohort, e.g. 1,295, clearly labeled as such)
 
-(isochrones also builds the provider-level roster that feeds the counts
-mufflyaccess publishes; see the charter. The list above is its *access-surface*
-ownership, which twostep and cliff must not reconstruct.)
+> twostep's staged 2020 seven-subspecialty provider-supply table is a **separate
+> spatial estimand**. It is NOT the national URPS scalar and is NOT replaced by a
+> `mufflyaccess::urps_count()` call; the two answer different questions.
 
 ## Enforced boundaries (in code, not just prose)
 
@@ -53,3 +56,42 @@ assert_matching_geography(workforce_geography, denominator_geography)
 
 A national numerator over a CONUS denominator (or vice versa) silently biases
 every accessibility score; this precondition makes it a hard error.
+
+## Geographic-analysis input provenance (the three-source join)
+
+twostep's E2SFCA / accessibility analysis is a numerator (workforce supply)
+divided into a denominator (population demand) over a reachability surface. Those
+three inputs come from three different owners; no single package holds all of
+them, and mufflyaccess deliberately serves only the first.
+
+| Input class | Owner / source | Reached via |
+|---|---|---|
+| Shared scope constants (`CONUS_STATE_FIPS`, `NON_CONUS_FIPS`) | mufflyaccess | package constant |
+| Drive-time band definitions (`CANONICAL_BANDS`, `PRIMARY_ACCESS_BAND_MIN`/`_SEC`) | mufflyaccess | package constant |
+| Access-table conventions (`DENOMINATOR_CATEGORY`, `TRACT_REACHED_COVERAGE_PCT`) | mufflyaccess | package constant |
+| Disparity statistics (`weighted_mean_all`, `zero_access_share`, `rurality_from_ruca`, `mc_weighted_ci`, RUCA / MOE) | mufflyaccess | package function |
+| Workforce **counts** / provider supply totals (the numerator scalar) | isochrones artifact, served by mufflyaccess | `mufflyaccess::urps_count()` (contract 3.0.0, once 0.7.0 ships) |
+| **Tract / grid / state ACS population denominators** (the demand surface) | **twostep** | its own `get_acs()` (`run_2sfca.R`, `prefetch_2sfca_acs.R`, `seam_test_2sfca.R`, ...) |
+| **Provider locations + travel-time reachability** (`coverage_*.geojson`, `seam_tracts`, `urogyn_tract_fem65` centroids, `step_4_access_by_group`) | **isochrones** | isochrones release artifacts, read directly |
+
+So mufflyaccess can supply twostep's shared **constants**, **statistics**, and the
+workforce **count scalar** (numerator). It cannot and should not supply the
+**population denominators** (twostep-owned, large, geography-specific) or the
+**provider / reachability geometry** (isochrones-owned). Answering "how many" is
+mufflyaccess's job; "where" and "how many people" are not.
+
+### Open seam: the national ACS reference scalar
+
+`E2SFCA_ACS_FEMALE_POP_2020` (164,690,617) currently comes **from mufflyaccess**
+(it shipped as a national "census denominator"), yet this document assigns ACS
+population denominators to **twostep**. That single national scalar is the only
+input sitting on the boundary. It must be resolved one way, not held by both:
+
+- **Option A** - mufflyaccess keeps a deliberately narrow set of *national
+  reference denominators* (single scalars for coverage percentages), explicitly
+  distinct from twostep's tract/grid demand surfaces; or
+- **Option B** - the scalar moves to twostep, and mufflyaccess serves workforce
+  counts only.
+
+Until resolved, treat it as a documented exception, not a precedent for putting
+any geography-resolved ACS data in mufflyaccess.

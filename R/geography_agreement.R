@@ -7,8 +7,13 @@
 # denominator silently biases every accessibility score. This guard makes that a
 # hard, fail-loud precondition.
 #
-# The E2SFCA pipeline (run_twostep_accessibility / prepare_provider_supply) MUST
-# call this before combining supply and demand. See docs/data-ownership.md.
+# The FUTURE E2SFCA pipeline (run_twostep_accessibility / prepare_provider_supply)
+# MUST call this before combining a provider numerator with a population
+# denominator. It is intentionally NOT wired into the existing 2020 seven-
+# subspecialty E2SFCA code: that is a separate spatial estimand with no national
+# URPS-scalar call site, and bolting this in there merely to claim adoption would
+# be false coupling. Adopt it at the real numerator/denominator join when that
+# workflow is built. See docs/data-ownership.md.
 # ==============================================================================
 
 #' Assert the workforce numerator and denominator share one geography
