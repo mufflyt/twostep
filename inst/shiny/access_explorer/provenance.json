@@ -1,0 +1,65 @@
+{
+  "records": [
+    {
+      "tab": "Disparities + Sensitivity",
+      "source": "data/step_4_access_by_group.csv",
+      "grain": "2023 cross-section; subspecialty x band x race-category",
+      "producer": "vendored Step-4 access extract (data/PROVENANCE_vendored_inputs.md)",
+      "present": true,
+      "bytes": 44986,
+      "sha256": "4bff57453bf3b926be68fc9af8892ebb3e738d123ff2b7f9bfa1c3b9b85ab44b",
+      "rows": 224,
+      "cols": 15,
+      "fields": ["year", "range", "category", "subspecialty", "count", "count_moe", "total", "total_moe", "percent", "percent_moe", "suppression_rate", "suppression_flag", "census_vintage", "moe_available", "data_status"]
+    },
+    {
+      "tab": "Temporal (2013-2023)",
+      "source": "artifacts/2sfca/figures/allsubspec_allyears_stratified_LONG.csv",
+      "grain": "subspecialty x year (2013-2023) x stratum (race/rurality)",
+      "producer": "scripts/stratify_allyears_access.R over the frozen E2SFCA run",
+      "present": true,
+      "bytes": 48602,
+      "sha256": "1acb9605042351f5f88aa8fdf2f805cfe71fe7dc0c7c4087a02408aab07a7dda",
+      "rows": 616,
+      "cols": 7,
+      "fields": ["subspec", "year", "stratum_type", "stratum", "mean_access", "pct_zero", "women"]
+    },
+    {
+      "tab": "Access map (tract geometry)",
+      "source": "data/cache/tract_boundaries/*.rds",
+      "grain": "census tract polygons (CONUS)",
+      "producer": "isochrones tract-boundary cache (staged)",
+      "present": false
+    },
+    {
+      "tab": "Access map (access-by-tract)",
+      "source": "scratchpad/seam_tracts/*.parquet",
+      "grain": "tract x subspecialty x band access + race totals",
+      "producer": "staged comparator parquet (_staging_guard.R)",
+      "present": false
+    }
+  ],
+  "environment": {
+    "r_version": "4.4.2",
+    "packages": {
+      "sf": "1.1-1",
+      "arrow": "(not in renv.lock -- install manually)",
+      "leaflet": "(not in renv.lock -- install manually)",
+      "ggplot2": "(not in renv.lock -- install manually)",
+      "dplyr": "1.2.1",
+      "shiny": "(not in renv.lock -- install manually)"
+    },
+    "e2sfca_frozen_run_id": "e2sfca_20260712_190734",
+    "crs": "EPSG:5070",
+    "grid_m": 500,
+    "engine": "R/two_step_floating_catchment.R (SHA-gated); base decay = E2SFCA_DEFAULT_WEIGHTS",
+    "ssot_constants": ["R/contour_bands.R", "R/access_categories.R"],
+    "contract": {
+      "supply": "mufflyaccess::urps_count() (artifact contract 3.0.0); never re-derived/hardcoded",
+      "demand": "twostep ACS population denominators",
+      "reachability": "isochrones release artifacts",
+      "geography_rule": "assert_matching_geography(numerator, denominator)"
+    },
+    "note": "Provenance is computed from live artifacts by generate_provenance.R; do not hand-edit."
+  }
+}
