@@ -10,6 +10,13 @@
 #'   `scripts/manuscript_catalog/build_bivariate_leaflet_multisubspec.R`.
 #' @param ... passed to [shiny::runApp()].
 #' @return Invisibly, the value of [shiny::runApp()].
+#' @seealso The app's `inst/shiny/access_explorer/README.md` and
+#'   `generate_provenance.R` (verifiable input provenance).
+#' @examples
+#' \dontrun{
+#' run_access_explorer()                 # launch in the default browser
+#' run_access_explorer(launch.browser = FALSE, port = 8080)
+#' }
 #' @export
 run_access_explorer <- function(...) {
   app <- system.file("shiny", "access_explorer", package = "twostep")

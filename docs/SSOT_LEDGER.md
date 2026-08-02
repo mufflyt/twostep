@@ -725,6 +725,28 @@ other window); do NOT re-audit them.
 > frozen-literal contracts. Full suite **742 pass / 0 fail**. The historical
 > package-lane notes below are retained for provenance.
 
+> **UN-VENDORED: mufflyaccess restored as the live SSOT (2026-08-02).**
+> `mufflyaccess` is now public and pinned at **0.10.0** (`renv.lock`, GitHub
+> `mufflyt/mufflyaccess@0.10.0`, sha `1fc2221`), so the private-404 reason for
+> vendoring is gone and keeping vendored copies would only reintroduce drift risk.
+> The shared SSOTs are therefore sourced **LIVE from the package again**, reversing
+> the 2026-07-27 vendoring:
+> - `R/contour_bands.R`, `R/access_categories.R`, `R/access_thresholds.R`,
+>   `R/accessibility_stratification.R` are SHIMS that re-export from `mufflyaccess::`
+>   (bands, `DENOMINATOR_CATEGORY`, `TRACT_REACHED_COVERAGE_PCT`, the 7 disparity
+>   stats, `TOTAL_FEMALE_VAR`/`RACE_FEMALE_VARS`, `RUCA_NONMETRO_MIN`).
+> - `scripts/manuscript_e2sfca_values.R`: `CONUS_STATE_FIPS`, `NON_CONUS_FIPS`, and
+>   `E2SFCA_ACS_FEMALE_POP_2020` are live from `mufflyaccess::` (ACS scalar seam
+>   RESOLVED in favor of mufflyaccess owning the national reference denominator).
+> - The manuscript footnote's 2023 URPS cells stay live via
+>   `mufflyaccess::urps_count()` (1,027 + 279 = 1,306 national / 1,303 CONUS).
+>
+> Consequence: `mufflyaccess (>= 0.10.0)` is now a hard **`Imports`** dependency (no
+> longer `Suggests`); every shim + the values script fail loud if it is absent.
+> twostep NO LONGER runs standalone without the package, but the package is public
+> and pinned, so `renv::restore()` provides it. All values verified byte-identical
+> to the prior vendored copies. Full suite **765 pass / 0 fail**.
+
 The shared SSOTs now live in the `mufflyaccess` package (v0.1.2/0.1.3); twostep's
 local F/G modules were migrated to depend on it:
 - `R/access_categories.R`, `R/access_thresholds.R` -- already full shims (parallel window).

@@ -1,12 +1,11 @@
-# Vendored-SSOT contract guard: the accessibility-disparity statistics were
-# promoted to the shared (private) mufflyaccess package and are now VENDORED back
-# into twostep in R/accessibility_stratification.R so the repo is self-contained.
-# This test fails loudly if (a) the vendored file stops defining the promoted
-# symbols, or (b) a boundary behavior drifts from the frozen contract. It is the
-# twostep analogue of isochrones' test-mufflyaccess-consistency.R.
+# Shared-SSOT contract guard: the accessibility-disparity statistics live in the
+# shared mufflyaccess package (now public + pinned) and are sourced LIVE by
+# R/accessibility_stratification.R (a shim). This test fails loudly if (a) the shim
+# stops re-exporting a promoted symbol, or (b) a boundary behavior drifts from the
+# frozen contract. It is the twostep analogue of isochrones' consistency test.
 suppressWarnings(suppressMessages(library(testthat)))
 
-test_that("the vendored module defines every promoted symbol", {
+test_that("the shim re-exports every promoted symbol", {
   source(testthat::test_path("..", "..", "R", "accessibility_stratification.R"))
   for (fn in c("weighted_mean_all", "zero_access_share", "rurality_from_ruca",
                "tract_vintage_of", "acs_year_of", "mc_weighted_ci", "annual_trend"))
@@ -15,12 +14,13 @@ test_that("the vendored module defines every promoted symbol", {
   expect_true(all(c("white_nh","hispanic","black","aian","asian","nhpi") %in% names(RACE_FEMALE_VARS)))
 })
 
-test_that("the promoted functions are vendored locally (self-contained, no package dependency)", {
+test_that("the promoted symbols are the mufflyaccess SSOT (no local drift)", {
+  skip_if_not(requireNamespace("mufflyaccess", quietly = TRUE),
+              "mufflyaccess (>= 0.10.0) is required")
   source(testthat::test_path("..", "..", "R", "accessibility_stratification.R"))
-  # vendoring means twostep must NOT depend on the private package being installed
-  expect_false("mufflyaccess" %in% loadedNamespaces())
+  # sourced symbols must be identical to the package's (live, not a local copy)
   for (fn in c("weighted_mean_all", "rurality_from_ruca", "mc_weighted_ci"))
-    expect_true(is.function(get(fn)), info = fn)
+    expect_identical(get(fn), getExportedValue("mufflyaccess", fn), info = fn)
 })
 
 test_that("rurality boundary contract is frozen (metro 1-3, rural 4-10, else NA)", {

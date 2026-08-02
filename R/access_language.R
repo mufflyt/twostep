@@ -12,6 +12,17 @@
 # ==============================================================================
 
 #' Approved, non-normative labels for E2SFCA / accessibility outputs
+#'
+#' @description Descriptive labels safe to apply to a modeled accessibility
+#'   result, in place of normative adequacy/shortage language (see
+#'   [ACCESS_FORBIDDEN_TERMS]). E2SFCA is a supply-to-demand ratio, not a measure
+#'   of need, so these describe *what was computed* rather than *whether it is
+#'   enough*.
+#' @format Character vector of approved label strings.
+#' @family access-language
+#' @seealso [assert_access_language()], [ACCESS_FORBIDDEN_TERMS]
+#' @examples
+#' "modeled accessibility" %in% ACCESS_SAFE_LABELS   # TRUE
 #' @export
 ACCESS_SAFE_LABELS <- c(
   "modeled accessibility",
@@ -26,6 +37,16 @@ ACCESS_SAFE_LABELS <- c(
 
 #' Normative terms that must NOT be applied to an accessibility result without a
 #' defensible demand target (there is none in this study).
+#'
+#' @description Adequacy/shortage vocabulary that asserts a normative demand
+#'   target E2SFCA does not define. [assert_access_language()] rejects any string
+#'   containing one of these as a whole word (case-insensitive). Use
+#'   [ACCESS_SAFE_LABELS] instead.
+#' @format Character vector of forbidden (whole-word) terms.
+#' @family access-language
+#' @seealso [assert_access_language()], [ACCESS_SAFE_LABELS]
+#' @examples
+#' "shortage" %in% ACCESS_FORBIDDEN_TERMS   # TRUE
 #' @export
 ACCESS_FORBIDDEN_TERMS <- c(
   "shortage", "surplus", "adequacy", "adequate", "inadequate",
@@ -40,6 +61,14 @@ ACCESS_FORBIDDEN_TERMS <- c(
 #' @param x character vector of user-facing strings.
 #' @param context short label for the error message (default "label").
 #' @return invisibly `TRUE` when clean; otherwise `stop()`s listing the offenders.
+#' @family access-language
+#' @seealso [ACCESS_FORBIDDEN_TERMS], [ACCESS_SAFE_LABELS]
+#' @examples
+#' assert_access_language("modeled accessibility by county")   # invisibly TRUE
+#' assert_access_language(c("mean access", "change from baseline"))
+#' \dontrun{
+#' assert_access_language("provider shortage in rural tracts") # errors (normative)
+#' }
 #' @export
 assert_access_language <- function(x, context = "label") {
   x <- as.character(x)

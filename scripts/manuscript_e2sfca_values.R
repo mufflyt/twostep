@@ -133,30 +133,28 @@ E2SFCA_SUBSPECIALTY_LABELS <- c(
 #' @export
 E2SFCA_PRODUCTION_RESOLUTION_M <- 500L
 
-# ---- canonical geographic scope (twostep-local, VENDORED) --------------------
-# These geography SSOTs were promoted to the shared mufflyaccess package, but that
-# package is private, so to keep twostep self-contained and reproducible by
-# outsiders they are VENDORED here (single in-repo source of truth). Upstream
-# origin: mufflyaccess::CONUS_STATE_FIPS / ::NON_CONTIGUOUS_FIPS (from
-# isochrones/R/geographic_classification.R). NON_CONUS_FIPS and
-# US_STATE_TERRITORY_FIPS are DERIVED below so the CONUS/non-CONUS partition can
-# never drift. Guarded by tests/testthat/test-ssot-{conus,nonconus}-fips.R.
+# ---- canonical geographic scope (LIVE from mufflyaccess SSOT) ----------------
+# The geography SSOTs are sourced live from the shared mufflyaccess package (now
+# public + pinned in renv.lock), the single source of truth across isochrones /
+# twostep / cliff. NON_CONUS_FIPS is re-exported under the local consumer name;
+# US_STATE_TERRITORY_FIPS is DERIVED so the CONUS/non-CONUS partition cannot drift.
+# Guarded by tests/testthat/test-ssot-{conus,nonconus}-fips.R.
+if (!requireNamespace("mufflyaccess", quietly = TRUE))
+  stop("mufflyaccess (>= 0.10.0) is required: it is the SSOT for the shared ",
+       "constants (ACS denominator, CONUS FIPS, bands, categories). ",
+       "renv::restore() or remotes::install_github('mufflyt/mufflyaccess').",
+       call. = FALSE)
 
 #' CONUS state/DC FIPS (48 contiguous states + DC = 49 codes). Excludes AK(02),
-#' HI(15), and the five territories.
+#' HI(15), and the five territories. Live from `mufflyaccess::CONUS_STATE_FIPS`.
 #' @export
-CONUS_STATE_FIPS <- c(
-  "01", "04", "05", "06", "08", "09", "10", "11", "12", "13",
-  "16", "17", "18", "19", "20", "21", "22", "23", "24", "25",
-  "26", "27", "28", "29", "30", "31", "32", "33", "34", "35", "36",
-  "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48",
-  "49", "50", "51", "53", "54", "55", "56"
-)
+CONUS_STATE_FIPS <- mufflyaccess::CONUS_STATE_FIPS
 
 #' Non-contiguous FIPS excluded from the study (AK, HI, + 5 territories), under
-#' the local consumer name NON_CONUS_FIPS.
+#' the local consumer name NON_CONUS_FIPS. Live from
+#' `mufflyaccess::NON_CONTIGUOUS_FIPS`.
 #' @export
-NON_CONUS_FIPS <- c("02", "15", "60", "66", "69", "72", "78")
+NON_CONUS_FIPS <- mufflyaccess::NON_CONTIGUOUS_FIPS
 
 #' All US state + territory FIPS (56): the CONUS/non-CONUS union. DERIVED from the
 #' two sets so the partition is exact and cannot drift.
@@ -175,15 +173,15 @@ stopifnot(
 
 #' National ACS female population, 2020 (the national coverage denominator).
 #'
-#' VENDORED from the shared package (`mufflyaccess::ACS2020_CONUS_FEMALE_POP`, in
-#' turn from isochrones) so twostep is self-contained; kept a plain integer (the
-#' form figures and the guard expect). Authority remains the frozen run's national
-#' summary (`acs_pop_source`, year 2020), which [e2sfca_acs_female_pop] re-derives
-#' live and the test suite pins to this value.
+#' Sourced LIVE from the shared package (`mufflyaccess::ACS2020_CONUS_FEMALE_POP`)
+#' as the single source of truth; `as.integer()` strips provenance attributes to
+#' the plain-integer form figures and the guard expect. Authority is cross-checked
+#' against the frozen run's national summary (`acs_pop_source`, year 2020), which
+#' [e2sfca_acs_female_pop] re-derives live and the test suite pins to this value.
 #'
 #' @format Integer scalar; count of women (all ages) in the 2020 ACS, CONUS grid.
 #' @export
-E2SFCA_ACS_FEMALE_POP_2020 <- 164690617L
+E2SFCA_ACS_FEMALE_POP_2020 <- as.integer(mufflyaccess::ACS2020_CONUS_FEMALE_POP)
 
 #' Derive the national ACS female-population denominator for a year.
 #'

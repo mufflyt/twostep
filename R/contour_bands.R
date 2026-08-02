@@ -1,59 +1,49 @@
-#' @title Canonical Drive-Time Contour Bands (twostep-local SSOT, VENDORED)
+#' @title Canonical Drive-Time Contour Bands (SHIM: live from mufflyaccess)
 #'
 #' @description
 #' The SHARED band SSOTs -- `CANONICAL_BANDS`, `get_canonical_bands()`,
 #' `PRIMARY_ACCESS_BAND_MIN`, `PRIMARY_ACCESS_BAND_SEC`, `get_primary_access_band()`
-#' -- were promoted to the shared mufflyaccess package, but that package is
-#' private, so to keep twostep self-contained and reproducible by outsiders they
-#' are VENDORED here (single in-repo source of truth). Upstream origin:
-#' mufflyaccess (itself from isochrones/R/contour_bands.R). Behavior-identical;
-#' guarded by tests/testthat/test-ssot-access-constants.R. This file also keeps the
+#' -- are sourced live from the shared mufflyaccess package (now public + pinned in
+#' renv.lock), the single source of truth across isochrones / twostep / cliff, so
+#' cross-repo drift is impossible. Guarded by
+#' tests/testthat/test-ssot-access-constants.R. This file also keeps the
 #' twostep-specific active-band pieces (`ACTIVE_BANDS_FALLBACK`,
-#' `get_active_bands()`) that read `config/isochrone_config.yaml`.
+#' `get_active_bands()`) that read `config/isochrone_config.yaml` and are NOT in
+#' the package.
 #'
 #' @family contour-bands
 #' @name contour_bands_module
 NULL
 
-# ---- vendored shared band SSOTs (behavior-identical to mufflyaccess) ---------
+if (!requireNamespace("mufflyaccess", quietly = TRUE))
+  stop("mufflyaccess (>= 0.10.0) is required (SSOT for the drive-time bands). ",
+       "renv::restore() or remotes::install_github('mufflyt/mufflyaccess').",
+       call. = FALSE)
+
+# ---- shared band SSOTs, live from mufflyaccess -------------------------------
 
 #' @rdname contour_bands_module
 #' @export
-CANONICAL_BANDS <- c(30L, 60L, 120L, 180L)
+CANONICAL_BANDS <- mufflyaccess::CANONICAL_BANDS
 
 #' @rdname contour_bands_module
 #' @export
-PRIMARY_ACCESS_BAND_MIN <- 60L
+PRIMARY_ACCESS_BAND_MIN <- mufflyaccess::PRIMARY_ACCESS_BAND_MIN
 
 #' @rdname contour_bands_module
 #' @export
-PRIMARY_ACCESS_BAND_SEC <- PRIMARY_ACCESS_BAND_MIN * 60L
-
-stopifnot(
-  "PRIMARY_ACCESS_BAND_MIN must be a single positive integer" =
-    is.integer(PRIMARY_ACCESS_BAND_MIN) && length(PRIMARY_ACCESS_BAND_MIN) == 1L &&
-    PRIMARY_ACCESS_BAND_MIN > 0L,
-  "the headline band must be a member of CANONICAL_BANDS" =
-    PRIMARY_ACCESS_BAND_MIN %in% CANONICAL_BANDS,
-  "PRIMARY_ACCESS_BAND_SEC must equal MIN * 60" =
-    is.integer(PRIMARY_ACCESS_BAND_SEC) && PRIMARY_ACCESS_BAND_SEC == PRIMARY_ACCESS_BAND_MIN * 60L,
-  "CANONICAL_BANDS must be ascending, unique integers" =
-    is.integer(CANONICAL_BANDS) && !is.unsorted(CANONICAL_BANDS, strictly = TRUE)
-)
+PRIMARY_ACCESS_BAND_SEC <- mufflyaccess::PRIMARY_ACCESS_BAND_SEC
 
 #' Return the canonical generation bands (minutes).
 #' @return [CANONICAL_BANDS].
 #' @export
-get_canonical_bands <- function() CANONICAL_BANDS
+get_canonical_bands <- mufflyaccess::get_canonical_bands
 
 #' Return the primary access band in the requested units.
 #' @param units `"min"` (default) or `"sec"`.
 #' @return Integer scalar -- [PRIMARY_ACCESS_BAND_MIN] or [PRIMARY_ACCESS_BAND_SEC].
 #' @export
-get_primary_access_band <- function(units = c("min", "sec")) {
-  units <- match.arg(units)
-  if (units == "sec") PRIMARY_ACCESS_BAND_SEC else PRIMARY_ACCESS_BAND_MIN
-}
+get_primary_access_band <- mufflyaccess::get_primary_access_band
 
 # ---- twostep-specific active-band handling (NOT in the package) --------------
 

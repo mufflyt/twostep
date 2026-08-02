@@ -25,6 +25,18 @@ suppressWarnings(suppressMessages({
 }))
 source(here::here("scripts", "manuscript_e2sfca_values.R"))
 
+# ---- URPS workforce cross-reference (live from the mufflyaccess SSOT) -------
+# The FPMRS/urogynecology footnote cites the 2023 board-certified-active URPS
+# workforce from the canonical package (artifact contract 3.0.0) via urps_count(),
+# never hardcoded. Fails loud if mufflyaccess is unavailable so the figure can
+# never silently drift. NOTE: this makes mufflyaccess a render-time dependency.
+if (!requireNamespace("mufflyaccess", quietly = TRUE))
+  stop("mufflyaccess (>= 0.10.0) is required to render the URPS workforce cross-reference footnote.")
+urps_ct <- function(include_urology, geography = "national")
+  as.integer(mufflyaccess::urps_count(
+    year = 2023L, measure = "board_certified_active",
+    geography = geography, include_urology = include_urology, incomplete = "error"))
+
 # ---- canonical objects (validated on load) ---------------------------------
 # run_dir resolves E2SFCA_FROZEN_RUN_ID and fails loudly if the manifest's
 # self-declared run_id disagrees (SSOT: scripts/manuscript_e2sfca_values.R).
@@ -488,7 +500,18 @@ subspecialists who were clinically active in that year. Subspecialty was assigne
 from American Board of Obstetrics and Gynecology (ABOG) board-certification
 records, the certification standard used to define each subspecialty, rather than
 from self-reported specialty codes, under which all obstetrics-gynecology
-subspecialists are classified as generic obstetrics-gynecology. A physician was
+subspecialists are classified as generic obstetrics-gynecology.^[Because
+subspecialty is ascertained from ABOG certification, the urogynecology and
+reconstructive pelvic surgery (FPMRS) cohort counts only physicians certified
+through the ABOG pathway; physicians who entered urogynecology through the
+American Board of Urology (ABU) pathway are not captured. The 2020 FPMRS supply in
+Table 1 is therefore a single-year, ABOG-only count. For 2023, the
+board-certified active urogynecology workforce comprises `r intc(urps_ct(FALSE))`
+physicians through the ABOG pathway and `r intc(urps_ct(TRUE) - urps_ct(FALSE))`
+ABU net-new physicians (`r intc(urps_ct(TRUE))` nationally and
+`r intc(urps_ct(TRUE, "conus"))` in the contiguous United States); the difference
+from the 2020 figure reflects the later measure year and the added ABU pathway
+rather than a difference in ascertainment.] A physician was
 counted as clinically active in year *Y* when their estimated retirement year
 exceeded *Y* (strict inequality; retirement was estimated from a multi-source
 consensus of practice-activity signals, and certification dated the physician's
@@ -499,7 +522,11 @@ year in question. Each physician was placed at a single practice location per ye
 quality-control testing identified no physician-years with multiple concurrent
 locations, so no supply was double-counted (eMethods). Physicians were included only
 if their practice address geocoded successfully to a contiguous-U.S. location;
-unmatched, ungeocoded, or non-contiguous records were excluded. In 2020,
+unmatched, ungeocoded, or non-contiguous records were excluded. Each specialty
+group's supply is therefore a geocoded, contiguous-U.S., clinically-active count
+for the year, and will be smaller than a board-certification headcount, which
+counts all certificants regardless of clinical activity, successful geocoding, or
+location. In 2020,
 `r intc(sum(workforce_tbl$n_providers))` subspecialists were active across the seven
 specialty groups (Table 1), and the panel comprises `r nrow(national_tbl)`
 specialty-year cells (`r n_subspec` groups × `r n_years` years).

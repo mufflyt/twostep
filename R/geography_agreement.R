@@ -28,6 +28,14 @@
 #' @param denominator_geography scalar geography label of the population/access
 #'   denominator.
 #' @return invisibly `TRUE` when the two agree; otherwise `stop()`s.
+#' @family boundary-enforcement
+#' @seealso [assert_access_language()] (the companion non-normative-language guard)
+#' @examples
+#' assert_matching_geography("national", "national")   # invisibly TRUE
+#' assert_matching_geography("08", "08")                # state FIPS; ok
+#' \dontrun{
+#' assert_matching_geography("national", "conus")       # errors: geography mismatch
+#' }
 #' @export
 assert_matching_geography <- function(numerator_geography, denominator_geography) {
   num <- as.character(numerator_geography)
