@@ -303,12 +303,12 @@ e2sfca_workforce_from_run <- function(national_tbl, year = 2020L) {
 #' @export
 e2sfca_workforce_counts <- function(
     path = file.path("manuscript", "data", "workforce_counts_2020.csv"),
-    national_tbl = NULL) {
+    national_tbl = NULL, year = 2020L) {
   stopifnot(file.exists(path))
   workforce_tbl <- readr::read_csv(path, show_col_types = FALSE)
   stopifnot(nrow(workforce_tbl) == 7L, all(workforce_tbl$n_providers > 0))
   if (!is.null(national_tbl)) {
-    derived <- e2sfca_workforce_from_run(national_tbl)
+    derived <- e2sfca_workforce_from_run(national_tbl, year = year)
     m <- merge(workforce_tbl, derived, by = "subspecialty")
     stopifnot("staged workforce CSV disagrees with the frozen run" =
                 nrow(m) == 7L && all(abs(m$n_providers - m$n_providers_derived) <= 1L))
@@ -316,7 +316,7 @@ e2sfca_workforce_counts <- function(
                   max(abs(m$n_providers - m$n_providers_derived)), ")")
   }
   base::message("[e2sfca] workforce: ", sum(workforce_tbl$n_providers),
-                " providers across ", nrow(workforce_tbl), " specialties (2020)")
+                " providers across ", nrow(workforce_tbl), " specialties (", year, ")")
   workforce_tbl
 }
 

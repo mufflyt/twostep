@@ -39,7 +39,8 @@ manuscript setup chunk. "Consumed by" names the object / element in
 |---|---|---|
 | `artifacts/2sfca/ec2/e2sfca_20260712_190734/e2sfca_national_summary.csv` | `national_tbl` (`load_e2sfca_national_summary`) | Canonical headline: national population-weighted mean access + SPAR, per subspecialty-year |
 | `artifacts/2sfca/ec2/e2sfca_20260712_190734/e2sfca_run_manifest.json` | `manifest_json` | Run provenance (run_id, allocator, env) for the Data-source + Reproducibility lines |
-| `manuscript/data/workforce_counts_2020.csv` | `workforce_tbl` (`e2sfca_workforce_counts`) | Active subspecialist counts, 2020 |
+| `manuscript/data/workforce_counts_2022.csv` | `workforce_tbl` (`e2sfca_workforce_counts`, `year = 2022`) | Active subspecialist counts, 2022, the Table 1 headline. Re-derived from the frozen national summary via the conservation identity (`n = mean_per_100k * ACS_female_pop / 100,000`) and cross-checked against it (0/7 disagreement). |
+| `manuscript/data/workforce_counts_2020.csv` | not consumed (retained for provenance) | Active subspecialist counts, 2020, superseded by the 2022 file for the Table 1 headline |
 | `artifacts/2sfca/figures/allsubspec_2020_inferential_TABLE.csv` | `disparity_tbl` (`e2sfca_disparity_2020`) | Table 3 + eResults S7: metro:rural ratio, rural %zero, AIAN access/%zero (with 95% ACS intervals) |
 | `artifacts/2sfca/figures/GO_2020_inferential_MC_CI.csv` | `go_ci_tbl` (`gci()`) | Gynecologic-oncology Monte-Carlo 95% CIs used throughout Results |
 | `artifacts/2sfca/figures/trend_hac.rds` | `trend_hac` | Newey-West HAC temporal trend estimates |

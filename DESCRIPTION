@@ -2,7 +2,7 @@ Package: twostep
 Type: Package
 Title: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists
 Version: 0.1.0
-Date: 2026-07-24
+Date: 2026-08-02
 Authors@R: c(person(given = "Tyler", family = "Muffly", role = c("aut", "cre"),
     email = "tyler.muffly@dhha.org", comment = c(ORCID = "0000-0002-5120-828X")))
 Description: Standalone analysis and manuscript for national travel-time
@@ -40,7 +40,10 @@ Suggests:
     tigris,
     digest,
     sandwich,
-    lmtest
+    lmtest,
+    shiny,
+    leaflet,
+    arrow
 Remotes:
     mufflyt/mufflyaccess
 URL: https://github.com/mufflyt/twostep
