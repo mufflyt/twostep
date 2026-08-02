@@ -391,8 +391,8 @@ American Indian or Alaska Native women had the highest zero-access share
 points higher than non-Hispanic White women. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
 (`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine alone declined
-(`r pp1(mfm_c22$rel_change_pct)`%). Disparities held across sensitivity analyses varying decay, catchment, and
-resolution.
+(`r pp1(mfm_c22$rel_change_pct)`%). Disparities held across all sensitivity
+specifications.
 
 **Conclusion.** Access to obstetrics-gynecology subspecialists shows large,
 persistent rural and racial disparities, greatest for the rarest subspecialties
@@ -990,10 +990,9 @@ and we therefore emphasize the direction and magnitude of change over statistica
 significance. The most recent year (`r last_year`) was excluded from trend
 estimation and is reported as a provisional observation because its workforce panel
 is subject to right-censoring. To assess robustness to modeling choices, we
-recomputed the 2020 accessibility surface for every subspecialty under alternative
-distance-decay weights (sharper and slower falloff), a reduced catchment (dropping
-the 180-minute band), and a finer 500-m grid, and compared the national ranking and
-the rurality and race contrasts with the base specification (Appendix Table S2).
+recomputed the 2020 accessibility surface for every subspecialty under the
+alternative specifications summarized in Appendix Table S2, and compared the national
+ranking and the rurality and race contrasts with the base specification.
 Analyses used R version `r manifest_json$environment$r_version`.
 
 ## eMethods S2: Mass-conserving demand allocation {-}
@@ -1291,8 +1290,8 @@ had higher modeled accessibility than non-Hispanic White women, reflecting their
 greater concentration in metropolitan areas where subspecialists practice, a pattern
 of potential proximity that, as discussed below, does not imply equivalent realized
 access or outcomes. These spatial patterns were robust to the modeling assumptions:
-in a sensitivity analysis that varied the distance-decay weights, the catchment
-bands, and the grid resolution, the rural disadvantage held for all `r sens_n`
+across the alternative specifications (Appendix Table S2), the rural disadvantage
+held for all `r sens_n`
 subspecialties under every specification, and the rural and race contrasts moved in
 magnitude but never reversed in direction (Appendix Table S2).
 
@@ -1456,8 +1455,8 @@ comprehensive confidence intervals; Monte Carlo propagation of supply, activity,
 geocoding, and parameter uncertainty through the model is a natural extension
 [@Park2023], and potential edge effects at the international borders and coastlines
 (providers and population outside the United States were unavailable) could not be
-captured [@Gao2017]; however, a sensitivity analysis varying the
-distance-decay weights, the catchment bands, and the grid resolution left the
+captured [@Gao2017]; however, a sensitivity analysis across the alternative
+specifications left the
 direction of the rurality and race disparities unchanged (Appendix Table S2; the
 national mean and its ranking are invariant to these choices by the conservation
 property and are not a robustness result). Fourth, the zero-access metric is defined at the tract level (the share of

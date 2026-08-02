@@ -54,9 +54,11 @@ test_that("accessor fails loudly when the year's denominator is not unique", {
 test_that("no code file hardcodes the denominator literal except the canonical constant", {
   code <- list.files(c(file.path(root, "R"), file.path(root, "scripts")),
                      pattern = "[.]R$", full.names = TRUE, recursive = TRUE)
-  # The literal is VENDORED (mufflyaccess is private) and now lives in exactly ONE
-  # twostep file: manuscript_e2sfca_values.R defines E2SFCA_ACS_FEMALE_POP_2020.
-  # That single canonical home is exempt; no OTHER code file may hardcode it.
+  # The denominator is sourced LIVE from the (now public, pinned) mufflyaccess
+  # package: manuscript_e2sfca_values.R sets E2SFCA_ACS_FEMALE_POP_2020 <-
+  # as.integer(mufflyaccess::ACS2020_CONUS_FEMALE_POP), so the literal is no longer
+  # hardcoded anywhere in twostep. That canonical home is exempt from this scan
+  # (defensive, even though it now holds no literal); no OTHER code file may hardcode it.
   CANONICAL <- "manuscript_e2sfca_values.R"
   offenders <- character(0)
   for (f in code) {
