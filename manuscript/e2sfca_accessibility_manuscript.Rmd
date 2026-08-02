@@ -124,6 +124,12 @@ sens_lab  <- c(base = "Sensitivity reference (1,000-m grid)",
   res500 = "Production resolution (500-m grid)",
   gaussian = "Gaussian distance decay (sigma = 60 min)",
   m2sfca = "M2SFCA maldistribution penalty")
+# inline (mid-sentence) label forms: acronyms/proper nouns keep case, others lower
+sens_lab_inline <- c(base = "reference specification",
+  sharper = "sharper distance decay", slower = "slower distance decay",
+  drop180 = "dropped 180-minute band", res500 = "production 500-m resolution",
+  gaussian = "true Gaussian (sigma = 60 min)",
+  m2sfca = "M2SFCA maldistribution penalty")
 sens_summary <- purrr::map_dfr(setdiff(unique(sens_tbl$variant), "base"), function(vn) {
   vv <- dplyr::filter(sens_tbl, variant == vn)
   j  <- dplyr::inner_join(sens_base, vv, by = "subspec", suffix = c("_b", "_v"))
@@ -1099,7 +1105,7 @@ slowest decay and the M2SFCA maldistribution penalty (complex family
 planning, already near parity, crossed to a slight advantage). Magnitudes did move, and Table S2
 reports them: the median rural:metro accessibility ratio was `r acc2(base_rm_med)`
 at the reference specification and ranged from `r acc2(min(sens_summary$rm_med))`
-(`r tolower(sens_lab[[sens_summary$variant[which.min(sens_summary$rm_med)]]])`; deeper rural gap) to `r acc2(max(sens_summary$rm_med))` (`r tolower(sens_lab[[sens_summary$variant[which.max(sens_summary$rm_med)]]])`;
+(`r sens_lab_inline[[sens_summary$variant[which.min(sens_summary$rm_med)]]]`; deeper rural gap) to `r acc2(max(sens_summary$rm_med))` (`r sens_lab_inline[[sens_summary$variant[which.max(sens_summary$rm_med)]]]`;
 shallower gap), while the median AIAN:White ratio moved only within
 `r acc2(min(sens_summary$aw_med))`-`r acc2(max(sens_summary$aw_med))`
 (reference `r acc2(base_aw_med)`); direction never reversed, and the
