@@ -18,6 +18,23 @@
   it (the general ACS methods reference stays `@Census2021ACS`).
 - README now names the four analysis years explicitly and documents the
   `mufflyaccess` URPS contract (1,306 national / 1,303 CONUS, 2023).
+- Main text trimmed to under 3,000 words and the Methods rewritten in plain language
+  for a clinical audience: E2SFCA is explained conceptually first, and the technical
+  parameterization (distance-decay weights, Gaussian variant, conservation algebra,
+  grid CRS) moved to eMethods S4. No analytical numbers, tables, or figures changed.
+- **Figure 1 (`fig0_level2020.jpg`) regenerated (2026-08-02)** to remove the in-image
+  title, subtitle, and footnote caption and to simplify the colorbar label; content
+  unchanged (still the 2020 surface; panel numbers remain the national
+  population-weighted means).
+
+### Figure provenance
+- Added [`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md) and
+  [`manuscript/figures/FIGURE_PROVENANCE.csv`](manuscript/figures/FIGURE_PROVENANCE.csv):
+  for every figure, the generator script (isochrones, with the three vendored copies
+  flagged), the intermediate output, the data input, the build date, and a sha256.
+  Cross-linked from the README, `docs/DATA_PROVENANCE.md`, and a comment above each
+  figure chunk plus the Rmd reproducibility record. Documents that filenames do not
+  track figure numbers (e.g. Figure 5 is `fig4_gotrends.jpg`).
 
 ### Not yet done, require the production spatial pipeline, not documentation
 - **Figure 1 is still the 2020 access surface**; its validated 2022 regeneration is

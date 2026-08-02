@@ -5,6 +5,11 @@ single production run**. No upstream pipeline, database, Census API, or Valhalla
 server is needed to reproduce the paper. This document records exactly which
 artifacts are used, where they came from, and what each one feeds.
 
+> **Figures:** the provenance of each *figure image* (which script produced it, from
+> which data, on what day) is documented separately in
+> [`FIGURE_PROVENANCE.md`](FIGURE_PROVENANCE.md) and
+> [`../manuscript/figures/FIGURE_PROVENANCE.csv`](../manuscript/figures/FIGURE_PROVENANCE.csv).
+
 ## The frozen run
 
 | Field | Value |

@@ -56,10 +56,16 @@ and manuscript name the year explicitly rather than saying "current":
 ## Figures
 
 These are the figures the manuscript renders (shipped in `manuscript/figures/` and
-embedded by the render; the generating scripts `scripts/figure_*` and `scripts/map_*`
-are included for provenance). The seven supplemental per-subspecialty access-change
-maps (Figures S1 to S7) are shown under [Supplemental figures](#supplemental-figures-s1-to-s7)
-below and in the rendered HTML.
+embedded by the render). Every figure was generated in the upstream isochrones
+pipeline and staged into this repo; **which script produced each figure, from which
+data, and on what day is documented in
+[`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md)** (machine-readable copy at
+[`manuscript/figures/FIGURE_PROVENANCE.csv`](manuscript/figures/FIGURE_PROVENANCE.csv)).
+Note the file name does not match the figure number (for example Figure 5 is
+`fig4_gotrends.jpg`); resolve by that table. Three generators are vendored in
+`scripts/` (Figures 2, 3, 4); the other four are isochrones-only. The seven
+supplemental per-subspecialty access-change maps (Figures S1 to S7) are shown under
+[Supplemental figures](#supplemental-figures-s1-to-s7) below and in the rendered HTML.
 
 **Figure 1. Potential accessibility to each of the seven OB/GYN subspecialties, 2020** (per 100,000 women). *Still the 2020 surface; pending regeneration to 2022 — see [Status and open items](#status-and-open-items).*
 
