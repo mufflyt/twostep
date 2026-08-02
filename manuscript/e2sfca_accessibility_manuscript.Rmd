@@ -368,11 +368,11 @@ subspecialties across the contiguous United States, `r first_year` to `r last_ye
 and its disparities by rurality and by race and ethnicity.
 
 **Methods.** We located every board-certified subspecialist active in each year and
-used modeled road-network travel times (30 to 180 minutes) to measure how reachable
-each specialty group was for the 2020 female population (`r intc(pop_2020)` women;
-American Community Survey). Potential geographic accessibility was estimated with an
+used modeled road-network travel times (30 to 180 minutes) to measure reachability
+for the 2020 female population (`r intc(pop_2020)` women;
+American Community Survey). Potential accessibility was estimated with an
 enhanced two-step floating catchment area model, which rewards shorter drives and
-accounts for competing demand for the same specialists. We compared access by urban versus rural location and by race
+accounts for competing demand. We compared access by urban versus rural location and by race
 and ethnicity, and described change from `r first_year` to `r primary_last`
 (`r last_year` provisional).
 
