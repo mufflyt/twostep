@@ -320,6 +320,41 @@ e2sfca_workforce_counts <- function(
   workforce_tbl
 }
 
+#' Reconcile the disparity/coverage artifacts against the frozen national summary.
+#'
+#' The paper's central disparity claims (metro:rural ratio, zero-access shares) come
+#' from `GO_2020_inferential_MC_CI.csv` and `spatial_outcomes_2020.csv`, which are
+#' NOT otherwise pinned to `E2SFCA_FROZEN_RUN_ID`. This fails loud if the GO 2020
+#' national mean disagrees across the three sources beyond the disclosed grain
+#' tolerance (500 m cell vs 1 km tract), catching a wrong-source substitution that
+#' would otherwise render silently. Mirrors the workforce conservation cross-check.
+#'
+#' @param national_tbl frozen national summary (from [load_e2sfca_national_summary]).
+#' @param go_ci_tbl the GO Monte-Carlo CI table (metric/point/lo/hi).
+#' @param spatial_tbl the spatial-outcomes table (subspec/national_mean/...).
+#' @param tol numeric tolerance (default 0.0015; the disclosed cell-vs-tract grain gap).
+#' @return invisibly `TRUE`; `stop()`s on mismatch.
+#' @export
+e2sfca_reconcile_disparity_artifacts <- function(national_tbl, go_ci_tbl,
+                                                 spatial_tbl, tol = 0.0015) {
+  frozen <- national_tbl$mean_pop_weighted_per100k[
+    national_tbl$subspecialty == "GO" & national_tbl$year == 2020]
+  mc <- go_ci_tbl$point[go_ci_tbl$metric == "nat_mean"]
+  sp <- spatial_tbl$national_mean[spatial_tbl$subspec == "GO"]
+  stopifnot("[reconcile] GO 2020 national mean must resolve to one value per source" =
+              length(frozen) == 1L && length(mc) == 1L && length(sp) == 1L &&
+              all(is.finite(c(frozen, mc, sp))))
+  d <- max(abs(c(mc, sp) - frozen))
+  if (d > tol)
+    base::stop(sprintf(paste0("[reconcile] GO 2020 national mean disagrees across ",
+      "sources by %.5f (> %.4f tol): frozen=%.6f, MC-CI=%.6f, spatial=%.6f. A ",
+      "disparity/coverage artifact may be from a different run than ",
+      "E2SFCA_FROZEN_RUN_ID."), d, tol, frozen, mc, sp), call. = FALSE)
+  base::message(sprintf(paste0("[e2sfca] disparity/coverage artifacts reconcile ",
+    "with the frozen run (GO 2020 national mean agrees within %.5f)"), d))
+  invisible(TRUE)
+}
+
 #' Canonical cross-subspecialty 2020 disparity table (MC 95% CIs + trends).
 #'
 #' @param path CSV produced by scripts/compile_inferential_table.R.

@@ -20,6 +20,21 @@ if (!requireNamespace("mufflyaccess", quietly = TRUE))
   stop("Install mufflyaccess (>= 0.10.0): renv::restore() or ",
        "remotes::install_github('mufflyt/mufflyaccess')", call. = FALSE)
 
+# ---- artifact integrity gate: verify every consumed artifact's sha256 BEFORE
+# rendering, so a swapped/corrupted/wrong-source input fails loud rather than
+# rendering silently against the wrong data. (Provenance-guard hardening.)
+sums <- here::here("SHA256SUMS.txt")
+if (file.exists(sums)) {
+  chk <- suppressWarnings(system2("shasum", c("-a", "256", "-c", shQuote(sums)),
+                                  stdout = TRUE, stderr = TRUE))
+  if (!is.null(attr(chk, "status")) && attr(chk, "status") != 0L)
+    stop("SHA256SUMS verification FAILED before render; an input artifact does not ",
+         "match its recorded checksum:\n", paste(chk, collapse = "\n"), call. = FALSE)
+  message("SHA256SUMS: ", sum(grepl(": OK$", chk)), " artifacts verified OK.")
+} else {
+  warning("SHA256SUMS.txt not found; skipping artifact integrity gate.", call. = FALSE)
+}
+
 rmd <- here::here("manuscript", "e2sfca_accessibility_manuscript.Rmd")
 rmarkdown::render(
   rmd,

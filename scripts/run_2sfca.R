@@ -20,7 +20,7 @@
 #   Rscript scripts/run_2sfca.R --subspec GO --years 2020 --states 44,25   # RI+MA smoke
 #   Rscript scripts/run_2sfca.R --subspec GO --years 2020 --tract-pop-rds path.rds
 #
-# Demand = TOTAL FEMALE (B01001_026E). Weights = Gaussian-decay cumulative-band
+# Demand = TOTAL FEMALE (B01001_026E). Weights = empirically-selected decay, cumulative-band
 # weights (30=1.0, 60=0.68, 120=0.22, 180=0.09); override with --weights.
 # ==============================================================================
 

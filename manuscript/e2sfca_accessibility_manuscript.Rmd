@@ -121,7 +121,9 @@ sens_base <- dplyr::filter(sens_tbl, variant == "base")
 sens_lab  <- c(base = "Sensitivity reference (1,000-m grid)",
   sharper = "Sharper distance decay", slower = "Slower distance decay",
   drop180 = "Drop 180-min band (30/60/120)",
-  res500 = "Production resolution (500-m grid)")
+  res500 = "Production resolution (500-m grid)",
+  gaussian = "Gaussian distance decay (sigma = 60 min)",
+  m2sfca = "M2SFCA maldistribution penalty")
 sens_summary <- purrr::map_dfr(setdiff(unique(sens_tbl$variant), "base"), function(vn) {
   vv <- dplyr::filter(sens_tbl, variant == vn)
   j  <- dplyr::inner_join(sens_base, vv, by = "subspec", suffix = c("_b", "_v"))
@@ -182,8 +184,12 @@ sp <- function(subspec, col) spatial_tbl[[col]][spatial_tbl$subspec == subspec][
 sp_gini_min <- min(spatial_tbl$gini); sp_gini_max <- max(spatial_tbl$gini)
 sp_gini_min_sub <- spatial_tbl$subspec[which.min(spatial_tbl$gini)]
 sp_gini_max_sub <- spatial_tbl$subspec[which.max(spatial_tbl$gini)]
+# PROVENANCE GUARD: the disparity/coverage artifacts (go_ci_tbl, spatial_tbl) are
+# not otherwise pinned to the frozen run; fail loud if they disagree with the frozen
+# national summary beyond the disclosed grain tolerance (wrong-source tripwire).
+invisible(e2sfca_reconcile_disparity_artifacts(national_tbl, go_ci_tbl, spatial_tbl))
 sens_n <- nrow(sens_base)                                # subspecialties (7)
-sens_nvar <- dplyr::n_distinct(sens_tbl$variant)         # total variants (5)
+sens_nvar <- dplyr::n_distinct(sens_tbl$variant)         # total variants (7: base + 6 alternatives)
 sens_min_rho <- min(sens_summary$rho)                    # worst rank preservation
 sens_all_rural <- all(c(sens_base$rural_metro_ratio < 1,
                         sens_tbl$rural_metro_ratio < 1)) # rural<metro everywhere?
@@ -583,7 +589,7 @@ were unchanged over the study period.
 
 ### Enhanced two-step floating catchment area accessibility
 
-Potential spatial accessibility was estimated with the enhanced two-step floating catchment area (E2SFCA) method [@luoqi2009; @luowang2003], using road-network travel time and a Gaussian distance-decay across the four bands (weights `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`, `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for 30/60/120/180 minutes). Supply is the count of distinct active subspecialists at each location; accessibility is a relative index (subspecialists per 100,000 women) and, equivalently, a Spatial Access Ratio normalized to the national mean of 1.00 [@Wan2012spar], the absolute per-100,000 value retained alongside it. Because the same weights enter both steps, the national population-weighted mean reduces algebraically to supply per population (a conservation property) and is reported only as a standardized workforce index; spatial variation resides in the *distribution* of the surface (rurality and race/ethnicity contrasts, the share outside the catchment, and geographic inequality), which we treat as the primary spatial outcomes. The full algorithm, the incremental-band derivation and provider-to-population and accessibility equations, the weight rationale, and the alternative-specification sensitivity framework (Gaussian-derived zonal reparameterization, variable urban/rural catchments, and an M2SFCA maldistribution penalty) are in eMethods S4.
+Potential spatial accessibility was estimated with the enhanced two-step floating catchment area (E2SFCA) method [@luoqi2009; @luowang2003], using road-network travel time and empirically selected distance-decay weights across the four bands (weights `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`, `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for 30/60/120/180 minutes; these approximate a Gaussian falloff on the inner bands but were selected from prior empirical work rather than derived from an exact Gaussian, and a true Gaussian is examined in the sensitivity analysis). Supply is the count of distinct active subspecialists at each location; accessibility is a relative index (subspecialists per 100,000 women) and, equivalently, a Spatial Access Ratio normalized to the national mean of 1.00 [@Wan2012spar], the absolute per-100,000 value retained alongside it. Because the same weights enter both steps, the national population-weighted mean reduces algebraically to supply per population (a conservation property) and is reported only as a standardized workforce index; spatial variation resides in the *distribution* of the surface (rurality and race/ethnicity contrasts, the share outside the catchment, and geographic inequality), which we treat as the primary spatial outcomes. The full algorithm, the incremental-band derivation and provider-to-population and accessibility equations, the weight rationale, and the alternative-specification sensitivity framework (Gaussian-derived zonal reparameterization, variable urban/rural catchments, and an M2SFCA maldistribution penalty) are in eMethods S4.
 
 ### Mass-conserving demand allocation
 
@@ -1020,13 +1026,17 @@ common grid (2020 tract vintage; ACS 2020), so the difference (panel C) reflects
 only the change in the active physician cohort. Red = access grew; blue = shrank.
 Because both years are placed on the 2020 grid, the national means and percentage
 changes annotated on these figures are computed on that common (cohort-isolated)
-basis and differ by up to about 5 percentage points from the vintage-matched
-canonical national changes reported in the Results, Table 1, and Figure 7; those
-canonical values (e.g., minimally invasive gynecologic surgery
+basis. The primary temporal changes reported in the Results and Table 1 use
+`r first_year` to `r primary_last` (the last complete reporting year, because
+`r last_year` is right-censored and provisional; e.g., minimally invasive
+gynecologic surgery `r sprintf("%+.1f%%", spec_chg22("MIGS")$rel_change_pct)`,
+maternal-fetal medicine `r sprintf("%+.1f%%", spec_chg22("MFM")$rel_change_pct)`).
+These appendix change maps and Figure 7 instead display the full `r first_year`-to-
+`r last_year` endpoint difference (minimally invasive gynecologic surgery
 `r sprintf("%+.0f%%", migs_c$rel_change_pct)`, maternal-fetal medicine
-`r sprintf("%+.0f%%", mfm_c$rel_change_pct)`) are the authoritative national
-estimates, and these appendix figures are provided to show the underlying spatial
-pattern and the 2013 baseline versus 2023 endpoint.
+`r sprintf("%+.0f%%", mfm_c$rel_change_pct)`), with `r last_year` as a provisional
+endpoint; they show the underlying spatial pattern over the full study window and
+therefore differ from the primary `r first_year`-to-`r primary_last` estimates.
 
 ```{r figS, fig.show="hold"}
 knitr::include_graphics(file.path(figdir,
@@ -1068,7 +1078,8 @@ knitr::kable(tblS1, align = c("l", "l", "r", "r", "r"),
 
 The 2020 accessibility surface for each subspecialty was recomputed under
 alternative distance-decay weights (sharper and slower falloff than the base
-Gaussian weights), a reduced catchment that dropped the 180-minute band, and the
+weights, and a true Gaussian with sigma = 60 min), an M2SFCA maldistribution
+penalty, a reduced catchment that dropped the 180-minute band, and the
 production 500-m grid (the sensitivity was computed on a 1,000-m reference grid for
 efficiency; the 500-m specification reproduces the resolution that generated the
 production national values). The national population-weighted mean and its induced
@@ -1082,13 +1093,14 @@ accessibility
 than metropolitan women for all `r sens_n` subspecialties under every
 specification. American Indian or Alaska Native women had lower accessibility
 than non-Hispanic White women for all `r sens_n` subspecialties under the
-base, sharper-decay, dropped-band, and production-resolution specifications, and for
-`r min(sens_summary$n_aian)` of `r sens_n` under the slowest decay (complex family
+base, sharper-decay, true-Gaussian, dropped-band, and production-resolution
+specifications, and for `r min(sens_summary$n_aian)` of `r sens_n` under the
+slowest decay and the M2SFCA maldistribution penalty (complex family
 planning, already near parity, crossed to a slight advantage). Magnitudes did move, and Table S2
 reports them: the median rural:metro accessibility ratio was `r acc2(base_rm_med)`
 at the reference specification and ranged from `r acc2(min(sens_summary$rm_med))`
-(sharper decay; deeper rural gap) to `r acc2(max(sens_summary$rm_med))` (slower
-decay; shallower gap), while the median AIAN:White ratio moved only within
+(`r tolower(sens_lab[[sens_summary$variant[which.min(sens_summary$rm_med)]]])`; deeper rural gap) to `r acc2(max(sens_summary$rm_med))` (`r tolower(sens_lab[[sens_summary$variant[which.max(sens_summary$rm_med)]]])`;
+shallower gap), while the median AIAN:White ratio moved only within
 `r acc2(min(sens_summary$aw_med))`-`r acc2(max(sens_summary$aw_med))`
 (reference `r acc2(base_aw_med)`); direction never reversed, and the
 production-resolution (500-m) grid reproduced the reference results almost exactly. This insensitivity
@@ -1112,7 +1124,7 @@ knitr::kable(tblS2, align = c("l", "r", "r", "r", "r", "r"),
                             font_size = 11, full_width = TRUE) |>
   kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
     "Each 2020 accessibility surface was recomputed under the listed specification ",
-    "and compared with the reference specification (Gaussian band weights ",
+    "and compared with the reference specification (empirically selected band weights ",
     manifest_json$weights[["30"]], "/", manifest_json$weights[["60"]], "/",
     manifest_json$weights[["120"]], "/", manifest_json$weights[["180"]],
     " for the 30/60/120/180-minute bands). The sensitivity was computed on a ",
@@ -1187,12 +1199,15 @@ travel-time thresholds undercount [@Nakamura2017; @SanchezCardenas2024;
 rather than straight-line distance, which overstates reachability where terrain or
 road structure lengthens the true trip [@Ebinger2022]. Demand within each catchment
 was weighted
-by a Gaussian distance-decay across the four travel-time bands (weights
+by empirically selected distance-decay weights across the four travel-time bands (weights
 `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`,
 `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for the
-30-, 60-, 120-, and 180-minute zones); these Gaussian band weights follow the
+30-, 60-, 120-, and 180-minute zones); these band weights follow the
 published E2SFCA formulation and match values in common use (the inner-band weights
-are identical to those applied in recent screening-access studies), and a slower
+are identical to those applied in recent screening-access studies). They approximate
+a Gaussian falloff but were selected from prior empirical work rather than derived from an exact
+Gaussian (a true Gaussian, sigma = 60 min, would place lighter weight on the 120-
+and 180-minute bands and is examined as a sensitivity variant, Table S2). A slower
 distance decay with a wider catchment is appropriate for specialized care that
 patients travel farther to reach than primary care [@luoqi2009; @Campbell2025];
 studies contrasting generalist and subspecialty access likewise assign
@@ -1202,7 +1217,7 @@ No single distance-decay function is empirically established as correct, and the
 floating-catchment literature has called for finer spatial demand units and refined
 decay functions than the coarse zone centroids and step weights used in most prior
 work [@Hong2023; @Weng2025]; we therefore resolved demand on a fine grid, adopted
-the conventional Gaussian weights, and confirmed that the findings were insensitive
+these conventional, empirically selected weights, and confirmed that the findings were insensitive
 to this choice, to the catchment bands, and to the grid resolution in a sensitivity
 analysis (Appendix Table S2). That sensitivity framework additionally supports a
 Gaussian-derived versus purely zonal band-weight parameterization (a four-band
@@ -1264,7 +1279,7 @@ Viewed across all seven specialty groups, the disparity pattern was consistent
 metropolitan women for every subspecialty, by as much as
 `r pp1(abs(rural_worst_pct))`% for `r full_name[rural_worst]` and by at least
 `r pp1(abs(rural_min_pen))`% even for the least affected subspecialty. American
-Indian or Alaska Native women had lower accessibility than non-Hispanic White women for `r n_aian_worse` of the seven specialty groups. By contrast, Black,
+Indian or Alaska Native women had materially lower accessibility (by at least 10 percent) than non-Hispanic White women for `r n_aian_worse` of the seven specialty groups (and lower accessibility, to any degree, in all seven). By contrast, Black,
 Hispanic, Asian, and Native Hawaiian or Other Pacific Islander women generally
 had higher modeled accessibility than non-Hispanic White women, reflecting their
 greater concentration in metropolitan areas where subspecialists practice, a pattern
@@ -1386,7 +1401,8 @@ reported above. Nationally, population-weighted accessibility increased most for
 (`r pp1(decliners$rel_change_pct[1])`%); however, both gains and losses were
 spatially concentrated rather than uniform across the country. Figure 7 shows the
 absolute cell-level change, while the facet labels report the national relative
-change (Table 1).
+change over the same `r first_year`-to-`r last_year` endpoint window (not the
+primary `r first_year`-to-`r primary_last` values reported in Table 1).
 
 ```{r figchange}
 knitr::include_graphics(file.path(figdir, "fig5_change_faceted.jpg"))

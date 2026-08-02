@@ -38,7 +38,9 @@ Suggests:
     patchwork,
     tidycensus,
     tigris,
-    digest
+    digest,
+    sandwich,
+    lmtest
 Remotes:
     mufflyt/mufflyaccess
 URL: https://github.com/mufflyt/twostep
