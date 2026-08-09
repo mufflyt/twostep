@@ -4,7 +4,7 @@ Title: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GY
 Version: 0.1.0
 Date: 2026-08-02
 Authors@R: c(person(given = "Tyler", family = "Muffly", role = c("aut", "cre"),
-    email = "tyler.muffly@dhha.org", comment = c(ORCID = "0000-0002-5120-828X")))
+    email = "tyler.muffly@dhha.org", comment = c(ORCID = "0000-0002-2044-1693")))
 Description: Standalone analysis and manuscript for national travel-time
     accessibility to the seven ABOG-certified obstetric and gynecologic
     subspecialties across the contiguous United States, 2013-2023, using an
