@@ -1,0 +1,12 @@
+citHeader("To cite twostep in publications, use:")
+
+bibentry(
+  bibtype      = "Misc",
+  title        = "twostep: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists",
+  author       = person("Tyler", "Muffly",
+                        comment = c(ORCID = "0000-0002-2044-1693")),
+  year         = "2026",
+  note         = sprintf("R package version %s", meta$Version),
+  url          = "https://github.com/mufflyt/twostep",
+  organization = "Department of Obstetrics and Gynecology, Denver Health"
+)

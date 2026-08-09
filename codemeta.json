@@ -1,0 +1,45 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "identifier": "twostep",
+  "name": "twostep: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists",
+  "description": "Standalone analysis and manuscript for national travel-time accessibility to the seven ABOG-certified obstetric and gynecologic subspecialties across the contiguous United States, 2013-2023, using an Enhanced Two-Step Floating Catchment Area (E2SFCA) method on road-network isochrones with a mass-conserving demand allocation and a Spatial Access Ratio (SPAR). Extracted from the isochrones pipeline so the accessibility paper builds and reproduces independently. This DESCRIPTION also serves as the project-root anchor for here/rprojroot.",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.1.0",
+  "dateModified": "2026-08-09",
+  "codeRepository": "https://github.com/mufflyt/twostep",
+  "issueTracker": "https://github.com/mufflyt/twostep/issues",
+  "programmingLanguage": {
+    "@type": "ComputerLanguage",
+    "name": "R",
+    "url": "https://r-project.org"
+  },
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Tyler",
+      "familyName": "Muffly",
+      "@id": "https://orcid.org/0000-0002-2044-1693",
+      "email": "tyler.muffly@dhha.org",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Department of Obstetrics and Gynecology, Denver Health"
+      }
+    }
+  ],
+  "maintainer": [
+    {
+      "@type": "Person",
+      "givenName": "Tyler",
+      "familyName": "Muffly",
+      "@id": "https://orcid.org/0000-0002-2044-1693",
+      "email": "tyler.muffly@dhha.org"
+    }
+  ],
+  "relatedLink": [
+    "https://github.com/mufflyt/mufflyaccess",
+    "https://github.com/mufflyt/cliff",
+    "https://github.com/mufflyt/mysterymaps",
+    "https://github.com/mufflyt/isochrones"
+  ]
+}
