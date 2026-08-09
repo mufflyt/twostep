@@ -26,6 +26,13 @@
   title, subtitle, and footnote caption and to simplify the colorbar label; content
   unchanged (still the 2020 surface; panel numbers remain the national
   population-weighted means).
+- **Figure 3 replaced (2026-08-02):** the GO-only `fig3_go2020.jpg` gave way to
+  `fig3_allsubspec_stratified_2020.jpg`, which shows 2020 accessibility by rurality
+  (A) and race/ethnicity (B) for **all seven subspecialties**. New twostep-native
+  generator `scripts/figure3_allsubspec_stratified_2020.R` reads the vendored
+  `allsubspec_allyears_stratified_LONG.csv` (the series behind Figures 4 to 6), so it
+  regenerates from twostep alone. Verified from the data: rural < metropolitan and
+  American Indian or Alaska Native lowest in every subspecialty.
 
 ### Figure provenance
 - Added [`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md) and

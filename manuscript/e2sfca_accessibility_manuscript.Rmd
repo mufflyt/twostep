@@ -766,18 +766,23 @@ non-Hispanic White women (ACS uncertainty interval excluding zero).
 Asian women had the highest modeled accessibility (Figure 3B).
 
 ```{r fig3}
-# Figure 3 provenance: isochrones scripts/stratify_go_2020_access.R (built 2026-07-15;
-# also vendored in twostep/scripts/). See docs/FIGURE_PROVENANCE.md.
-knitr::include_graphics(file.path(figdir, "fig3_go2020.jpg"))
+# Figure 3 provenance: twostep scripts/figure3_allsubspec_stratified_2020.R (built
+# 2026-08-02) from artifacts/2sfca/figures/allsubspec_allyears_stratified_LONG.csv.
+# See docs/FIGURE_PROVENANCE.md.
+knitr::include_graphics(file.path(figdir, "fig3_allsubspec_stratified_2020.jpg"))
 ```
-**Figure 3.** Gynecologic oncology accessibility in 2020 by (A) rurality and (B)
-race and ethnicity, population-weighted per 100,000 women. "% zero" = share of the
-group's population living in census tracts whose mean modeled access to a
-gynecologic oncologist is zero (a tract-level, not individual-level, measure).
+**Figure 3.** Population-weighted 2020 accessibility to the seven OB/GYN
+subspecialties by (A) rurality and (B) race and ethnicity, per 100,000 women;
+subspecialties ordered by national mean. In (A) each line joins the rural and
+metropolitan means; in (B) each point is one group, spanning the lowest to the
+highest. Rurality is USDA RUCA 2020 (metropolitan = codes 1 to 3); race-alone groups
+are not mutually exclusive with the non-Hispanic White and Hispanic groups. AIAN,
+American Indian or Alaska Native; NHPI, Native Hawaiian or Other Pacific Islander;
+URPS, urogynecology and reconstructive pelvic surgery.
 
 ### Disparities across all subspecialties
 
-The rurality and race/ethnicity disparities were directionally consistent across all seven specialty groups; per-subspecialty estimates are reported in eResults S5.
+The rurality and race/ethnicity disparities held across all seven specialty groups (Figure 3), with rural and American Indian or Alaska Native women lowest in every one; per-subspecialty estimates are in eResults S5.
 
 ### Persistence of disparities over time
 
