@@ -1,5 +1,12 @@
 # twostep — E2SFCA accessibility to OB/GYN subspecialists
 
+<!-- badges: start -->
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](DESCRIPTION)
+[![R >= 4.1](https://img.shields.io/badge/R-%3E%3D%204.1-blue.svg)](https://cran.r-project.org/)
+<!-- badges: end -->
+
 Standalone analysis and manuscript for **national travel-time accessibility to the
 seven ABOG-certified obstetric and gynecologic subspecialties** across the
 contiguous United States, 2013–2023, using an **Enhanced Two-Step Floating
@@ -216,3 +223,57 @@ documents the production run, gates, and frozen facts.
   upstream inputs not shipped here (see the analysis-scripts note above).
 - **Geographic scope:** contiguous U.S. (48 states + DC). Alaska and Hawaii are
   outside the road-network modeling framework; see the manuscript's limitations.
+
+---
+
+## Installation
+
+```r
+# install.packages("remotes")
+remotes::install_github("mufflyt/mufflyaccess")   # required dependency
+remotes::install_github("mufflyt/twostep")
+```
+
+The package carries an `renv` lockfile. Running `R CMD INSTALL` or `Rscript`
+**from inside the repository** activates that isolated library, which will not
+contain your other packages; install from the parent directory, or set
+`RENV_CONFIG_AUTOLOADER_ENABLED=FALSE`, if dependencies appear to be missing.
+
+## Vocabulary guard
+
+The package refuses normative language on accessibility results, because an
+accessibility surface without a defensible demand target cannot support claims
+about adequacy:
+
+```r
+ACCESS_FORBIDDEN_TERMS
+#> "shortage" "surplus" "adequacy" "adequate" "inadequate" "unmet need" ...
+
+assert_access_language("Counties with an inadequate supply")   # stops
+assert_access_language("Modeled accessibility by county")      # passes
+```
+
+Wire it into the render, not into a review checklist — it is cheap to call on
+every caption, legend title and layer name before a figure is written.
+
+## How to cite
+
+```r
+citation("twostep")
+```
+
+`CITATION.cff` and `CITATION.bib` carry the same entry for GitHub and reference
+managers. ORCID [0000-0002-2044-1693](https://orcid.org/0000-0002-2044-1693).
+
+## Licence
+
+MIT — see [LICENSE.md](LICENSE.md).
+
+## Related
+
+| Package | Owns |
+|---|---|
+| [`mufflyaccess`](https://github.com/mufflyt/mufflyaccess) | constants and safe arithmetic: bands, CONUS geography, `safe_rate()` |
+| [`isochrones`](https://github.com/mufflyt/isochrones) | routing, water masks, the isochrone pipeline (source of record) |
+| [`mysterymaps`](https://github.com/mufflyt/mysterymaps) | map construction |
+| [`cliff`](https://github.com/mufflyt/cliff) | workforce retirement modelling |
