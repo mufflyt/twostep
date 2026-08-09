@@ -56,8 +56,27 @@ suppressPackageStartupMessages({
   library(cowplot)
   library(classInt)
 })
-if (!exists("normalize_tract_id", mode = "function"))
-  source(here::here("R", "utils", "tract_id_utils.R"))
+# NOTE (2026-08-09): this was a top-level source() of R/utils/tract_id_utils.R,
+# a file that is not in this repository. R CMD INSTALL therefore failed at
+# lazy-load and the WHOLE package -- all 53 exports -- was uninstallable
+# because of this one line.
+#
+# Package code must not read helpers off disk at load time regardless: the
+# working directory here::here() resolves against does not exist for an
+# installed package.
+#
+# normalize_tract_id() was never ported into twostep; it lives in
+# mufflyt/isochrones at R/utils/tract_id_utils.R. Rather than fail at install
+# for every user, callers that actually need it now fail at call time with a
+# message that says where to get it.
+if (!exists("normalize_tract_id", mode = "function")) {
+  normalize_tract_id <- function(...) {
+    stop("normalize_tract_id() was never ported into twostep; it lives in ",
+         "mufflyt/isochrones at R/utils/tract_id_utils.R. Port it into this ",
+         "package, or use dj7_parse_coord_id() / assert_matching_geography().",
+         call. = FALSE)
+  }
+}
 
 # Bug BIV-2 fix (2026-05-23): hardcoded ACS year 2017 was buried in two
 # different get_acs/tigris calls and one in the title — operators couldn't

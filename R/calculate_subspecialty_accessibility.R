@@ -34,8 +34,24 @@ suppressPackageStartupMessages({
   requireNamespace("here",  quietly = TRUE)
 })
 
-# Load spatial optimization helpers
-source(here::here("R", "isochrone_best_practices_helpers.R"))
+# NOTE (2026-08-09): this file previously ran
+#     source(here::here("R", "isochrone_best_practices_helpers.R"))
+# at package load time. That file is not in this repository, so R CMD INSTALL
+# failed at lazy-load and the ENTIRE package -- all 53 exports -- was
+# uninstallable because of this one function.
+#
+# A top-level source() is also wrong in package code regardless of whether the
+# file exists: package functions must come from the namespace or from Imports,
+# not be read off disk relative to a working directory that will not exist for
+# an installed package.
+#
+# The three helpers it supplied -- calculate_area_weighted_allocation(),
+# load_age_stratified_census() and resolve_path_from_config() -- live in
+# mufflyt/isochrones (R/utils/area_weighted_allocation.R,
+# R/load_age_stratified_census.R, R/path_resolver.R). They were never ported
+# here, so this function has been non-functional since the file was copied in.
+# The guard below makes that failure loud and specific at call time instead of
+# breaking installation for everyone.
 
 #' Calculate subspecialty accessibility by area overlap
 #'
@@ -82,6 +98,20 @@ calculate_subspecialty_accessibility <- function(
   year,
   drive_time = 60
 ) {
+
+  # Fail loudly and specifically rather than with "could not find function".
+  .needed <- c("calculate_area_weighted_allocation",
+               "load_age_stratified_census",
+               "resolve_path_from_config")
+  .missing <- .needed[!vapply(.needed, exists, logical(1), mode = "function")]
+  if (length(.missing)) {
+    stop("calculate_subspecialty_accessibility() depends on helpers that were ",
+         "never ported into twostep: ", paste(.missing, collapse = ", "), ".\n",
+         "They live in mufflyt/isochrones (R/utils/area_weighted_allocation.R, ",
+         "R/load_age_stratified_census.R, R/path_resolver.R). Port them into ",
+         "this package, or use compute_e2sfca() / compute_band_tract_overlap(), ",
+         "which are self-contained.", call. = FALSE)
+  }
 
   cat(sprintf("[INFO] Calculating accessibility for %s (year %d, drive time %d min)\n",
               subspecialty, year, drive_time))
