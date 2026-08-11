@@ -251,3 +251,56 @@ urps_project_accessibility <- function(projection, accessibility_fn,
                       stringsAsFactors = FALSE))
   do.call(rbind, c(out, list(make.row.names = FALSE, stringsAsFactors = FALSE)))
 }
+
+#' Summarise a compute_e2sfca() result into a Spatial Access Ratio (SPAR) row
+#'
+#' The bridge between `twostep::compute_e2sfca()` and the one-row-per-scenario-year
+#' accessibility metric [urps_project_accessibility()] collects. Given an E2SFCA
+#' result and the tract population, it returns the population-weighted mean access
+#' and the SPAR distribution -- the true drive-time accessibility summary, not a
+#' supply-density stand-in. Because it operates only on the returned
+#' `data.frame`s, it is base R and testable without the `sf`/`terra`/`dplyr`
+#' geospatial stack (feed it a synthetic `$access` frame).
+#'
+#' SPAR is per-capita access normalised so the population-weighted national mean
+#' is `1.00` (Wan/Luo & Wang): `spar = access_scaled / weighted.mean(access_scaled,
+#' pop)`. Tracts absent from `e2sfca$access` are unreached and counted as zero
+#' access, so the population shares use the full denominator.
+#'
+#' @param e2sfca The list returned by `twostep::compute_e2sfca()` (uses its
+#'   `$access` element: `GEOID`, `access_scaled`).
+#' @param tract_pop A `data.frame` with `GEOID` and the population column.
+#' @param pop_col Population column name in `tract_pop` (default `"female_pop"`).
+#' @param low_spar SPAR threshold defining a "low access" tract (default `0.5`,
+#'   i.e. under half the national mean).
+#' @return A one-row `data.frame`: `mean_access_per100k`, `spar_national_mean`
+#'   (a `1.00` sanity check), `low_access_pop_share`, `zero_access_pop_share`, and
+#'   `n_reached_tracts`.
+#' @seealso [urps_project_accessibility()], `twostep::compute_e2sfca()`
+#' @export
+urps_e2sfca_spar_summary <- function(e2sfca, tract_pop, pop_col = "female_pop",
+                                     low_spar = 0.5) {
+  acc <- if (is.list(e2sfca) && !is.null(e2sfca$access)) e2sfca$access else e2sfca
+  if (!is.data.frame(acc) || !all(c("GEOID", "access_scaled") %in% names(acc)))
+    stop("[urps_accessibility] `e2sfca` must be a compute_e2sfca() result (or its $access frame with GEOID + access_scaled).",
+         call. = FALSE)
+  if (!is.data.frame(tract_pop) || !all(c("GEOID", pop_col) %in% names(tract_pop)))
+    stop(sprintf("[urps_accessibility] `tract_pop` needs columns `GEOID` and `%s`.", pop_col),
+         call. = FALSE)
+
+  # left-join population onto access: unreached tracts (not in $access) -> 0 access
+  m <- merge(tract_pop[, c("GEOID", pop_col)], acc[, c("GEOID", "access_scaled")],
+             by = "GEOID", all.x = TRUE)
+  a <- m$access_scaled; a[is.na(a)] <- 0
+  w <- as.numeric(m[[pop_col]])
+  mean_access <- stats::weighted.mean(a, w)
+  spar <- if (mean_access > 0) a / mean_access else rep(0, length(a))
+
+  data.frame(
+    mean_access_per100k   = mean_access,
+    spar_national_mean    = stats::weighted.mean(spar, w),          # == 1.00 (sanity)
+    low_access_pop_share  = sum(w[spar < low_spar]) / sum(w),       # women below low_spar x mean
+    zero_access_pop_share = sum(w[a <= 0]) / sum(w),                # women with no reachable provider
+    n_reached_tracts      = sum(a > 0),
+    stringsAsFactors = FALSE)
+}

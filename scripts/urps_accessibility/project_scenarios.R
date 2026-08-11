@@ -49,20 +49,15 @@ baseline_origins <- readRDS_if("artifacts/2sfca/baseline_origins_by_state.rds")
 .need(baseline_origins, "baseline per-origin supply by state (artifacts/2sfca/baseline_origins_by_state.rds)")
 
 # ---- The engine seam ---------------------------------------------------------
-# Receives engine-ready per-origin supply (coord_id, supply) for one scenario-year
-# and returns a one-row headline: population-weighted mean access + zero-access
-# population share across reached tracts.
+# Receives engine-ready per-origin supply (coord_id, supply) for one scenario-year,
+# runs the production vector E2SFCA, and reduces it to the true SPAR summary via
+# urps_e2sfca_spar_summary() (population-weighted mean access + the SPAR-based
+# low/zero-access population shares; national SPAR mean = 1.00 by construction).
 accessibility_fn <- function(supply, scenario_id, year, overlap, tract_pop, ...) {
   res <- twostep::compute_e2sfca(overlap, tract_pop, supply,
                                  weights = twostep::E2SFCA_DEFAULT_WEIGHTS,
                                  pop_col = "female_pop")
-  acc <- merge(res$access[, c("GEOID", "access_scaled")], tract_pop, by = "GEOID")
-  w   <- acc$female_pop
-  data.frame(
-    mean_access_per100k = sum(acc$access_scaled * w) / sum(w),
-    zero_access_pop_share = sum(w[acc$access_scaled <= 0]) / sum(w),
-    n_reached_tracts = nrow(acc),
-    stringsAsFactors = FALSE)
+  urps_e2sfca_spar_summary(res, tract_pop, pop_col = "female_pop")
 }
 
 # ---- Run the scenario x year grid -------------------------------------------
@@ -76,11 +71,22 @@ access_by_scenario <- urps_project_accessibility(
   overlap           = overlap,
   tract_pop         = tract_pop)
 
+# Join the supply / demand / gap the projection already carries, so the output is
+# the full scenario x year picture: workforce (supply/demand/gap FTE) + spatial
+# access (SPAR). demand_clinical_fte / gap_fte are populated when the projection
+# was built against a calibrated (or literature_proxy) mufflyaccess demand model.
+pj_cols <- c("scenario_id", "year", "supply_clinical_fte",
+             "demand_clinical_fte", "gap_fte")
+end_to_end <- merge(access_by_scenario,
+                    projection[, intersect(pj_cols, names(projection))],
+                    by = c("scenario_id", "year"), all.x = TRUE)
+end_to_end <- end_to_end[order(end_to_end$scenario_id, end_to_end$year), ]
+
 out_dir <- "artifacts/2sfca/scenarios"
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 out_csv <- file.path(out_dir, "access_by_urps_scenario.csv")
-utils::write.csv(access_by_scenario, out_csv, row.names = FALSE)
+utils::write.csv(end_to_end, out_csv, row.names = FALSE)
 cat(sprintf("wrote %d rows (%d scenarios x %d years) -> %s\n",
-            nrow(access_by_scenario),
-            length(unique(access_by_scenario$scenario_id)),
-            length(unique(access_by_scenario$year)), out_csv))
+            nrow(end_to_end),
+            length(unique(end_to_end$scenario_id)),
+            length(unique(end_to_end$year)), out_csv))
