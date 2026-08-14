@@ -1,0 +1,101 @@
+name: contract-tests
+
+# twostep had no CI at all. This job gates the DATA-INDEPENDENT half of the
+# twostep -> mufflyaccess contract: the tests that compare this repo's constants
+# and URPS consumption against the SSOT and need nothing but base R,
+# mufflyaccess and testthat -- no cohort data, no sf/terra/geospatial stack, and
+# no install of twostep itself.
+#
+# It deliberately checks mufflyaccess out at MAIN rather than at the renv.lock
+# pin. The point is to catch SSOT drift as it lands upstream instead of when
+# somebody next moves the pin; the lockfile pin is what production uses, this is
+# the early-warning gate. (Mirrors cliff's contract-tests.yml, which does the
+# same.)
+#
+# WHAT IS COVERED (33 assertions, 3 skips, all runnable without loading
+# twostep -- verified in a library holding ONLY these dependencies, not on a
+# developer machine where ambient packages mask what is really required):
+#   mufflyaccess-consistency   the constants twostep re-exposes match the SSOT
+#   ssot-access-constants      access bands / thresholds against the SSOT
+#   urps-consumer-contract     the URPS consumption contract
+#   no-urps-count-derivation   guard against re-deriving URPS counts locally
+#
+# WHAT IS NOT COVERED HERE:
+#   test-ssot-acs-female-pop.R sources scripts/manuscript_e2sfca_values.R,
+#   which pulls dplyr + readr + tidyr, and its assertions read real run
+#   artifacts through e2sfca_run_dir(). It is data-dependent and
+#   tidyverse-dependent, which is the line this job draws -- not a lightweight
+#   contract check. Left to whatever runs the manuscript pipeline.
+#
+#   test-urps-accessibility-e2sfca-adapter.R and
+#   test-urps-accessibility-scenarios.R call twostep's own exported functions,
+#   so they need twostep installed and attached, which pulls the full geospatial
+#   dependency tree. They are already covered by mufflyaccess's
+#   isochrones-integration workflow, which installs twostep and runs them
+#   against the mufflyaccess checkout under test. Including them here would mean
+#   provisioning GDAL/GEOS/PROJ for a gate whose purpose is to be fast and
+#   dependency-light -- the two jobs are complementary, not duplicative.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Read-only: checkout, install, run tests.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out twostep
+        uses: actions/checkout@v4
+
+      - name: Check out mufflyaccess (the SSOT these tests are checked against)
+        uses: actions/checkout@v4
+        with:
+          repository: mufflyt/mufflyaccess
+          path: .mufflyaccess
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      # Only mufflyaccess's own hard dependencies -- twostep is never installed
+      # here, so its geospatial tree is not needed.
+      #
+      # here is the ONLY extra these four files need:
+      # test-ssot-access-constants.R resolves the repo root with here::here()
+      # and silently falls back to getwd() (the wrong directory, so its
+      # source() calls fail) when here is absent. cliff's contract workflow
+      # installs it for the same reason. No system library involved.
+      - name: Install dependencies
+        shell: Rscript {0}
+        run: |
+          install.packages(c("remotes", "testthat", "here"))
+          remotes::install_deps(
+            ".mufflyaccess",
+            dependencies = c("Depends", "Imports", "LinkingTo")
+          )
+
+      - name: Install mufflyaccess
+        run: R CMD INSTALL --with-keep.source .mufflyaccess
+
+      - name: Report which mufflyaccess is under test
+        shell: Rscript {0}
+        run: |
+          cat("mufflyaccess", as.character(packageVersion("mufflyaccess")),
+              "from", dirname(system.file(package = "mufflyaccess")), "\n")
+
+      - name: Run the data-independent contract tests
+        run: >
+          Rscript -e 'library(testthat);
+          testthat::test_dir("tests/testthat",
+          filter = "mufflyaccess-consistency|ssot-access-constants|urps-consumer-contract|no-urps-count-derivation",
+          stop_on_failure = TRUE);
+          cat("twostep contract integration: OK\n")'
