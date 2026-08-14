@@ -12,7 +12,9 @@ name: contract-tests
 # the early-warning gate. (Mirrors cliff's contract-tests.yml, which does the
 # same.)
 #
-# WHAT IS COVERED (43 assertions, all runnable without loading twostep):
+# WHAT IS COVERED (40 assertions, 6 skips, all runnable without loading
+# twostep -- verified in a library holding ONLY these dependencies, not on a
+# developer machine where ambient packages mask what is really required):
 #   mufflyaccess-consistency   the constants twostep re-exposes match the SSOT
 #   ssot-access-constants      access bands / thresholds against the SSOT
 #   ssot-acs-female-pop        the ACS denominator against the SSOT
@@ -61,10 +63,17 @@ jobs:
 
       # Only mufflyaccess's own hard dependencies -- twostep is never installed
       # here, so its geospatial tree is not needed.
+      #
+      # here + dplyr are the two extras these five files genuinely need, and
+      # nothing more: test-ssot-access-constants.R resolves the repo root with
+      # here::here() and silently falls back to getwd() (the wrong directory,
+      # so the source() calls fail) when it is absent, and
+      # test-ssot-acs-female-pop.R sources scripts/manuscript_e2sfca_values.R,
+      # which attaches dplyr. Neither pulls a system library.
       - name: Install dependencies
         shell: Rscript {0}
         run: |
-          install.packages(c("remotes", "testthat"))
+          install.packages(c("remotes", "testthat", "here", "dplyr"))
           remotes::install_deps(
             ".mufflyaccess",
             dependencies = c("Depends", "Imports", "LinkingTo")
