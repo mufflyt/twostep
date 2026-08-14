@@ -16,12 +16,38 @@
 # for admitted urogynaecologic surgery -- measured from 9,081 operations by
 # board-certified URPS surgeons across 38 Massachusetts hospitals.
 #
-# THE HEADLINE: THE DEFAULT IS SOUND
-# ----------------------------------
-# Case-weighted global sigma is 22.7 MILES, which is 44 minutes at 40 mph and
-# 59 minutes at 30 mph. The 60-minute default sits inside that range. This
-# measurement CONFIRMS the existing parameter for aggregate use; it does not
-# overturn it.
+# THE HEADLINE: THE DEFAULT IS ~46% TOO WIDE
+# ------------------------------------------
+# Case-weighted global sigma is 22.7 MILES = 41 MINUTES on the Massachusetts
+# road network, against a 60-minute default. Converting to band weights:
+#
+#   sigma = 60 min (default)     1.000  0.687  0.153  0.013
+#   sigma = 41 min (calibrated)  1.000  0.448  0.018  0.000
+#
+# The default credits the 60-minute band 1.5x, the 120-minute band 8x, and the
+# 180-minute band ~100x more supply than women were observed to use. For
+# urogynaecologic surgery it materially over-states how much distant capacity is
+# reachable.
+#
+# HOW THE MINUTES WERE OBTAINED (this is the part that matters)
+# -------------------------------------------------------------
+# NOT by assuming a road speed. The conversion is calibrated against real
+# road-network isochrones for the FPMRS/urology provider cohort
+# (mufflyt/isochrones, augmented_isochrones_fpmrs_uro), restricted to the 195
+# Massachusetts providers. Equivalent-area radius by band:
+#
+#   30 min -> 15.6 mi     60 min -> 35.7 mi
+#  120 min -> 70.1 mi    180 min -> 101.8 mi
+#
+# Interquartile ranges are tight (14.5-16.7 mi at 30 min), and a log-log fit
+# gives R2 = 0.997. Implied effective speed is 31-36 mph and rises with trip
+# length, which no single mph constant reproduces.
+#
+# CORRECTION: an earlier version of this file reported 44-59 minutes and
+# concluded the 60-minute default was confirmed. That conversion applied a 1.3
+# circuity factor on top of an assumed speed -- but an isochrone's equivalent-area
+# radius ALREADY embeds road circuity, so the factor was counted twice and
+# inflated the estimate. The corrected figure is 41 minutes.
 #
 # THE ACTUAL FINDING: SIGMA IS NOT A CONSTANT
 # -------------------------------------------
@@ -64,13 +90,22 @@
 #' @export
 URPS_INPATIENT_SIGMA_MILES <- 22.7
 
-#' Calibrated bandwidth in minutes, by assumed road speed
+#' Calibrated bandwidth in minutes
 #'
-#' Derived from [URPS_INPATIENT_SIGMA_MILES] as `miles * 1.3 / mph * 60`. The
-#' spread across plausible speeds is the reason the mile value is canonical.
-#' @format Named numeric vector keyed by assumed mph.
+#' Measured, not assumed: converted from [URPS_INPATIENT_SIGMA_MILES] using
+#' real Massachusetts road-network isochrones for the FPMRS/urology cohort
+#' (30 min = 15.6 mi, 60 = 35.7, 120 = 70.1, 180 = 101.8; log-log R2 = 0.997).
+#' @format Numeric scalar, minutes.
 #' @export
-URPS_INPATIENT_SIGMA_MINUTES <- c("30" = 59, "40" = 44, "50" = 35)
+URPS_INPATIENT_SIGMA_MINUTES <- 41
+
+#' Miles-to-minutes calibration for the Massachusetts road network
+#'
+#' Equivalent-area radius of real drive-time isochrones, 195 MA FPMRS/urology
+#' providers. Use this rather than a speed constant.
+#' @format Named numeric vector: minutes -> median radius in miles.
+#' @export
+MA_ROAD_NETWORK_RADIUS_MILES <- c("30" = 15.6, "60" = 35.7, "120" = 70.1, "180" = 101.8)
 
 #' Bandwidth stratified by distance to the nearest capable hospital
 #'
@@ -80,10 +115,17 @@ URPS_INPATIENT_SIGMA_MINUTES <- c("30" = 59, "40" = 44, "50" = 35)
 #' @format Named numeric vector, sigma in miles.
 #' @export
 URPS_INPATIENT_SIGMA_BY_AVAILABILITY <- c(
-  "5"   = 5.0,     # urban: a capable hospital within 5 miles
-  "10"  = 22.1,
-  "25"  = 27.4,
-  "999" = 108.7    # rural: nearest capable hospital beyond 25 miles
+  "5"   = 5.0,     # urban: a capable hospital within 5 miles  (10 min)
+  "10"  = 22.1,    #                                           (40 min)
+  "25"  = 27.4,    #                                           (50 min)
+  "999" = 108.7    # rural: nearest capable hospital beyond 25 miles (185 min)
+)
+
+#' The same stratified bandwidths expressed in minutes
+#' @format Named numeric vector, sigma in minutes.
+#' @export
+URPS_INPATIENT_SIGMA_BY_AVAILABILITY_MIN <- c(
+  "5" = 10, "10" = 40, "25" = 50, "999" = 185
 )
 
 #' E2SFCA band weights for urogynaecologic inpatient surgery
@@ -94,21 +136,20 @@ URPS_INPATIENT_SIGMA_BY_AVAILABILITY <- c(
 #' higher-volume ones) and would produce a negative incremental weight.
 #'
 #' @param bands Band edges in minutes, as for [gaussian_band_weights].
-#' @param mph Assumed road speed used to express the calibrated bandwidth in
-#'   minutes. Defaults to 40.
+#' @param sigma_minutes Calibrated bandwidth in minutes; defaults to the
+#'   road-network-calibrated [URPS_INPATIENT_SIGMA_MINUTES] (41).
 #' @return Named numeric vector of normalised zonal weights.
 #' @examples
-#' urps_inpatient_band_weights()            # calibrated
-#' gaussian_band_weights()                  # the sigma = 60 min default
+#' urps_inpatient_band_weights()   # 1.000 0.448 0.018 0.000  (sigma = 41 min)
+#' gaussian_band_weights()         # 1.000 0.687 0.153 0.013  (sigma = 60 min)
 #' @export
 urps_inpatient_band_weights <- function(bands = c(30L, 60L, 120L, 180L),
-                                        mph = 40) {
-  checkmate::assert_number(mph, lower = 1)
-  sigma_minutes <- URPS_INPATIENT_SIGMA_MILES * 1.3 / mph * 60
+                                        sigma_minutes = URPS_INPATIENT_SIGMA_MINUTES) {
+  checkmate::assert_number(sigma_minutes, lower = 1)
   w <- gaussian_band_weights(bands = bands, sigma = sigma_minutes)
   attr(w, "decay_meta")$sigma_source <- "CHIA MA inpatient urogyn surgery, FY2007-2018"
   attr(w, "decay_meta")$sigma_miles <- URPS_INPATIENT_SIGMA_MILES
-  attr(w, "decay_meta")$assumed_mph <- mph
+  attr(w, "decay_meta")$minutes_calibration <- "MA road-network isochrones, FPMRS/urology"
   attr(w, "decay_meta")$calibration_tier <- "observed_regional"
   w
 }
