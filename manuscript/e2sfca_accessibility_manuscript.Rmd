@@ -1142,9 +1142,17 @@ available for one subspecialty in one state: among 9,081 admitted urogynecologic
 operations performed by board-certified subspecialists at 38 Massachusetts
 hospitals between 2007 and 2018, patient residence and operating facility were
 linked to fit the Gaussian bandwidth directly. The case-weighted estimate was
-22.7 miles, which corresponds to 44 minutes at 40 mph and 59 minutes at 30 mph
-and therefore brackets the sigma = 60 min variant examined here, supporting
-rather than contradicting the parameterization adopted. That calibration also
+22.7 miles. Converting to travel time using real road-network isochrones for the
+same subspecialty cohort in that state (equivalent-area radii of 15.6, 35.7,
+70.1, and 101.8 miles at 30, 60, 120, and 180 minutes) gives a bandwidth of 41
+minutes, appreciably tighter than the sigma = 60 min variant examined here: the
+60-minute parameterization assigns roughly 1.5 times the weight to the 60-minute
+band and 8 times the weight to the 120-minute band relative to what patients were
+observed to use. Applied to a single subspecialty in a single state, this
+suggests conventional band weights may overstate the reachability of distant
+supply for surgical care, and the finding of insensitivity reported here should
+be read as robustness within the range examined rather than as evidence that the
+weights are correct. That calibration also
 identified a limitation the present sensitivity framework does not capture: the
 fitted bandwidth was strongly dependent on local supply, rising from 5.0 miles
 where a capable hospital lay within 5 miles to 108.7 miles where the nearest lay
