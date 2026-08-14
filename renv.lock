@@ -1866,14 +1866,14 @@
     },
     "mufflyaccess": {
       "Package": "mufflyaccess",
-      "Version": "0.10.0",
+      "Version": "0.11.0",
       "Source": "GitHub",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
       "RemoteUsername": "mufflyt",
       "RemoteRepo": "mufflyaccess",
       "RemoteRef": "main",
-      "RemoteSha": "1fc2221e9c2d77212828c63ad563989e49a96cd6"
+      "RemoteSha": "2b551f3ba119ddcf550612e7ea9480ac83735f7a"
     },
     "otel": {
       "Package": "otel",
