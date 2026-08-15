@@ -241,7 +241,7 @@
     },
     "ape": {
       "Package": "ape",
-      "Version": "5.8.1",
+      "Version": "5.8-1",
       "Source": "Repository",
       "Repository": "CRAN"
     },
@@ -359,7 +359,7 @@
     },
     "bitops": {
       "Package": "bitops",
-      "Version": "1.0.9",
+      "Version": "1.0-9",
       "Source": "Repository",
       "Repository": "CRAN"
     },
@@ -1913,7 +1913,7 @@
     },
     "nlme": {
       "Package": "nlme",
-      "Version": "3.1.166",
+      "Version": "3.1-166",
       "Source": "Repository",
       "Repository": "CRAN",
       "Priority": "recommended"
