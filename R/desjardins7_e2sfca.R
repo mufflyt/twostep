@@ -88,7 +88,8 @@ dj7_incr_weights <- function(Wc) {
 #' [accessibility_stratification::weighted_mean_all] (zero-weight elements
 #' contribute nothing to either numerator or denominator); the suite asserts
 #' that equivalence so the two libraries cannot silently diverge.
-#' @param x numeric values. @param w numeric weights (same length).
+#' @param x numeric values.
+#' @param w numeric weights (same length).
 #' @return weighted mean, or NA if no positive weight remains.
 #' @export
 dj7_wmean <- function(x, w) {

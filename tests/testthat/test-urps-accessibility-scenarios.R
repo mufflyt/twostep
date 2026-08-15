@@ -5,6 +5,13 @@
 # standing in for compute_e2sfca(). The projection fixture is mufflyaccess's
 # bundled, contract-valid example, so the test needs no cliff artifact on disk.
 
+# This file never sourced the module it tests, so all 7 of its test_that blocks
+# errored with "could not find function urps_project_accessibility" and the URPS
+# orchestration layer was effectively untested. Same rprojroot idiom the other
+# SSOT tests use.
+root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION"))
+source(file.path(root, "R", "urps_accessibility_scenarios.R"))
+
 skip_if_not_installed("mufflyaccess")
 
 proj_path <- system.file("extdata", "urps_projection_example.csv", package = "mufflyaccess")

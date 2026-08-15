@@ -15,6 +15,12 @@
 #' that want `write_rds_atomic()` by name can source this file instead (or in
 #' addition).
 #'
+#' **Not package exports.**  R collates only top-level `R/*.R`; files under an
+#' `R/` subdirectory are never part of the installed package, so these helpers
+#' are `@keywords internal` and reachable by `source()` only.  Promoting them to
+#' exports means moving the file to `R/` and dropping the load-time `source()`
+#' below.  Enforced by `tools/sync_namespace.R`.
+#'
 #' @family pipeline-infrastructure
 #' @name write_rds_atomic_helpers
 NULL
@@ -46,7 +52,7 @@ if (!exists("safe_saveRDS", mode = "function")) {
 #' }
 #'
 #' @seealso [safe_saveRDS()] (canonical implementation), [read_rds_verified()]
-#' @export
+#' @keywords internal
 write_rds_atomic <- function(obj, path, compute_sidecar = TRUE, ...) {
   if (!is.character(path) || length(path) != 1L) {
     stop("write_rds_atomic: 'path' must be a single character string", call. = FALSE)
@@ -90,7 +96,7 @@ write_rds_atomic <- function(obj, path, compute_sidecar = TRUE, ...) {
 #' }
 #'
 #' @seealso [write_rds_atomic()]
-#' @export
+#' @keywords internal
 read_rds_verified <- function(path, warn_on_mismatch = TRUE) {
   if (!file.exists(path)) {
     stop(sprintf("read_rds_verified: file not found: %s", path), call. = FALSE)

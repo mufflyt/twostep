@@ -5,7 +5,7 @@ scripts/*
 !scripts/manuscript_e2sfca_values.R
 # Reference-only R/ analysis + map scripts (not sourced by the render or tests).
 R/desjardins7_e2sfca.R
-R/create_bivariate_map_access_x_adi.R
+inst/scripts/create_bivariate_map_access_x_adi.R
 R/generate_bivariate_choropleth.R
 R/calculate_subspecialty_accessibility.R
 # Rendered outputs.

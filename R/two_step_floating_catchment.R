@@ -151,7 +151,11 @@ E2SFCA_DEFAULT_WEIGHTS <- c("30" = 1.00, "60" = 0.68, "120" = 0.22, "180" = 0.09
 #' @family E2SFCA distance-decay weights
 #' @seealso [gaussian_band_weights], [e2sfca_incremental_weights]
 #' @examples
-#' e2sfca_band_weights(E2SFCA_DEFAULT_WEIGHTS)              # the production weights
+#' # No argument uses [E2SFCA_DEFAULT_WEIGHTS], the production weights. It is the
+#' # authoritative SSOT but is not exported, so the example calls the default
+#' # rather than naming it -- and rather than restating the literal, which the
+#' # SSOT guards in tests/testthat/test-ssot-band-weights.R forbid duplicating.
+#' e2sfca_band_weights()
 #' e2sfca_band_weights(c("30" = 1, "60" = 0.5, "120" = 0.2, "180" = 0.1))
 #' try(e2sfca_band_weights(c("30" = 0.5, "60" = 1)))       # errors: not monotone
 #' @export
@@ -249,10 +253,10 @@ gaussian_band_weights <- function(bands = c(30L, 60L, 120L, 180L), sigma = 60) {
 #' See the module header for the Abel-summation identity that makes cumulative
 #' bands + incremental weights equivalent to ring-based (E2)SFCA. With
 #' `step2_power = 1` (the default, and always the STEP-1 demand denominator) this
-#' returns the ordinary E2SFCA increments w'_b = W_b - W_{b+1}. With
+#' returns the ordinary E2SFCA increments `w'_b = W_b - W_[b+1]`. With
 #' `step2_power = 2` it returns the M2SFCA (Delamater 2013) STEP-2 access
 #' increments derived from the SQUARED cumulative weights,
-#'   w''_b = W_b^2 - W_{b+1}^2      (this is diff(W^2), NOT diff(W)^2),
+#'   `w''_b = W_b^2 - W_[b+1]^2` (this is `diff(W^2)`, NOT `diff(W)^2`),
 #' so the access step applies the distance penalty a second time and a
 #' suboptimally configured system shows lower access. The outermost band's
 #' increment is its own (possibly powered) weight (W beyond the last band is 0).
@@ -271,9 +275,9 @@ gaussian_band_weights <- function(bands = c(30L, 60L, 120L, 180L), sigma = 60) {
 #' @family E2SFCA distance-decay weights
 #' @seealso [e2sfca_band_weights], [compute_e2sfca]
 #' @examples
-#' # E2SFCA (step2_power = 1): plain incremental weights W_b - W_{b+1}
+#' # E2SFCA (step2_power = 1): plain incremental weights W_b - W_[b+1]
 #' e2sfca_incremental_weights(c("30" = 1, "60" = 0.5), step2_power = 1)  # 0.5 0.5
-#' # M2SFCA (step2_power = 2): diff of the SQUARED cumulative weights, W^2_b - W^2_{b+1}
+#' # M2SFCA (step2_power = 2): diff of SQUARED cumulative weights, W^2_b - W^2_[b+1]
 #' e2sfca_incremental_weights(c("30" = 1, "60" = 0.5), step2_power = 2)  # 0.75 0.25
 #' @export
 e2sfca_incremental_weights <- function(weights = E2SFCA_DEFAULT_WEIGHTS,
@@ -475,6 +479,9 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
 #' @param tract_pop tibble with `GEOID` and a population column for the year.
 #' @param supply tibble from [compute_provider_supply] (`coord_id`,`supply`).
 #' @param weights Cumulative-band weights (see [e2sfca_band_weights]).
+#' @param step2_power Exponent applied to the step-2 demand weights (default 1,
+#'   the standard E2SFCA). Values above 1 sharpen distance decay in the
+#'   demand-side sum; this is the M2SFCA-style sensitivity lever.
 #' @param pop_col Name of the population column in `tract_pop` (default
 #'   "female_pop").
 #' @param per_capita_scale Multiply the accessibility index by this (default
@@ -655,6 +662,9 @@ build_e2sfca_raster_grid <- function(tracts_pop_sf, pop_col = "female_pop",
 #' @param tracts_geom_sf `sf` with `GEOID` + polygon geometry.
 #' @param area_crs Equal-area EPSG (default [E2SFCA_AREA_CRS]).
 #' @param resolution Cell size in metres.
+#' @param template Optional existing `SpatRaster` to rasterize onto. `NULL`
+#'   (default) builds a fresh template from `tracts_geom_sf` at `resolution`;
+#'   pass one to force an identical grid across vintages.
 #' @return list(template, tracts (with `.tid`,`.ncell`), area_crs, resolution).
 #' @family E2SFCA raster grid
 #' @seealso [allocate_pop_areaweighted]
@@ -971,8 +981,13 @@ e2sfca_cell_summaries <- function(surface, pop_rast,
 #'   [prepare_e2sfca_iso] (hoist the transform/validate out of the cell loop).
 #' @param supply tibble from [compute_provider_supply] (`coord_id`,`supply`).
 #' @param weights Cumulative-band weights (see [e2sfca_band_weights]).
+#' @param step2_power Exponent applied to the step-2 demand weights (default 1,
+#'   the standard E2SFCA). See [compute_e2sfca].
 #' @param per_capita_scale Multiplier for the index (default 1e5).
 #' @param thresholds Access thresholds (scaled units) for cell-level pop shares.
+#' @param return_surface Logical. `FALSE` (default) returns summaries only;
+#'   `TRUE` additionally returns the full accessibility `SpatRaster`, which is
+#'   large -- request it only when the surface itself is needed.
 #' @return list(access, provider_ratios, weights, national). `access` carries
 #'   BOTH `access_mean_area` (area-weighted, secondary) and
 #'   `access_mean_population` (population-weighted, the authoritative tract

@@ -14,12 +14,12 @@
 # Author: Tyler Muffly & Claude Code
 # =============================================================================
 
-library(sf)
-library(dplyr)
-library(ggplot2)
-library(here)
-library(tidyr)
-library(scales)
+# NOTE (2026-08-15): the top-level library(sf/dplyr/ggplot2/here/tidyr/scales)
+# calls that used to sit here were removed. They attached packages at load time,
+# which is not the same as importing them -- `R CMD check` flagged every
+# unprefixed call below as an undefined global. The needed symbols are now real
+# namespace imports, declared in R/twostep-package.R. tidyr and scales are gone
+# entirely: nothing in this file used them.
 
 #' @title Create Bivariate Color Palette
 #'
@@ -27,7 +27,6 @@ library(scales)
 #' Generates a 3×3 or 4×4 bivariate color palette for choropleth mapping.
 #' Uses research-based color schemes from Joshua Stevens and Cynthia Brewer.
 #'
-#' @inheritParams shared_params_data
 #' @param palette Palette name (default: "BlueYellow")
 #'   Options: "BlueYellow", "PurpleGreen", "BrownBlue", "PinkBlue"
 #' @param n_bins Number of bins per dimension (default: 3)
@@ -143,6 +142,7 @@ create_bivariate_palette <- function(palette = "BlueYellow", n_bins = 3) {
 #'
 #' Classifies two continuous variables into discrete bins for bivariate mapping.
 #'
+#' @param data Data frame or `sf` object containing `var1` and `var2`.
 #' @param var1 Column name for first variable (X-axis)
 #' @param var2 Column name for second variable (Y-axis)
 #' @param n_bins Number of bins per dimension (default: 3)
@@ -185,7 +185,7 @@ classify_bivariate <- function(data, var1, var2, n_bins = 3, method = "quantile"
     stop("method must be one of: quantile, equal, jenks")
   }
   if (nrow(data) == 0L) {
-    stop("classify_bivariate: data has 0 rows — cannot compute breaks or classify")
+    stop("classify_bivariate: data has 0 rows \u2014 cannot compute breaks or classify")
   }
 
   # Extract variables
@@ -249,6 +249,7 @@ classify_bivariate <- function(data, var1, var2, n_bins = 3, method = "quantile"
 #' Creates a bivariate choropleth map showing the relationship between
 #' two variables (e.g., female population and subspecialist access).
 #'
+#' @param data `sf` object with polygon geometry plus `var1` and `var2`.
 #' @param var1 Column name for first variable (X-axis, e.g.,
 #'   "female_population")
 #' @param var2 Column name for second variable (Y-axis, e.g.,
@@ -261,7 +262,8 @@ classify_bivariate <- function(data, var1, var2, n_bins = 3, method = "quantile"
 #' @param title Map title
 #' @param subtitle Map subtitle (optional)
 #' @param output_filename Output filename (without extension)
-#' @inheritParams shared_params_io
+#' @param output_dir Directory the TIFF, PNG and classified data are written to
+#'   (default `here("manuscript", "figures")`). Created if absent.
 #' @param width Width in inches (default: 12)
 #' @param height Height in inches (default: 8)
 #' @param dpi Resolution (default: 300)
@@ -339,17 +341,18 @@ generate_bivariate_choropleth <- function(data,
     stop(sprintf("Column '%s' not found in data", var2))
   }
 
-  cat(sprintf("  ✓ Data: %s polygons\n", scales::comma(nrow(data))))
-  cat(sprintf("  ✓ Variable 1: %s\n", var1))
-  cat(sprintf("  ✓ Variable 2: %s\n", var2))
-  cat(sprintf("  ✓ Bins: %d×%d = %d categories\n", n_bins, n_bins, n_bins^2))
-  cat(sprintf("  ✓ Method: %s\n\n", method))
+  cat(sprintf("  \u2713 Data: %s polygons\n",
+              format(nrow(data), big.mark = ",", trim = TRUE)))
+  cat(sprintf("  \u2713 Variable 1: %s\n", var1))
+  cat(sprintf("  \u2713 Variable 2: %s\n", var2))
+  cat(sprintf("  \u2713 Bins: %d\u00d7%d = %d categories\n", n_bins, n_bins, n_bins^2))
+  cat(sprintf("  \u2713 Method: %s\n\n", method))
 
   # Step 2: Create bivariate color palette
   cat("Step 2: Creating bivariate color palette...\n")
 
   color_matrix <- create_bivariate_palette(palette = palette, n_bins = n_bins)
-  cat(sprintf("  ✓ Palette: %s (%d×%d)\n\n", palette, n_bins, n_bins))
+  cat(sprintf("  \u2713 Palette: %s (%d\u00d7%d)\n\n", palette, n_bins, n_bins))
 
   # Step 3: Classify data into bins
   cat("Step 3: Classifying data into bivariate bins...\n")
@@ -366,9 +369,9 @@ generate_bivariate_choropleth <- function(data,
   var1_breaks <- attr(data_classified, "var1_breaks")
   var2_breaks <- attr(data_classified, "var2_breaks")
 
-  cat(sprintf("  ✓ Variable 1 breaks: %s\n",
+  cat(sprintf("  \u2713 Variable 1 breaks: %s\n",
               paste(round(var1_breaks, 2), collapse = ", ")))
-  cat(sprintf("  ✓ Variable 2 breaks: %s\n\n",
+  cat(sprintf("  \u2713 Variable 2 breaks: %s\n\n",
               paste(round(var2_breaks, 2), collapse = ", ")))
 
   # Step 4: Assign colors to each bivariate class
@@ -386,7 +389,7 @@ generate_bivariate_choropleth <- function(data,
   data_classified <- data_classified %>%
     left_join(color_map %>% select(bivar_class, color), by = "bivar_class")
 
-  cat(sprintf("  ✓ Colors assigned to %d categories\n\n", nrow(color_map)))
+  cat(sprintf("  \u2713 Colors assigned to %d categories\n\n", nrow(color_map)))
 
   # Step 5: Create map
   cat("Step 5: Creating bivariate choropleth map...\n")
@@ -398,29 +401,29 @@ generate_bivariate_choropleth <- function(data,
   }
 
   # Create base map
-  p <- ggplot() +
-    geom_sf(data = data_classified, aes(fill = color), color = NA, size = 0) +
-    scale_fill_identity() +
-    theme_minimal() +
-    theme(
-      panel.grid = element_blank(),
-      axis.text = element_blank(),
-      axis.title = element_blank(),
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_sf(data = data_classified, ggplot2::aes(fill = color), color = NA, size = 0) +
+    ggplot2::scale_fill_identity() +
+    ggplot2::theme_minimal() +
+    ggplot2::theme(
+      panel.grid = ggplot2::element_blank(),
+      axis.text = ggplot2::element_blank(),
+      axis.title = ggplot2::element_blank(),
       legend.position = "none",  # Custom legend below
-      plot.title = element_text(size = 16, face = "bold", hjust = 0.5),
-      plot.subtitle = element_text(size = 12, hjust = 0.5, margin = margin(b = 10))
+      plot.title = ggplot2::element_text(size = 16, face = "bold", hjust = 0.5),
+      plot.subtitle = ggplot2::element_text(size = 12, hjust = 0.5, margin = ggplot2::margin(b = 10))
     ) +
-    labs(
+    ggplot2::labs(
       title = title,
       subtitle = subtitle
     )
 
   # Add state borders if available
   if (!is.null(states)) {
-    p <- p + geom_sf(data = states, fill = NA, color = "gray30", size = 0.3)
+    p <- p + ggplot2::geom_sf(data = states, fill = NA, color = "gray30", size = 0.3)
   }
 
-  cat("  ✓ Map created\n\n")
+  cat("  \u2713 Map created\n\n")
 
   # Step 6: Create bivariate legend
   cat("Step 6: Creating bivariate legend...\n")
@@ -433,22 +436,22 @@ generate_bivariate_choropleth <- function(data,
   legend_data$color <- as.vector(t(color_matrix))
 
   # Create legend plot
-  legend_plot <- ggplot(legend_data, aes(x = x, y = y, fill = color)) +
-    geom_tile(color = "white", size = 1) +
-    scale_fill_identity() +
-    labs(
-      x = sprintf("← %s →", var1_label),
-      y = sprintf("← %s →", var2_label)
+  legend_plot <- ggplot2::ggplot(legend_data, ggplot2::aes(x = x, y = y, fill = color)) +
+    ggplot2::geom_tile(color = "white", size = 1) +
+    ggplot2::scale_fill_identity() +
+    ggplot2::labs(
+      x = sprintf("\u2190 %s \u2192", var1_label),
+      y = sprintf("\u2190 %s \u2192", var2_label)
     ) +
-    theme_void() +
-    theme(
-      axis.title.x = element_text(size = 10, margin = margin(t = 5)),
-      axis.title.y = element_text(size = 10, margin = margin(r = 5), angle = 90),
-      plot.margin = margin(10, 10, 10, 10)
+    ggplot2::theme_void() +
+    ggplot2::theme(
+      axis.title.x = ggplot2::element_text(size = 10, margin = ggplot2::margin(t = 5)),
+      axis.title.y = ggplot2::element_text(size = 10, margin = ggplot2::margin(r = 5), angle = 90),
+      plot.margin = ggplot2::margin(10, 10, 10, 10)
     ) +
-    coord_fixed()
+    ggplot2::coord_fixed()
 
-  cat("  ✓ Legend created\n\n")
+  cat("  \u2713 Legend created\n\n")
 
   # Step 7: Combine map and legend
   cat("Step 7: Combining map and legend...\n")
@@ -459,7 +462,7 @@ generate_bivariate_choropleth <- function(data,
       cowplot::draw_plot(p, x = 0, y = 0, width = 0.85, height = 1) +
       cowplot::draw_plot(legend_plot, x = 0.70, y = 0.05, width = 0.25, height = 0.25)
 
-    cat("  ✓ Map and legend combined with cowplot\n\n")
+    cat("  \u2713 Map and legend combined with cowplot\n\n")
   } else {
     # Fallback: use patchwork or just map
     warning("cowplot not installed, legend will be separate")
@@ -475,7 +478,7 @@ generate_bivariate_choropleth <- function(data,
 
   # Save TIFF (print quality)
   tiff_path <- here(output_dir, paste0(output_filename, ".tiff"))
-  ggsave(
+  ggplot2::ggsave(
     filename = tiff_path,
     plot = combined_plot,
     width = width,
@@ -484,13 +487,13 @@ generate_bivariate_choropleth <- function(data,
     compression = "lzw"
   )
 
-  cat(sprintf("  ✓ TIFF saved: %s (%.1f MB)\n",
+  cat(sprintf("  \u2713 TIFF saved: %s (%.1f MB)\n",
               basename(tiff_path),
               file.size(tiff_path) / (1024^2)))
 
   # Save PNG (preview)
   png_path <- here(output_dir, paste0(output_filename, ".png"))
-  ggsave(
+  ggplot2::ggsave(
     filename = png_path,
     plot = combined_plot,
     width = width,
@@ -498,7 +501,7 @@ generate_bivariate_choropleth <- function(data,
     dpi = 150
   )
 
-  cat(sprintf("  ✓ PNG saved: %s (%.1f MB)\n",
+  cat(sprintf("  \u2713 PNG saved: %s (%.1f MB)\n",
               basename(png_path),
               file.size(png_path) / (1024^2)))
 
@@ -506,7 +509,7 @@ generate_bivariate_choropleth <- function(data,
   data_path <- here(output_dir, paste0(output_filename, "_data.rds"))
   saveRDS(data_classified, data_path)
 
-  cat(sprintf("  ✓ Classified data saved: %s\n\n", basename(data_path)))
+  cat(sprintf("  \u2713 Classified data saved: %s\n\n", basename(data_path)))
 
   # Step 9: Summary statistics
   cat("Step 9: Summary statistics...\n\n")
@@ -528,9 +531,9 @@ generate_bivariate_choropleth <- function(data,
   cat(strrep("=", 80), "\n\n")
 
   cat("Files created:\n")
-  cat(sprintf("  ✓ %s (TIFF, print quality)\n", basename(tiff_path)))
-  cat(sprintf("  ✓ %s (PNG, preview)\n", basename(png_path)))
-  cat(sprintf("  ✓ %s (Classified data)\n\n", basename(data_path)))
+  cat(sprintf("  \u2713 %s (TIFF, print quality)\n", basename(tiff_path)))
+  cat(sprintf("  \u2713 %s (PNG, preview)\n", basename(png_path)))
+  cat(sprintf("  \u2713 %s (Classified data)\n\n", basename(data_path)))
 
   cat("Interpretation:\n")
   cat(sprintf("  - Lower-left (1-1): Low %s, Low %s\n", var1_label, var2_label))

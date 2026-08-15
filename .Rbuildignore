@@ -10,3 +10,29 @@
 ^CITATION\.bib$
 ^\.github$
 ^LICENSE\.md$
+# NOTE: every line here is compiled as a Perl regex, comments included -- roxygen2
+# errors on an uncompilable line. Keep comment prose free of regex metacharacters:
+# no parentheses, brackets, braces, pipes or leading quantifiers.
+# ---------------------------------------------------------------------------
+# Repo-level data inputs, NOT package datasets. Scripts, the shiny app and
+# SHA256SUMS.txt address these by literal repo path, and their SHA-256s are pinned
+# in data/PROVENANCE_vendored_inputs.md. Shipping them as a data/ directory makes
+# R CMD check treat the .csv as an undocumented dataset and reject the .rds and .md
+# as disallowed types. Excluded from the build; the repo paths are untouched.
+^data$
+# Repo-integrity suite, not a package test suite: most files readLines or source
+# the R/ and scripts/ SOURCE files by path -- SSOT guards that grep the code itself
+# for constants. Those inputs do not exist in an installed package, so the suite
+# cannot run under R CMD check. It stays the documented local gate:
+# Rscript tests/testthat.R
+^tests$
+# Repo tooling and root anchors -- not part of the installed package.
+^\.here$
+^\.renvignore$
+^manuscript$
+^scripts$
+^artifacts$
+^tools$
+^render\.R$
+^render_docx\.R$
+^SHA256SUMS\.txt$

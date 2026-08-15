@@ -8,7 +8,8 @@
 #
 # DELIBERATE second CRS (NOT unified): EPSG:9311 (NAD83(2011) US National Atlas
 # Equal Area) is used by the older subspecialty-accessibility / bivariate-ADI modules
-# (R/calculate_subspecialty_accessibility.R, R/create_bivariate_map_access_x_adi.R).
+# (R/calculate_subspecialty_accessibility.R,
+# inst/scripts/create_bivariate_map_access_x_adi.R).
 # The engine header documents that both 5070 and 9311 are used for equal-area work.
 # The drift scan below allows BOTH; it only fails on an unrecognised projected EPSG.
 # ==============================================================================
@@ -24,7 +25,8 @@ test_that("E2SFCA_AREA_CRS is defined exactly once, in the engine, as 5070L", {
   expect_length(defs, 1L)
   expect_match(defs, "5070L")
   # cross-check other files do not re-define the canonical
-  other <- list.files(c(file.path(root, "R"), file.path(root, "scripts")),
+  other <- list.files(c(file.path(root, "R"), file.path(root, "scripts"),
+                        file.path(root, "inst", "scripts")),
                       pattern = "[.]R$", full.names = TRUE, recursive = TRUE)
   redefs <- character(0)
   for (f in other) {
@@ -48,7 +50,10 @@ test_that("no code uses an unrecognised projected EPSG literal (drift scan)", {
   # mercator), 5070 + 9311 (the two deliberate equal-area CRSs). Any other 4-5 digit
   # EPSG in an st_transform()/crs= position is suspicious (typo / foreign CRS).
   ALLOW <- c(4326L, 3857L, 5070L, 9311L)
-  files <- list.files(c(file.path(root, "R"), file.path(root, "scripts")),
+  # inst/scripts holds the relocated bivariate-ADI module; keep it in the scan so
+  # moving it out of R/ did not silently shrink this guard's coverage.
+  files <- list.files(c(file.path(root, "R"), file.path(root, "scripts"),
+                        file.path(root, "inst", "scripts")),
                       pattern = "[.]R$", full.names = TRUE, recursive = TRUE)
   offenders <- character(0)
   pat <- "(?:st_transform\\([^,]*,\\s*|crs\\s*=\\s*)([0-9]{4,5})L?"

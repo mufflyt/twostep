@@ -4,6 +4,12 @@
 # A second block runs the REAL compute_e2sfca() when dplyr is available, proving
 # the wiring end to end; it skips cleanly otherwise.
 
+# Same omission as test-urps-accessibility-scenarios.R: the module under test was
+# never sourced, so all 4 blocks errored with "could not find function
+# urps_e2sfca_spar_summary" and the SPAR seam was untested.
+root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION"))
+source(file.path(root, "R", "urps_accessibility_scenarios.R"))
+
 # analytic fixture from test-e2sfca-m2sfca-gaussian.R: provider p, near+far tracts,
 # supply 1, weights (30=1.0, 60=0.5) -> access near = 1/150, far = 0.5/150.
 # access_scaled = access * 1e5 -> near 666.667, far 333.333.

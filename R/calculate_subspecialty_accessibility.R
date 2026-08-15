@@ -17,14 +17,9 @@
 #' cohorts for each subspecialty (e.g., reproductive age for REI/MFM,
 #' older population for GO/FPMRS).
 #'
-#' @inheritParams shared_params_isochrones
-#' @param census_tracts `sf`: with age-stratified population
-#' @inheritParams shared_params_cohort
-#' @param age_config `list`: from census_age_stratified.yml
-#' @inheritParams shared_params_temporal
-#' @param drive_time `numeric`: drive time in minutes
-#' @return data frame with subspecialty-specific accessibility metrics
-#' @export
+#' @keywords internal
+#' @name calculate_subspecialty_accessibility_module
+NULL
 
 # STEP49_R5F3_library-calls: bare library() calls violate project convention.
 # Replace with requireNamespace() so this file is safe in callr subprocesses.
@@ -79,10 +74,14 @@ suppressPackageStartupMessages({
 #'
 #' @param census_tracts sf. Census tract polygons
 #'   with GEOID and population columns.
-#' @inheritParams shared_params_cohort
+#' @param isochrones `sf`: drive-time isochrone polygons, with
+#'   `subspecialty` and `drive_time_minutes` columns.
+#' @param subspecialty `character(1)`: subspecialty code to
+#'   filter isochrones to, e.g. "MFM".
 #' @param age_config `list`: Age cohort configuration
 #'   mapping subspecialties to population variables.
-#' @inheritParams shared_params_temporal
+#' @param year `integer`: analysis year, used to select the
+#'   ACS vintage and reported in the result.
 #' @param drive_time `integer`: Drive time threshold
 #'   in minutes (default 60).
 #' @return Tibble with one row containing subspecialty,
@@ -118,7 +117,7 @@ calculate_subspecialty_accessibility <- function(
 
   # Filter isochrones to this subspecialty only
   subspec_isochrones <- isochrones %>%
-    filter(subspecialty == !!subspecialty, drive_time_minutes == drive_time)
+    dplyr::filter(subspecialty == !!subspecialty, drive_time_minutes == drive_time)
 
   if (nrow(subspec_isochrones) == 0) {
     cat(sprintf("[WARN] No isochrones found for subspecialty: %s at %d minutes\n",
@@ -150,7 +149,7 @@ calculate_subspecialty_accessibility <- function(
   }
 
   # Ensure CRS match — use EPSG:9311 for accurate area calculations
-  census_tracts <- st_transform(census_tracts, 9311)
+  census_tracts <- sf::st_transform(census_tracts, 9311)
 
   # Area-weighted accessibility (Walker 2023, §7.3-7.4)
   # Replaces centroid-based method which suffered from "centroid trap" —
@@ -158,7 +157,7 @@ calculate_subspecialty_accessibility <- function(
   cat("[INFO] Calculating area-weighted accessibility (Walker 2023)...\n")
 
   # Fix invalid geometries before union to prevent TopologyException
-  subspec_isochrones <- st_make_valid(subspec_isochrones)
+  subspec_isochrones <- sf::st_make_valid(subspec_isochrones)
 
   # Load safe_st_union if not already loaded
   if (!exists("safe_st_union", mode = "function")) {
@@ -172,7 +171,7 @@ calculate_subspecialty_accessibility <- function(
     verbose = TRUE
   )
   isochrone_union_sf <- sf::st_sf(geometry = isochrone_union)
-  isochrone_union_sf <- st_transform(isochrone_union_sf, 9311)
+  isochrone_union_sf <- sf::st_transform(isochrone_union_sf, 9311)
 
   # Source the area-weighted allocation utility
   source(here::here("R", "utils", "area_weighted_allocation.R"))
@@ -182,7 +181,7 @@ calculate_subspecialty_accessibility <- function(
 
   # Prepare population and population_moe columns for the utility interface
   census_tracts_prepped <- census_tracts %>%
-    mutate(
+    dplyr::mutate(
       population = .data[[pop_var]],
       population_moe = .data[[pop_moe_var]]
     )
@@ -201,13 +200,13 @@ calculate_subspecialty_accessibility <- function(
 
   # Join overlap fractions back to census data
   accessibility_results <- census_tracts %>%
-    st_drop_geometry() %>%
-    left_join(
-      overlap_result %>% select(GEOID, overlap_fraction),
+    sf::st_drop_geometry() %>%
+    dplyr::left_join(
+      overlap_result %>% dplyr::select(GEOID, overlap_fraction),
       by = "GEOID"
     ) %>%
-    mutate(
-      overlap_fraction = if_else(is.na(overlap_fraction), 0, overlap_fraction),
+    dplyr::mutate(
+      overlap_fraction = dplyr::if_else(is.na(overlap_fraction), 0, overlap_fraction),
       has_access = as.integer(overlap_fraction >= 0.001),
       total_pop = .data[[pop_var]],
       total_pop_moe = .data[[pop_moe_var]],
@@ -234,7 +233,7 @@ calculate_subspecialty_accessibility <- function(
     NA_real_
   }
 
-  summary <- tibble(
+  summary <- tibble::tibble(
     subspecialty = subspecialty,
     age_cohort = age_cohort,
     year = year,
@@ -249,7 +248,7 @@ calculate_subspecialty_accessibility <- function(
     # with 1.96 is appropriate here — n = total_population (millions).
     percent_ci_lower = percent_accessible - 1.96 * se_prop,
     percent_ci_upper = percent_accessible + 1.96 * se_prop,
-    n_providers = n_distinct(subspec_isochrones$npi),
+    n_providers = dplyr::n_distinct(subspec_isochrones$npi),
     n_isochrones = nrow(subspec_isochrones),
     n_tracts_total = nrow(accessibility_results),
     n_tracts_with_access = sum(accessibility_results$has_access, na.rm = TRUE)
@@ -299,5 +298,5 @@ if (sys.nframe() == 0) {
 
   print(result_mfm)
 
-  cat("\n✅ Test complete\n")
+  cat("\n\u2705 Test complete\n")
 }
