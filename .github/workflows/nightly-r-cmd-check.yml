@@ -1,17 +1,22 @@
 name: nightly-r-cmd-check
 
-# Package-integrity gate: does twostep still build, install, document and pass
-# R CMD check cleanly? Deliberately a NEW workflow rather than a revival of
-# tests.yaml, which is disabled and describes an obsolete dependency setup.
+# Two complementary nightly gates, run as independent parallel jobs:
 #
-# Complements, does not replace, the other two gates:
-#   contract-tests.yml        twostep -> mufflyaccess SSOT contract, dependency-light
-#   Rscript tests/testthat.R  repository/method integrity, 805 assertions
+#   R-CMD-check  PACKAGE integrity -- does twostep build, install, document and
+#                pass R CMD check cleanly against the tarball a user installs?
+#   testthat     REPOSITORY/METHOD integrity -- the 805-assertion suite, run
+#                against the SOURCE TREE.
 #
-# The testthat suite is NOT exercised here. tests/ is excluded from the package
-# build on purpose -- most of its files readLines()/source() the R/ sources
-# themselves, so they cannot run against an installed package. Adding a second
-# job to run it against the source tree is the natural next step.
+# They cannot be collapsed into one step. tests/ is excluded from the package
+# build on purpose: most of its files readLines()/source() the R/ and scripts/
+# sources themselves -- SSOT guards that grep the code for constants -- and
+# those inputs do not exist in an installed package. So R CMD check runs no
+# tests, and the suite needs a checkout rather than a tarball.
+#
+# Deliberately a NEW workflow, not a revival of tests.yaml, which is disabled
+# and describes an obsolete dependency setup. Complements contract-tests.yml,
+# which gates the dependency-light twostep -> mufflyaccess SSOT contract on
+# every push.
 #
 # 03:17 America/Denver: scheduled runs use the default branch's latest commit,
 # and :17 avoids the top-of-hour load spike that delays scheduled jobs.
@@ -25,24 +30,25 @@ on:
 permissions:
   contents: read
 
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # REQUIRED for both jobs. The repo root holds a .Rprofile that sources
+  # renv/activate.R, so every R process started in the workspace switches
+  # .libPaths() to the renv project library, which is empty on a fresh runner.
+  # The dependencies installed by setup-r-dependencies then become invisible and
+  # the run fails on missing namespaces. Verified locally: unset ->
+  # requireNamespace("dplyr") is FALSE in the workspace; false/FALSE/0 -> TRUE.
+  #
+  # This does not weaken reproducibility. renv.lock pins the render path; these
+  # jobs check the package against its DESCRIPTION, which is the contract an
+  # installing user actually gets.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
 jobs:
   R-CMD-check:
+    name: R CMD check (package integrity)
     runs-on: ubuntu-latest
-
-    env:
-      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
-      R_KEEP_PKG_SOURCE: yes
-      # REQUIRED. The repo root holds a .Rprofile that sources renv/activate.R,
-      # so every R process started in the workspace switches .libPaths() to the
-      # renv project library. That library is empty on a fresh runner, so the
-      # dependencies installed below become invisible and the check fails on
-      # missing namespaces. Verified locally: without this, requireNamespace
-      # ("dplyr") is FALSE in the workspace; with it, TRUE.
-      #
-      # This does not weaken reproducibility. renv.lock pins the render and test
-      # path; this job checks the PACKAGE against its DESCRIPTION, which is the
-      # contract an installing user actually gets.
-      RENV_CONFIG_AUTOLOADER_ENABLED: false
 
     steps:
       - name: Check out repository
@@ -66,10 +72,10 @@ jobs:
       - name: Install package dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          # mufflyaccess resolves from the DESCRIPTION Remotes field.
           # BAMMtools is a Suggests used by the reference-only bivariate module.
           # It was the last finding standing between this package and Status: OK,
-          # and it is absent from the public RSPM snapshot resolution path that
-          # DESCRIPTION alone would follow, so it is requested explicitly.
+          # so it is requested explicitly rather than left to Suggests resolution.
           extra-packages: |
             any::rcmdcheck
             any::BAMMtools
@@ -79,3 +85,50 @@ jobs:
         uses: r-lib/actions/check-r-package@v2
         with:
           build_args: 'c("--no-manual")'
+
+  testthat:
+    name: testthat suite (repository integrity)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.3"
+          use-public-rspm: true
+
+      # The suite sources R/two_step_floating_catchment.R and friends, which pull
+      # sf/terra/exactextractr, so the geospatial stack is required here too.
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev \
+            libgeos-dev \
+            libproj-dev \
+            libudunits2-dev
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # twostep itself is NOT installed: every test reaches the code by
+          # source()ing R/ directly, and none of them attach the package. The
+          # DESCRIPTION Imports plus Suggests are what the sourced files need.
+          extra-packages: |
+            any::testthat
+          needs: check
+
+      - name: Report the mufflyaccess under test
+        shell: Rscript {0}
+        run: |
+          cat("mufflyaccess", as.character(packageVersion("mufflyaccess")),
+              "from", dirname(system.file(package = "mufflyaccess")), "\n")
+
+      # test_dir() defaults to stop_on_failure = TRUE, so a failure halts with a
+      # non-zero status and fails the job. Verified locally: 0 when green, 1 with
+      # a deliberately failing assertion injected.
+      - name: Run the testthat suite
+        run: Rscript tests/testthat.R
