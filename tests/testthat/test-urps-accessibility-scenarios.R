@@ -7,10 +7,18 @@
 
 # This file never sourced the module it tests, so all 7 of its test_that blocks
 # errored with "could not find function urps_project_accessibility" and the URPS
-# orchestration layer was effectively untested. Same rprojroot idiom the other
-# SSOT tests use.
-root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION"))
-source(file.path(root, "R", "urps_accessibility_scenarios.R"))
+# orchestration layer went untested under `Rscript tests/testthat.R`.
+#
+# Conditional on purpose. When twostep is INSTALLED and attached -- how
+# mufflyaccess's isochrones-integration workflow runs this file, per the note in
+# .github/workflows/contract-tests.yml -- the functions are already on the search
+# path, so nothing is sourced and the test exercises the installed package, as
+# intended. The fallback only fires in a bare source-tree run, where there is no
+# installed twostep and the alternative is erroring out.
+if (!exists("urps_project_accessibility", mode = "function")) {
+  root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION"))
+  source(file.path(root, "R", "urps_accessibility_scenarios.R"))
+}
 
 skip_if_not_installed("mufflyaccess")
 

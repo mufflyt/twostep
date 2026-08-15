@@ -1,0 +1,81 @@
+name: nightly-r-cmd-check
+
+# Package-integrity gate: does twostep still build, install, document and pass
+# R CMD check cleanly? Deliberately a NEW workflow rather than a revival of
+# tests.yaml, which is disabled and describes an obsolete dependency setup.
+#
+# Complements, does not replace, the other two gates:
+#   contract-tests.yml        twostep -> mufflyaccess SSOT contract, dependency-light
+#   Rscript tests/testthat.R  repository/method integrity, 805 assertions
+#
+# The testthat suite is NOT exercised here. tests/ is excluded from the package
+# build on purpose -- most of its files readLines()/source() the R/ sources
+# themselves, so they cannot run against an installed package. Adding a second
+# job to run it against the source tree is the natural next step.
+#
+# 03:17 America/Denver: scheduled runs use the default branch's latest commit,
+# and :17 avoids the top-of-hour load spike that delays scheduled jobs.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+      timezone: "America/Denver"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  R-CMD-check:
+    runs-on: ubuntu-latest
+
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      R_KEEP_PKG_SOURCE: yes
+      # REQUIRED. The repo root holds a .Rprofile that sources renv/activate.R,
+      # so every R process started in the workspace switches .libPaths() to the
+      # renv project library. That library is empty on a fresh runner, so the
+      # dependencies installed below become invisible and the check fails on
+      # missing namespaces. Verified locally: without this, requireNamespace
+      # ("dplyr") is FALSE in the workspace; with it, TRUE.
+      #
+      # This does not weaken reproducibility. renv.lock pins the render and test
+      # path; this job checks the PACKAGE against its DESCRIPTION, which is the
+      # contract an installing user actually gets.
+      RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "4.5.3"
+          use-public-rspm: true
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev \
+            libgeos-dev \
+            libproj-dev \
+            libudunits2-dev
+
+      - name: Install package dependencies
+        uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # BAMMtools is a Suggests used by the reference-only bivariate module.
+          # It was the last finding standing between this package and Status: OK,
+          # and it is absent from the public RSPM snapshot resolution path that
+          # DESCRIPTION alone would follow, so it is requested explicitly.
+          extra-packages: |
+            any::rcmdcheck
+            any::BAMMtools
+          needs: check
+
+      - name: Run R CMD check
+        uses: r-lib/actions/check-r-package@v2
+        with:
+          build_args: 'c("--no-manual")'
