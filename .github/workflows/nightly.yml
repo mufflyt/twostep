@@ -1,0 +1,251 @@
+name: nightly
+
+# Full nightly verification. Each job gates a component that nothing else covers,
+# ordered cheapest-first so an obvious break fails in seconds rather than after a
+# 20-minute geospatial install.
+#
+#   syntax         every R file in the repo parses; package code stays ASCII
+#   namespace      @export tags still match NAMESPACE  (the original drift bug)
+#   checksums      pinned data + artifacts match their provenance manifests
+#   lockfile       renv.lock is well formed and pins every hard Import
+#   docs           committed man/ + NAMESPACE are what roxygen2 regenerates
+#   R-CMD-check    package integrity across 4 OS/R combinations
+#   testthat       805-assertion repository/method suite, source tree
+#   renv-restore   the PINNED environment still reproduces and passes
+#   summary        one required status aggregating the above
+#
+# Why several of these cannot be folded into R CMD check: tests/, scripts/,
+# tools/ and data/ are all excluded from the package build on purpose, so the
+# check never sees them. A syntax error in scripts/, a mutated vendored input, or
+# a stale man/ page would otherwise reach main unnoticed.
+#
+# Complements contract-tests.yml, which gates the dependency-light
+# twostep -> mufflyaccess SSOT contract on every push.
+
+on:
+  schedule:
+    - cron: "17 23 * * *"
+      timezone: "America/Denver"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # REQUIRED by every job that starts R in the workspace. The repo root has a
+  # .Rprofile sourcing renv/activate.R, which switches .libPaths() to the renv
+  # project library -- empty on a fresh runner -- so installed dependencies become
+  # invisible and jobs fail on missing namespaces. Verified locally: unset ->
+  # requireNamespace("dplyr") is FALSE; false/FALSE/0 -> TRUE.
+  # The renv-restore job deliberately UNSETS this: reproducing the pinned
+  # environment is the whole point of that job.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+jobs:
+  # ---------------------------------------------------------------- tier 1: fast
+  syntax:
+    name: syntax + encoding
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      # No package installation: base R only, so this reports in well under a
+      # minute and catches the breaks that make every other job pointless.
+      - name: Parse every R file and check package encoding
+        run: Rscript tools/ci/check_parse.R
+
+  namespace:
+    name: export-tag drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      # Zero-dependency by design, so it also works inside the renv sandbox where
+      # roxygen2 is unavailable. Re-derives the export set from the @export tags
+      # and compares it to NAMESPACE.
+      - name: Check NAMESPACE against the @export tags
+        run: Rscript tools/sync_namespace.R --check
+
+  checksums:
+    name: data + artifact provenance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      # No R at all.
+      - name: Verify every provenance manifest
+        run: bash tools/ci/check_checksums.sh
+
+  # -------------------------------------------------------- tier 2: light deps
+  lockfile:
+    name: renv.lock integrity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      - name: Install jsonlite
+        run: install.packages("jsonlite")
+        shell: Rscript {0}
+      - name: Validate renv.lock
+        run: Rscript tools/ci/check_lockfile.R
+
+  docs:
+    name: documentation freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::roxygen2
+          needs: check
+      # roxygenise() runs pkgload::load_all(), so it needs the full dependency
+      # tree, not just roxygen2.
+      - name: Regenerate docs and fail on any diff
+        run: Rscript tools/ci/check_docs_fresh.R
+
+  # ------------------------------------------------------------ tier 3: heavy
+  R-CMD-check:
+    name: R CMD check (${{ matrix.os }}, R ${{ matrix.r }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  r: "release",  experimental: false }
+          - { os: ubuntu-latest,  r: "oldrel-1", experimental: false }
+          - { os: macos-latest,   r: "release",  experimental: false }
+          # Informational. Windows needs source builds of the geospatial stack and
+          # R-devel breaks for reasons upstream of this package; neither should be
+          # able to fail the nightly on its own.
+          - { os: windows-latest, r: "release",  experimental: true  }
+          - { os: ubuntu-latest,  r: "devel",    experimental: true  }
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: ${{ matrix.r }}
+          use-public-rspm: true
+      - name: Install system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # mufflyaccess resolves from the DESCRIPTION Remotes field. BAMMtools is
+          # a guarded Suggests and was the last finding between this package and
+          # Status: OK, so it is requested explicitly.
+          extra-packages: |
+            any::rcmdcheck
+            any::BAMMtools
+          needs: check
+      - uses: r-lib/actions/check-r-package@v2
+        with:
+          build_args: 'c("--no-manual")'
+
+  testthat:
+    name: testthat suite (source tree)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "release"
+          use-public-rspm: true
+      # The suite source()s the engine, which pulls sf/terra/exactextractr.
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          # twostep itself is NOT installed: every test reaches the code by
+          # source()ing R/ directly and none attach the package, so this job tests
+          # the working tree rather than a previously installed build.
+          extra-packages: any::testthat
+          needs: check
+      - name: Report the mufflyaccess under test
+        shell: Rscript {0}
+        run: |
+          cat("mufflyaccess", as.character(packageVersion("mufflyaccess")),
+              "from", dirname(system.file(package = "mufflyaccess")), "\n")
+      # test_dir() defaults to stop_on_failure = TRUE. Verified locally: exit 0
+      # green, exit 1 with a deliberately failing assertion.
+      - name: Run the suite
+        run: Rscript tests/testthat.R
+
+  renv-restore:
+    name: pinned environment reproduces
+    runs-on: ubuntu-latest
+    # Informational for now. This is the only job that exercises renv.lock as a
+    # reproducibility contract rather than as a manifest, and a 110-package
+    # restore is the most failure-prone thing here; it should report, not block,
+    # until it has proven stable.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: "release"
+          use-public-rspm: true
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      # NOTE: no RENV_CONFIG_AUTOLOADER_ENABLED override here. Every other job
+      # disables the autoloader so pak-installed packages stay visible; this job
+      # wants the opposite -- the project library renv builds from the lockfile.
+      - name: Restore the locked environment and run the suite
+        env:
+          RENV_CONFIG_AUTOLOADER_ENABLED: true
+        run: |
+          Rscript -e 'install.packages("renv"); renv::restore(prompt = FALSE)'
+          Rscript tests/testthat.R
+
+  # --------------------------------------------------------------- tier 4: gate
+  summary:
+    name: nightly summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [syntax, namespace, checksums, lockfile, docs, R-CMD-check, testthat, renv-restore]
+    steps:
+      - name: Report and gate
+        run: |
+          {
+            echo "| component | result |"
+            echo "|---|---|"
+            echo "| syntax + encoding | ${{ needs.syntax.result }} |"
+            echo "| export-tag drift | ${{ needs.namespace.result }} |"
+            echo "| data provenance | ${{ needs.checksums.result }} |"
+            echo "| renv.lock integrity | ${{ needs.lockfile.result }} |"
+            echo "| documentation freshness | ${{ needs.docs.result }} |"
+            echo "| R CMD check matrix | ${{ needs['R-CMD-check'].result }} |"
+            echo "| testthat suite | ${{ needs.testthat.result }} |"
+            echo "| pinned env (informational) | ${{ needs['renv-restore'].result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+          # renv-restore is continue-on-error, so it is reported but never gates.
+          for r in "${{ needs.syntax.result }}" "${{ needs.namespace.result }}" \
+                   "${{ needs.checksums.result }}" "${{ needs.lockfile.result }}" \
+                   "${{ needs.docs.result }}" "${{ needs['R-CMD-check'].result }}" \
+                   "${{ needs.testthat.result }}"; do
+            if [ "$r" != "success" ]; then
+              echo "::error::a required nightly component did not succeed"
+              exit 1
+            fi
+          done
+          echo "all required components passed"
