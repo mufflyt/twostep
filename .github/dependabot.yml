@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # The nightly pins third-party actions by major tag. Dependabot keeps those
+  # pins current so a tag that stops receiving security fixes does not sit here
+  # unnoticed.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"

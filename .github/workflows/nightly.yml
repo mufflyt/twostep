@@ -49,9 +49,43 @@ env:
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
+  preflight:
+    name: repository preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      # Structural checks only, base R: DESCRIPTION parses and is complete, the
+      # expected layout exists, no committed merge-conflict markers, no
+      # case-colliding paths that would break a macOS or Windows checkout, no
+      # oversized new files, and every script the workflows call actually exists.
+      # A nightly that silently stops running because it calls a renamed script is
+      # itself a failure mode.
+      - name: Structural preflight
+        run: Rscript tools/ci/check_preflight.R
+
+  hygiene:
+    name: package source hygiene
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      # The patterns that actually broke this repo: a top-level source() in R/
+      # made R CMD INSTALL fail at lazy-load, which made the whole package
+      # uninstallable and hid every other check behind it. Also catches setwd(),
+      # install.packages(), quit(), .libPaths() and absolute developer paths in
+      # package code.
+      - name: Scan package code for dangerous patterns
+        run: Rscript tools/ci/check_hygiene.R
+
   syntax:
     name: syntax + encoding
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
@@ -64,6 +98,7 @@ jobs:
   namespace:
     name: export-tag drift
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
@@ -77,6 +112,7 @@ jobs:
   checksums:
     name: data + artifact provenance
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       # No R at all.
@@ -87,6 +123,7 @@ jobs:
   lockfile:
     name: renv.lock integrity
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
@@ -100,16 +137,29 @@ jobs:
   docs:
     name: documentation freshness
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          # roxygenise() runs pkgload::load_all(), so the full dependency tree is
+          # needed, not just roxygen2.
           extra-packages: any::roxygen2
           needs: check
-      # roxygenise() runs pkgload::load_all(), so it needs the full dependency
-      # tree, not just roxygen2.
+      # Roxygen output is version dependent: 8.0.0 writes one importFrom() per
+      # line where newer versions collapse them into a multi-line call. The first
+      # nightly failed on exactly that -- a diff that said nothing about the
+      # sources. Pin to whatever generated the committed docs.
+      - name: Pin roxygen2 to the version that generated the committed docs
+        shell: Rscript {0}
+        run: |
+          v <- trimws(unname(read.dcf("DESCRIPTION")[1, "Config/roxygen2/version"]))
+          if (is.na(v)) stop("DESCRIPTION has no Config/roxygen2/version")
+          cat("pinning roxygen2 to", v, "\n")
+          if (!identical(as.character(utils::packageVersion("roxygen2")), v))
+            pak::pkg_install(paste0("roxygen2@", v))
       - name: Regenerate docs and fail on any diff
         run: Rscript tools/ci/check_docs_fresh.R
 
@@ -117,6 +167,7 @@ jobs:
   R-CMD-check:
     name: R CMD check (${{ matrix.os }}, R ${{ matrix.r }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     continue-on-error: ${{ matrix.experimental }}
     strategy:
       fail-fast: false
@@ -154,10 +205,23 @@ jobs:
       - uses: r-lib/actions/check-r-package@v2
         with:
           build_args: 'c("--no-manual")'
+      # Debugging should not mean scrolling 20,000 log lines.
+      - name: Upload check artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcheck-${{ matrix.os }}-R${{ matrix.r }}
+          path: |
+            check/**/*.Rcheck/00check.log
+            check/**/*.Rcheck/00install.out
+            check/**/*.Rcheck/tests/**
+          retention-days: 14
+          if-no-files-found: ignore
 
   testthat:
     name: testthat suite (source tree)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v6
       - uses: r-lib/actions/setup-r@v2
@@ -184,12 +248,41 @@ jobs:
               "from", dirname(system.file(package = "mufflyaccess")), "\n")
       # test_dir() defaults to stop_on_failure = TRUE. Verified locally: exit 0
       # green, exit 1 with a deliberately failing assertion.
-      - name: Run the suite
-        run: Rscript tests/testthat.R
+      # Do NOT hard-code an expected count: the suite should be free to grow or
+      # shrink deliberately. Record the accounting instead, and require an
+      # explicit end-of-suite sentinel so a truncated or crashed run can never be
+      # mistaken for a pass.
+      - name: Run the suite and record its accounting
+        run: |
+          set -o pipefail
+          Rscript tests/testthat.R 2>&1 | tee testthat-output.txt
+          echo "SUITE-COMPLETED" >> testthat-output.txt
+          grep -E '^\[ FAIL' testthat-output.txt | tail -1 > testthat-accounting.txt || true
+          if ! grep -q 'SUITE-COMPLETED' testthat-output.txt; then
+            echo "::error::suite did not reach the end-of-run sentinel"; exit 1
+          fi
+          echo "accounting: $(cat testthat-accounting.txt)"
+          {
+            echo "### testthat"
+            echo '```'
+            cat testthat-accounting.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: testthat-output
+          path: |
+            testthat-output.txt
+            testthat-accounting.txt
+          retention-days: 14
+          if-no-files-found: ignore
 
   renv-restore:
     name: pinned environment reproduces
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     # Informational for now. This is the only job that exercises renv.lock as a
     # reproducibility contract rather than as a manifest, and a 110-package
     # restore is the most failure-prone thing here; it should report, not block,
@@ -197,15 +290,28 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v6
+      # R version comes from the LOCKFILE, not "release". The first nightly ran
+      # this on R release and caTools failed to load: RSPM binaries are built per
+      # R minor version, so restoring a 4.4.2 lockfile onto 4.5.x installs
+      # binaries the session cannot load. Frozen reproducibility means frozen R.
+      - name: Read the R version the lockfile was built with
+        id: lockr
+        run: |
+          v=$(grep -m1 '"Version"' renv.lock | sed -E 's/.*"Version" *: *"([^"]+)".*/\1/')
+          echo "Lockfile R version: $v"
+          echo "r=$v" >> "$GITHUB_OUTPUT"
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: "release"
+          r-version: ${{ steps.lockr.outputs.r }}
           use-public-rspm: true
+      # The extra four are what the first run reported missing for s2,
+      # systemfonts, clipr and knitr.
       - name: Install system libraries
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev \
+            libabsl-dev libfontconfig1-dev libx11-dev pandoc
       # NOTE: no RENV_CONFIG_AUTOLOADER_ENABLED override here. Every other job
       # disables the autoloader so pak-installed packages stay visible; this job
       # wants the opposite -- the project library renv builds from the lockfile.
@@ -216,18 +322,91 @@ jobs:
           Rscript -e 'install.packages("renv"); renv::restore(prompt = FALSE)'
           Rscript tests/testthat.R
 
+  installed-isolation:
+    name: installed package works outside the repo
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with: { needs: check }
+      # Build and install the real tarball, then run from OUTSIDE the checkout.
+      # This is the only job that can catch a function silently depending on the
+      # source tree -- here::here(), a relative path, an untracked file, or a
+      # package that happens to sit in a developer library. Inside the repo every
+      # one of those resolves by accident.
+      - name: Build and install the tarball
+        run: |
+          R CMD build --no-manual --no-build-vignettes .
+          R CMD INSTALL twostep_*.tar.gz
+      - name: Exercise the public API from a directory outside the repo
+        run: |
+          mkdir -p "$RUNNER_TEMP/outside"
+          cp tools/ci/smoke_installed.R "$RUNNER_TEMP/outside/"
+          cd "$RUNNER_TEMP/outside"
+          Rscript smoke_installed.R
+
+  minimal-deps:
+    name: loads with Imports only
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      # dependencies: "hard" installs Depends/Imports/LinkingTo ONLY -- no
+      # Suggests. A developer machine always has more installed than DESCRIPTION
+      # declares, so this is what proves the declared Imports are actually
+      # sufficient to load and use the package.
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"hard"'
+      - name: Build and install with hard dependencies only
+        run: |
+          R CMD build --no-manual --no-build-vignettes .
+          R CMD INSTALL twostep_*.tar.gz
+      - name: library(twostep) and core API must work without any Suggests
+        shell: Rscript {0}
+        run: |
+          suggests <- c("ggplot2", "BAMMtools", "cowplot", "testthat", "shiny")
+          present <- suggests[vapply(suggests, requireNamespace, logical(1), quietly = TRUE)]
+          cat("Suggests present (expected none):", if (length(present)) paste(present, collapse = ", ") else "none", "\n")
+          library(twostep)
+          stopifnot(is.numeric(CANONICAL_BANDS))
+          w <- e2sfca_band_weights()
+          stopifnot(is.numeric(w), all(diff(w) <= 1e-9))
+          inc <- e2sfca_incremental_weights(c("30" = 1, "60" = 0.5), step2_power = 2)
+          stopifnot(all.equal(unname(inc), c(0.75, 0.25)))
+          cat("core E2SFCA API works with Imports only\n")
+
   # --------------------------------------------------------------- tier 4: gate
   summary:
     name: nightly summary
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: always()
-    needs: [syntax, namespace, checksums, lockfile, docs, R-CMD-check, testthat, renv-restore]
+    needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
+            R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore]
     steps:
       - name: Report and gate
         run: |
           {
             echo "| component | result |"
             echo "|---|---|"
+            echo "| repository preflight | ${{ needs.preflight.result }} |"
+            echo "| package source hygiene | ${{ needs.hygiene.result }} |"
             echo "| syntax + encoding | ${{ needs.syntax.result }} |"
             echo "| export-tag drift | ${{ needs.namespace.result }} |"
             echo "| data provenance | ${{ needs.checksums.result }} |"
@@ -235,14 +414,19 @@ jobs:
             echo "| documentation freshness | ${{ needs.docs.result }} |"
             echo "| R CMD check matrix | ${{ needs['R-CMD-check'].result }} |"
             echo "| testthat suite | ${{ needs.testthat.result }} |"
+            echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
+            echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
             echo "| pinned env (informational) | ${{ needs['renv-restore'].result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
           # renv-restore is continue-on-error, so it is reported but never gates.
-          for r in "${{ needs.syntax.result }}" "${{ needs.namespace.result }}" \
+          for r in "${{ needs.preflight.result }}" "${{ needs.hygiene.result }}" \
+                   "${{ needs.syntax.result }}" "${{ needs.namespace.result }}" \
                    "${{ needs.checksums.result }}" "${{ needs.lockfile.result }}" \
                    "${{ needs.docs.result }}" "${{ needs['R-CMD-check'].result }}" \
-                   "${{ needs.testthat.result }}"; do
+                   "${{ needs.testthat.result }}" \
+                   "${{ needs['installed-isolation'].result }}" \
+                   "${{ needs['minimal-deps'].result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error::a required nightly component did not succeed"
               exit 1
