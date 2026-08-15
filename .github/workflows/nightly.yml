@@ -283,11 +283,11 @@ jobs:
     name: pinned environment reproduces
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # Informational for now. This is the only job that exercises renv.lock as a
-    # reproducibility contract rather than as a manifest, and a 110-package
-    # restore is the most failure-prone thing here; it should report, not block,
-    # until it has proven stable.
-    continue-on-error: true
+    # BLOCKING. This is the only job that exercises renv.lock as a reproducibility
+    # contract rather than as a manifest, and it immediately earned that: it
+    # caught three lockfile versions that do not exist on CRAN (ape 5.8.1,
+    # bitops 1.0.9, nlme 3.1.166 -- dash forms normalised into dots). A gate that
+    # finds a real bug and is then allowed to fail silently is worse than no gate.
     steps:
       - uses: actions/checkout@v6
       # R version comes from the LOCKFILE, not "release". The first nightly ran
@@ -416,17 +416,17 @@ jobs:
             echo "| testthat suite | ${{ needs.testthat.result }} |"
             echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
             echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
-            echo "| pinned env (informational) | ${{ needs['renv-restore'].result }} |"
+            echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
-          # renv-restore is continue-on-error, so it is reported but never gates.
           for r in "${{ needs.preflight.result }}" "${{ needs.hygiene.result }}" \
                    "${{ needs.syntax.result }}" "${{ needs.namespace.result }}" \
                    "${{ needs.checksums.result }}" "${{ needs.lockfile.result }}" \
                    "${{ needs.docs.result }}" "${{ needs['R-CMD-check'].result }}" \
                    "${{ needs.testthat.result }}" \
                    "${{ needs['installed-isolation'].result }}" \
-                   "${{ needs['minimal-deps'].result }}"; do
+                   "${{ needs['minimal-deps'].result }}" \
+                   "${{ needs['renv-restore'].result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error::a required nightly component did not succeed"
               exit 1
