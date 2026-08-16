@@ -28,107 +28,10 @@
 #   w'_b = W_b - W_{b+1}                  (Step 1, always power 1)
 #   w'a_b = W_b^p - W_{b+1}^p             (Step 2, p = step2_power)
 #   with W beyond the last band = 0.
-suppressWarnings(suppressMessages(library(testthat)))
-source(file.path(rprojroot::find_root(rprojroot::has_file("DESCRIPTION") |
-                                        rprojroot::is_git_root),
-                 "R", "two_step_floating_catchment.R"))
-
-# -----------------------------------------------------------------------------
-# Independent reference: base R only. No dplyr, no engine helpers.
-# -----------------------------------------------------------------------------
-ref_incremental <- function(W, power = 1) {
-  W <- W[order(as.integer(names(W)))]
-  wp <- as.numeric(W)^power
-  inc <- wp - c(wp[-1L], 0)
-  stats::setNames(inc, names(W))
-}
-
-ref_e2sfca <- function(overlap, tract_pop, supply, W, step2_power = 1,
-                       pop_col = "female_pop", per_capita_scale = 1e5) {
-  inc_d <- ref_incremental(W, 1)
-  inc_a <- ref_incremental(W, step2_power)
-
-  pop <- stats::setNames(as.numeric(tract_pop[[pop_col]]),
-                         as.character(tract_pop$GEOID))
-  pop[is.na(pop)] <- 0
-  sup <- stats::setNames(as.numeric(supply$supply), as.character(supply$coord_id))
-
-  # Step 1: weighted demand per provider, by explicit accumulation.
-  demand <- stats::setNames(rep(0, length(sup)), names(sup))
-  for (r in seq_len(nrow(overlap))) {
-    j <- as.character(overlap$coord_id[r])
-    if (!j %in% names(sup)) next                    # inner join semantics
-    g <- as.character(overlap$GEOID[r])
-    b <- as.character(overlap$band[r])
-    if (!b %in% names(inc_d)) next
-    p <- if (g %in% names(pop)) pop[[g]] else 0
-    demand[[j]] <- demand[[j]] + inc_d[[b]] * overlap$overlap_fraction[r] * p
-  }
-
-  ratio <- ifelse(demand > 0, sup / demand, 0)      # ratio_for_surface
-  names(ratio) <- names(sup)
-
-  # Step 2: accessibility per tract.
-  geoids <- unique(as.character(overlap$GEOID))
-  access <- stats::setNames(rep(0, length(geoids)), geoids)
-  for (r in seq_len(nrow(overlap))) {
-    j <- as.character(overlap$coord_id[r])
-    if (!j %in% names(sup)) next
-    b <- as.character(overlap$band[r])
-    if (!b %in% names(inc_a)) next
-    g <- as.character(overlap$GEOID[r])
-    access[[g]] <- access[[g]] + inc_a[[b]] * overlap$overlap_fraction[r] * ratio[[j]]
-  }
-
-  data.frame(GEOID = names(access),
-             access = as.numeric(access),
-             access_scaled = as.numeric(access) * per_capita_scale,
-             stringsAsFactors = FALSE)[order(names(access)), ]
-}
-
-# -----------------------------------------------------------------------------
-# Randomized fixture generator. Deterministic given a seed, and deliberately
-# nasty: zero-supply providers, zero-population tracts, providers that reach no
-# tract, tracts reached by nobody, and partial overlaps.
-# -----------------------------------------------------------------------------
-make_fixture <- function(seed, n_prov = 4, n_tract = 6,
-                         bands = c(30, 60, 120, 180)) {
-  set.seed(seed)
-  coord <- paste0("P", seq_len(n_prov))
-  geo   <- sprintf("%011d", seq_len(n_tract))
-  rows <- expand.grid(coord_id = coord, GEOID = geo, band = bands,
-                      KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
-  # Cumulative bands: a tract's overlap fraction is non-decreasing in band.
-  base_f <- stats::runif(n_prov * n_tract)
-  base_f[sample.int(length(base_f), size = max(1L, length(base_f) %/% 4L))] <- 0
-  key <- paste(rows$coord_id, rows$GEOID)
-  ukey <- unique(key)
-  f0 <- stats::setNames(base_f[seq_along(ukey)], ukey)
-  band_scale <- stats::setNames(seq_along(bands) / length(bands), as.character(bands))
-  rows$overlap_fraction <- pmin(1, f0[key] * band_scale[as.character(rows$band)])
-  rows <- rows[rows$overlap_fraction > 0, , drop = FALSE]
-  rownames(rows) <- NULL
-
-  pop <- data.frame(GEOID = geo,
-                    female_pop = round(stats::runif(n_tract, 0, 5000)),
-                    stringsAsFactors = FALSE)
-  pop$female_pop[sample.int(n_tract, 1)] <- 0          # a zero-population tract
-
-  sup <- data.frame(coord_id = coord,
-                    supply = round(stats::runif(n_prov, 0, 20)),
-                    stringsAsFactors = FALSE)
-  sup$supply[sample.int(n_prov, 1)] <- 0               # a zero-supply provider
-
-  list(overlap = rows, tract_pop = pop, supply = sup)
-}
-
-W4 <- E2SFCA_DEFAULT_WEIGHTS
-
-prod_access <- function(fx, ...) {
-  r <- compute_e2sfca(fx$overlap, fx$tract_pop, fx$supply, weights = W4, ...)
-  a <- as.data.frame(r$access)
-  a[order(a$GEOID), c("GEOID", "access")]
-}
+# The fixture generators and the two independent reference implementations live
+# in helper-e2sfca.R, shared with the simulation and metamorphic suites. Keeping
+# one copy means a fix to a reference -- such as enumerating tracts from
+# tract_pop rather than from overlap -- reaches every suite at once.
 
 # =============================================================================
 # 1. INVARIANTS
@@ -251,6 +154,43 @@ test_that("the engine agrees with an independent triple-loop implementation", {
     ref  <- ref[match(prod$GEOID, ref$GEOID), ]
     expect_equal(prod$access, ref$access, tolerance = 1e-10,
                  info = paste("engine and reference disagree on seed", s))
+  }
+})
+
+test_that("all THREE implementations agree: production, loop, and matrix algebra", {
+  # Two implementations can share a misconception. Three, derived differently --
+  # a vectorised dplyr pipeline, an explicit accumulation loop, and a matrix
+  # product -- are much harder to fool, and if any two agree while the third
+  # dissents the disagreement localises the error immediately.
+  for (s in 141:152) {
+    fx   <- make_fixture(s, n_prov = 2L + (s %% 4L), n_tract = 3L + (s %% 6L))
+    prod <- prod_access(fx)
+    loop <- ref_e2sfca(fx$overlap, fx$tract_pop, fx$supply, W4)
+    mat  <- ref_e2sfca_matrix(fx$overlap, fx$tract_pop, fx$supply, W4)
+    expect_identical(sort(prod$GEOID), sort(loop$GEOID))
+    expect_identical(sort(prod$GEOID), sort(mat$GEOID))
+    loop <- loop[match(prod$GEOID, loop$GEOID), ]
+    mat  <- mat[match(prod$GEOID, mat$GEOID), ]
+    expect_equal(prod$access, loop$access, tolerance = 1e-10)
+    expect_equal(prod$access, mat$access,  tolerance = 1e-10)
+  }
+})
+
+test_that("a tract no provider reaches keeps access 0 and is never dropped", {
+  # Dropping an unreached tract would silently shrink every denominator built
+  # from this output. Production keeps it via left_join(distinct(pop, GEOID));
+  # both references were originally keyed off `overlap` and DID drop it, which
+  # is how this was found.
+  fx <- make_fixture(8L, n_prov = 2L, n_tract = 5L)
+  unreached <- setdiff(fx$tract_pop$GEOID, unique(fx$overlap$GEOID))
+  expect_gt(length(unreached), 0)                     # the fixture really has one
+  prod <- prod_access(fx)
+  expect_true(all(fx$tract_pop$GEOID %in% prod$GEOID))
+  expect_equal(prod$access[prod$GEOID %in% unreached],
+               rep(0, length(unreached)), tolerance = 1e-12)
+  for (f in list(ref_e2sfca, ref_e2sfca_matrix)) {
+    r <- f(fx$overlap, fx$tract_pop, fx$supply, W4)
+    expect_true(all(fx$tract_pop$GEOID %in% r$GEOID))
   }
 })
 
