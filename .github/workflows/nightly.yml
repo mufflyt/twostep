@@ -208,7 +208,7 @@ jobs:
       # Debugging should not mean scrolling 20,000 log lines.
       - name: Upload check artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rcheck-${{ matrix.os }}-R${{ matrix.r }}
           path: |
@@ -270,7 +270,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload test output
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: testthat-output
           path: |
@@ -457,7 +457,7 @@ jobs:
         run: Rscript tools/ci/check_manuscript.R
       - name: Upload the rendered manuscript
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nightly-manuscript
           path: manuscript/e2sfca_accessibility_manuscript.html
