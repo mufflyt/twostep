@@ -79,21 +79,45 @@ jobs:
           Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-simulation-null-and-signal.R", stop_on_failure = TRUE)' 2>&1 | tee deep-mc.log
           echo "DEEP-MC-COMPLETED" >> deep-mc.log
 
-      # `if-no-files-found: error` catches a MISSING log. It does not catch an
-      # EMPTY one, which uploads happily as a valid zero-byte artifact and is
-      # worse than no artifact at all: it looks like evidence and contains none.
-      # Assert size and content before handing it to the upload action.
-      - name: The log must exist, be non-empty, and contain run evidence
+      # Four independent failure conditions. (1) is already covered by
+      # `set -o pipefail` on the step above; (2)-(4) are checked here.
+      #
+      # NOTE: `if-no-files-found: error` below is defensive hardening, not a fix
+      # for the earlier "0 KB artifact" observation. That observation was
+      # measurement timing -- the artifacts API computes size asynchronously and
+      # was queried seconds after the run. The logs were never missing or empty.
+      - name: The audit record must exist and account for the whole run
         if: always()
         run: |
+          # (4) absent or zero bytes
           test -s deep-mc.log || { echo "::error::deep-mc.log missing or empty"; exit 1; }
           echo "deep-mc.log: $(wc -c < deep-mc.log) bytes, $(wc -l < deep-mc.log) lines"
-          grep -q "Monte Carlo run parameters" deep-mc.log \
-            || { echo "::error::deep-mc.log has no run-parameter banner"; exit 1; }
-          grep -q "\[null\] mean contrast" deep-mc.log \
-            || { echo "::error::deep-mc.log has no null-contrast statistics"; exit 1; }
+
+          # (3) PASS/FAIL sentinel present -- a run that died partway must not
+          #     be able to masquerade as a pass
+          grep -q "MC-AUDIT-SENTINEL:" deep-mc.log \
+            || { echo "::error::no MC-AUDIT-SENTINEL in deep-mc.log"; exit 1; }
+          sentinel=$(grep -o "MC-AUDIT-SENTINEL: [A-Z]*" deep-mc.log | tail -1)
+          echo "$sentinel"
+          case "$sentinel" in
+            *PASS) ;;
+            *) echo "::error::audit sentinel is not PASS"; exit 1 ;;
+          esac
+
+          # (2) every requested replicate completed
+          req=$(grep -oE "replicates requested: *[0-9]+" deep-mc.log | grep -oE "[0-9]+" | tail -1)
+          acct=$(grep -oE "replicates requested / completed: *[0-9]+ / [0-9]+" deep-mc.log | tail -1)
+          echo "requested=$req  accounting='$acct'"
+          done_n=$(echo "$acct" | awk -F'/' '{gsub(/ /,"",$2); print $2}')
+          if [ -z "$req" ] || [ -z "$done_n" ] || [ "$req" != "$done_n" ]; then
+            echo "::error::replicate accounting mismatch: requested=$req completed=$done_n"; exit 1
+          fi
+
+          # evidence, not merely bytes
+          grep -q "PRESPECIFIED ACCEPTANCE THRESHOLDS" deep-mc.log \
+            || { echo "::error::no threshold block in deep-mc.log"; exit 1; }
           grep -q "DEEP-MC-COMPLETED" deep-mc.log \
-            || { echo "::error::deep-mc.log has no completion sentinel"; exit 1; }
+            || { echo "::error::no completion sentinel"; exit 1; }
 
       - name: Upload the deep Monte Carlo log
         if: always()
