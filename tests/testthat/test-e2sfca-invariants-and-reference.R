@@ -204,6 +204,42 @@ test_that("the engine agrees with the reference under M2SFCA too", {
   }
 })
 
+test_that("REPORTED provider ratios and weights match independent computation", {
+  # Accessibility is invariant to a common rescaling of the incremental weights
+  # (demand scales by c, the ratio by 1/c, and they cancel), so an accidental
+  # renormalisation is INVISIBLE in access. It is not invisible in the reported
+  # provider-to-population ratio R_j, which is a published quantity of the
+  # method. This pins the intermediates so such a change cannot pass unnoticed.
+  # NOTE the second weight vector. The incremental weights TELESCOPE:
+  # SUM_b (W_b - W_{b+1}) = W_1. With the canonical weights W_1 is exactly 1.00,
+  # so an accidental `inc / sum(inc)` is a NO-OP and completely undetectable.
+  # It only bites when W_1 != 1, which is why a non-normalised vector is tested
+  # alongside the default one.
+  for (W in list(W4, W4 * 2.5)) for (s in c(611L, 612L, 613L)) {
+    fx <- make_fixture(s, n_prov = 4L, n_tract = 6L)
+    r  <- compute_e2sfca(fx$overlap, fx$tract_pop, fx$supply, weights = W)
+
+    expect_equal(as.numeric(r$weights), as.numeric(ref_incremental(W, 1)),
+                 tolerance = 1e-12)
+    expect_equal(sum(as.numeric(r$weights)), as.numeric(W[1]), tolerance = 1e-12)
+
+    inc_d <- ref_incremental(W, 1)
+    pop <- stats::setNames(as.numeric(fx$tract_pop$female_pop),
+                           as.character(fx$tract_pop$GEOID))
+    dem <- stats::setNames(rep(0, nrow(fx$supply)), as.character(fx$supply$coord_id))
+    for (k in seq_len(nrow(fx$overlap))) {
+      j <- as.character(fx$overlap$coord_id[k]); b <- as.character(fx$overlap$band[k])
+      g <- as.character(fx$overlap$GEOID[k])
+      dem[[j]] <- dem[[j]] + inc_d[[b]] * fx$overlap$overlap_fraction[k] * pop[[g]]
+    }
+    pr <- r$provider_ratios
+    expect_equal(pr$weighted_demand, as.numeric(dem[pr$coord_id]), tolerance = 1e-10)
+    expect_equal(pr$ratio_for_surface,
+                 ifelse(dem[pr$coord_id] > 0, pr$supply / dem[pr$coord_id], 0),
+                 tolerance = 1e-10, ignore_attr = TRUE)
+  }
+})
+
 # =============================================================================
 # 3. MUTANTS -- each must be DETECTABLE by the checks above
 # =============================================================================

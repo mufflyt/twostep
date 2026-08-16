@@ -391,6 +391,39 @@ jobs:
           stopifnot(all.equal(unname(inc), c(0.75, 0.25)))
           cat("core E2SFCA API works with Imports only\n")
 
+  scientific-mutants:
+    name: scientific mutation corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+      # Applies each NAMED scientific mutant to the engine in turn and requires
+      # the scientific suites to kill it. A mutant that survives is a release
+      # blocker whatever the coverage number says, and an anchor that stops
+      # matching fails too -- a corpus that silently mutates nothing is worse
+      # than no corpus. The engine is restored and byte-compared afterwards.
+      - name: Every scientific mutant must be killed
+        run: Rscript tools/ci/mutation_corpus.R --quick
+      - name: Fail if the engine was left mutated
+        run: |
+          if ! git diff --quiet R/two_step_floating_catchment.R; then
+            echo "::error::the mutation corpus left the engine modified"
+            git --no-pager diff --stat R/two_step_floating_catchment.R
+            exit 1
+          fi
+          echo "engine unmodified"
+
   # --------------------------------------------------------------- tier 4: gate
   summary:
     name: nightly summary
@@ -398,7 +431,8 @@ jobs:
     timeout-minutes: 10
     if: always()
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
-            R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore]
+            R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
+            scientific-mutants]
     steps:
       - name: Report and gate
         run: |
@@ -414,6 +448,7 @@ jobs:
             echo "| documentation freshness | ${{ needs.docs.result }} |"
             echo "| R CMD check matrix | ${{ needs['R-CMD-check'].result }} |"
             echo "| testthat suite | ${{ needs.testthat.result }} |"
+            echo "| scientific mutation corpus | ${{ needs['scientific-mutants'].result }} |"
             echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
             echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
             echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
@@ -426,7 +461,8 @@ jobs:
                    "${{ needs.testthat.result }}" \
                    "${{ needs['installed-isolation'].result }}" \
                    "${{ needs['minimal-deps'].result }}" \
-                   "${{ needs['renv-restore'].result }}"; do
+                   "${{ needs['renv-restore'].result }}" \
+                   "${{ needs['scientific-mutants'].result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error::a required nightly component did not succeed"
               exit 1
