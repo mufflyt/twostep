@@ -80,6 +80,8 @@ jobs:
       # and the cheapest to produce.
       - name: Luo and Qi 2009 published fixture
         run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-luo-qi-2009-published.R", stop_on_failure = TRUE)'
+      - name: Delamater 2013 published M2SFCA fixture
+        run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-delamater-2013-m2sfca.R", stop_on_failure = TRUE)'
       - name: Mathematical invariants and three-implementation agreement
         run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-invariants-and-reference.R", stop_on_failure = TRUE)'
       - name: Metamorphic geography, weight and overlap algebra, closed forms

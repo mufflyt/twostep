@@ -1,0 +1,57 @@
+{
+  "_comment": "Frozen scientific fixture for the PUBLISHED definition of M2SFCA. Every value was derived by hand from Delamater's equations, not produced by twostep. This is the second external oracle in the repository: Luo & Qi pins E2SFCA, this pins the M2SFCA variant. It exists because the mutation corpus showed that m2_exponent_removed -- M2SFCA silently collapsing into E2SFCA -- was caught by exactly ONE suite, and that mutant produces entirely plausible output.",
+  "source": {
+    "citation": "Delamater PL (2013). Spatial accessibility in suboptimally configured health care systems: A modified two-step floating catchment area (M2SFCA) metric. Health & Place 24:30-43.",
+    "doi": "10.1016/j.healthplace.2013.07.012",
+    "equations": {
+      "step1": "D_ij = S_j * W_ij / SUM_i ( P_i * W_ij )",
+      "step2": "A_i  = SUM_j ( D_ij * W_ij )",
+      "substituted": "A_i = SUM_j ( W_ij^2 * S_j / SUM_i ( P_i * W_ij ) )",
+      "_comment": "The weight appears TWICE: once in the Step 1 NUMERATOR, making the supply-to-demand ratio i,j-specific rather than facility-specific, and again in Step 2. The DENOMINATOR keeps a single W. That asymmetry is the whole method: it discounts accessibility that is only reachable across distance, which is what 'suboptimally configured' means."
+    }
+  },
+
+  "contrast_with_e2sfca": {
+    "_comment": "E2SFCA computes one ratio per facility, D_j = S_j / SUM_i P_i W_ij, then A_i = SUM_j D_j W_ij. M2SFCA differs ONLY by the extra W_ij in the Step 1 numerator. Every other term is identical, which is exactly why a collapse of one into the other is so hard to see in output.",
+    "e2sfca_step2_weight": "W",
+    "m2sfca_step2_weight": "W squared"
+  },
+
+  "worked_example": {
+    "_comment": "Same system as the Luo & Qi fixture, so the two methods can be compared term by term on identical inputs. Zones 10/20/30 min carrying Luo & Qi weight set 1.",
+    "zone_weights": {"10": 1.00, "20": 0.68, "30": 0.22},
+    "supply": {"P1": 10},
+    "tracts": [
+      {"GEOID": "T1", "zone_minutes": 10, "population": 1000},
+      {"GEOID": "T2", "zone_minutes": 20, "population": 2000},
+      {"GEOID": "T3", "zone_minutes": 30, "population": 500}
+    ],
+
+    "shared_denominator": {
+      "_comment": "SUM_i P_i W_ij = 1.00*1000 + 0.68*2000 + 0.22*500 = 2470. IDENTICAL to E2SFCA: the methods do not differ in the denominator.",
+      "value": 2470.0
+    },
+
+    "m2sfca_accessibility": {
+      "_comment": "A_i = S * W_i^2 / 2470, with W^2 = 1.0000, 0.4624, 0.0484.",
+      "T1": 0.004048582995951417,
+      "T2": 0.001872064777327935,
+      "T3": 0.000195951417004049
+    },
+
+    "e2sfca_accessibility_for_comparison": {
+      "_comment": "From the Luo & Qi fixture on the same inputs. M2SFCA must be <= E2SFCA everywhere, with equality only where W = 1.",
+      "T1": 0.004048582995951417,
+      "T2": 0.002753036437246964,
+      "T3": 0.000890688259109312
+    }
+  },
+
+  "cumulative_band_translation": {
+    "_comment": "twostep stores CUMULATIVE bands and applies INCREMENTAL weights. For M2SFCA the increments are taken of the SQUARED cumulative weights: diff(W^2), NOT diff(W)^2. Those differ -- diff(W^2) = 0.5376, 0.4140, 0.0484 while diff(W)^2 = 0.1024, 0.2116, 0.0484 -- and confusing them is a plausible, silent error.",
+    "cumulative_weights_squared": {"10": 1.0, "20": 0.4624, "30": 0.0484},
+    "incremental_weights_step2": {"10": 0.5376, "20": 0.4140, "30": 0.0484},
+    "incremental_weights_step1": {"10": 0.32, "20": 0.46, "30": 0.22},
+    "wrong_diff_then_square": {"10": 0.1024, "20": 0.2116, "30": 0.0484}
+  }
+}

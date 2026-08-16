@@ -35,6 +35,7 @@ TARGETS <- c(ENGINE, URPS)
 # costs little: allocator and URPS mutants simply fall through the E2SFCA suites
 # to the ones that cover them.
 SUITES <- c("tests/testthat/test-e2sfca-luo-qi-2009-published.R",
+            "tests/testthat/test-e2sfca-delamater-2013-m2sfca.R",
             "tests/testthat/test-e2sfca-invariants-and-reference.R",
             "tests/testthat/test-e2sfca-metamorphic-and-algebra.R",
             "tests/testthat/test-e2sfca-allocator-semantic-adversarial-2026-07-19.R",
