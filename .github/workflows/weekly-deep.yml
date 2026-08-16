@@ -1,0 +1,159 @@
+name: weekly-deep
+
+# Tier C: the deep scientific audit. Everything here is too slow to run nightly
+# and too valuable to run never.
+#
+# Three things make this DEEPER rather than merely longer:
+#
+#   1. 1000 Monte Carlo replicates instead of 200. Every seed is still fixed, so
+#      this makes the SAME tests sharper rather than making them different tests.
+#      The Monte Carlo standard error scales as 1/sqrt(N), so the smallest bias
+#      the null can detect tightens by more than a factor of two.
+#
+#   2. The full mutation corpus with --all-suites: every suite is run against
+#      every mutant instead of stopping at the first kill. In normal mode the
+#      fast suites kill almost everything, so the later suites never execute and
+#      their contribution is never measured. This produces a kill MATRIX, and
+#      names the mutants caught by exactly ONE suite -- single points of failure
+#      where weakening that suite would let a scientific error through with
+#      nothing else noticing.
+#
+#   3. No dependency cache. A broken dependency declaration can otherwise hide
+#      for months behind a warm cache; once a week, everything installs cold.
+#
+# Sunday 04:17 America/Denver: off the nightly's 23:17 so the two never contend,
+# and :17 avoids the top-of-hour scheduling backlog.
+
+on:
+  schedule:
+    - cron: "17 4 * * 0"
+      timezone: "America/Denver"
+  workflow_dispatch:
+    inputs:
+      replicates:
+        description: "Monte Carlo replicates"
+        required: false
+        default: "1000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-deep
+  cancel-in-progress: false
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # See nightly.yml: the repo .Rprofile activates renv and would hide every
+  # package installed below behind an empty project library.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+jobs:
+  deep-simulation:
+    name: Monte Carlo deep run (${{ github.event.inputs.replicates || '1000' }} replicates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+          # Cold install once a week, so a broken dependency declaration cannot
+          # hide behind a cache that was warmed before it broke.
+          cache: false
+
+      - name: Monte Carlo null and known-signal recovery, deep
+        env:
+          E2SFCA_MC_REPLICATES: ${{ github.event.inputs.replicates || '1000' }}
+        run: |
+          set -o pipefail
+          Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-simulation-null-and-signal.R", stop_on_failure = TRUE)' 2>&1 | tee deep-mc.log
+          echo "DEEP-MC-COMPLETED" >> deep-mc.log
+
+      - name: Upload the deep Monte Carlo log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deep-monte-carlo
+          path: deep-mc.log
+          retention-days: 30
+          if-no-files-found: ignore
+
+  kill-matrix:
+    name: full mutation corpus (kill matrix)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+          cache: false
+
+      # No --quick: the Monte Carlo suite is available as a killer too.
+      # --all-suites: never stop at the first kill, so every suite's real
+      # contribution is measured rather than assumed.
+      - name: Every suite against every mutant
+        run: |
+          set -o pipefail
+          Rscript tools/ci/mutation_corpus.R --all-suites 2>&1 | tee kill-matrix.log
+          echo "KILL-MATRIX-COMPLETED" >> kill-matrix.log
+
+      - name: Fail if the corpus left any source mutated
+        run: |
+          if ! git diff --quiet R/; then
+            echo "::error::the mutation corpus left sources modified"
+            git --no-pager diff --stat R/
+            exit 1
+          fi
+          echo "sources unmodified"
+
+      - name: Upload the kill matrix
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kill-matrix
+          path: kill-matrix.log
+          retention-days: 90
+          if-no-files-found: ignore
+
+  deep-gate:
+    name: weekly deep gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [deep-simulation, kill-matrix]
+    steps:
+      - name: Require both deep components
+        run: |
+          {
+            echo "| component | result |"
+            echo "|---|---|"
+            echo "| Monte Carlo deep run | ${{ needs.deep-simulation.result }} |"
+            echo "| full mutation corpus | ${{ needs['kill-matrix'].result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+          for r in "${{ needs.deep-simulation.result }}" "${{ needs['kill-matrix'].result }}"; do
+            if [ "$r" != "success" ]; then
+              echo "::error::a weekly deep component did not succeed"
+              exit 1
+            fi
+          done
+          echo "weekly deep audit: PASS"

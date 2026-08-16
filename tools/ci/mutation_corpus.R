@@ -18,6 +18,13 @@
 
 args   <- commandArgs(trailingOnly = TRUE)
 quick  <- "--quick" %in% args
+# --all-suites runs EVERY suite against every mutant instead of stopping at the
+# first kill, producing a kill matrix. That matters because the fast suites kill
+# almost everything, so in normal mode the later suites never run at all and
+# their contribution is unmeasured. It also surfaces mutants caught by exactly
+# ONE suite: those are single points of failure, and weakening that suite would
+# let the mutant through silently.
+all_suites <- "--all-suites" %in% args
 ENGINE <- "R/two_step_floating_catchment.R"
 URPS   <- "R/urps_accessibility_scenarios.R"
 # Every file the corpus may touch. All are backed up before any mutation and
@@ -128,7 +135,25 @@ MUTANTS <- list(
 # --- harness ------------------------------------------------------------------
 originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
 restore <- function() for (f in TARGETS) writeLines(originals[[f]], f)
-on.exit(restore(), add = TRUE)   # never leave a mutated source behind
+on.exit(restore(), add = TRUE)   # covers normal exit and R-level errors
+
+# on.exit does NOT run if the process is killed (Ctrl-C, SIGTERM, a CI timeout,
+# a runner going away), which leaves the sources MUTATED on disk. That happened
+# during development and is easy to miss, because a mutated engine still runs.
+# A sentinel file lets the next invocation notice and repair it, and tells a
+# human why their working tree suddenly disagrees with HEAD.
+SENTINEL <- ".mutation-corpus-in-progress"
+if (file.exists(SENTINEL)) {
+  message("NOTE: a previous corpus run did not finish cleanly (found ", SENTINEL, ").")
+  message("      Restoring the recorded sources before starting.")
+  prev <- tryCatch(readRDS(SENTINEL), error = function(e) NULL)
+  if (!is.null(prev)) for (f in names(prev)) writeLines(prev[[f]], f)
+  unlink(SENTINEL)
+  # Re-read: the files on disk are authoritative again.
+  originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
+}
+saveRDS(originals, SENTINEL)
+on.exit(unlink(SENTINEL), add = TRUE)
 
 run_suite <- function(path) {
   # Returns TRUE if the suite reported at least one failure or error.
@@ -160,20 +185,49 @@ for (nm in names(MUTANTS)) {
   }
   writeLines(strsplit(sub(m$old, m$new, txt, fixed = TRUE), "\n")[[1]], target)
 
-  killed_by <- NA_character_
-  for (s in suites) if (run_suite(s)) { killed_by <- basename(s); break }
+  killers <- character(0)
+  for (s in suites) {
+    if (run_suite(s)) {
+      killers <- c(killers, basename(s))
+      if (!all_suites) break
+    }
+  }
   restore()
 
-  results[[nm]] <- list(killed = !is.na(killed_by), by = killed_by, hits = 1L)
-  cat(sprintf("  %-32s %s%s\n", nm,
-              if (!is.na(killed_by)) "KILLED  " else "SURVIVED",
-              if (!is.na(killed_by)) paste0("by ", killed_by) else ""))
+  results[[nm]] <- list(killed = length(killers) > 0L, by = killers, hits = 1L,
+                        n_available = length(suites))
+  if (all_suites) {
+    cat(sprintf("  %-32s %s  [%d suite(s)]%s\n", nm,
+                if (length(killers)) "KILLED  " else "SURVIVED",
+                length(killers),
+                if (length(killers) == 1L && length(suites) > 1L)
+                  "  <- only one suite catches this" else ""))
+    for (k in killers) cat("      killed by ", k, "\n", sep = "")
+  } else {
+    cat(sprintf("  %-32s %s%s\n", nm,
+                if (length(killers)) "KILLED  " else "SURVIVED",
+                if (length(killers)) paste0("by ", killers[1]) else ""))
+  }
 }
 
 restore()
 for (f in TARGETS)
   stopifnot(identical(readLines(f, warn = FALSE), originals[[f]]))
 cat("\nall ", length(TARGETS), " mutated sources restored byte-identical\n", sep = "")
+
+if (all_suites) {
+  # Fragile means "one suite killed it although several had a chance". A mutant
+  # deliberately SCOPED to a single suite -- the allocator and URPS ones -- is not
+  # fragile, it is targeted, and counting it here would bury the real signal.
+  fragile <- names(Filter(function(r)
+    isTRUE(r$killed) && length(r$by) == 1L && r$n_available > 1L, results))
+  cat("\nkill-matrix summary\n")
+  cat("  mutants caught by exactly one suite: ", length(fragile), "\n", sep = "")
+  for (nm in fragile) cat("    - ", nm, " (only ", results[[nm]]$by, ")\n", sep = "")
+  cat("  These are single points of failure: weakening that one suite would let\n",
+      "  the mutant through with nothing else noticing. Not a failure in itself,\n",
+      "  but the place to add a second, independent check.\n", sep = "")
+}
 
 survived <- names(Filter(function(r) isFALSE(r$killed), results))
 anchor_err <- names(Filter(function(r) is.na(r$killed), results))

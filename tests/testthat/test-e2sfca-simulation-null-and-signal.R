@@ -18,7 +18,18 @@
 # 1000+ for a weekly deep run). What matters is reproducibility and sensitivity
 # to injected defects, not brute-force runtime. Every seed is fixed.
 
-N_REP <- 200L
+# Replicate count. 200 nightly; the weekly deep job raises it to 1000 via
+# E2SFCA_MC_REPLICATES. What matters is reproducibility and sensitivity to
+# injected defects, not brute-force runtime -- every seed is fixed either way, so
+# raising this makes the same tests SHARPER rather than making them different
+# tests. The Monte Carlo standard error scales as 1/sqrt(N_REP), so 1000
+# replicates tighten the null's detectable bias by rather more than a factor of
+# two versus 200.
+N_REP <- {
+  v <- suppressWarnings(as.integer(Sys.getenv("E2SFCA_MC_REPLICATES", "200")))
+  if (is.na(v) || v < 20L) 200L else v
+}
+cat("Monte Carlo replicates:", N_REP, "\n")
 
 # Population-weighted contrast between the two label groups.
 null_contrast <- function(seed, n_tract = 24L, n_prov = 7L) {

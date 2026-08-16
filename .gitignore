@@ -27,3 +27,4 @@ renv/library/
 renv/local/
 renv/cellar/
 renv/lock/
+.mutation-corpus-in-progress
