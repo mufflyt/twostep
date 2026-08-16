@@ -182,6 +182,15 @@ distribution decision, not permission to let the package rot.
 
 ## Reproduce the manuscript
 
+**The rendered paper is published as a release asset**, not committed to the
+repository. Download `e2sfca_accessibility_manuscript.html` (self-contained; open
+it directly in a browser) or the `.docx` from the
+[latest release](https://github.com/mufflyt/twostep/releases/latest). Each
+release's assets were rendered from that tag, after verifying every consumed
+artifact against `SHA256SUMS.txt`, and passed the manuscript semantic QA below.
+
+To build it yourself instead:
+
 ```r
 # from the repo root — one time, to install the exact pinned package versions
 Rscript -e 'renv::restore()'
@@ -189,7 +198,24 @@ Rscript -e 'renv::restore()'
 # then render
 Rscript render.R
 # -> manuscript/e2sfca_accessibility_manuscript.html (self-contained)
+
+Rscript render_docx.R
+# -> manuscript/e2sfca_accessibility_manuscript.docx
 ```
+
+Both outputs are gitignored. They are build products of the `.Rmd` plus the
+frozen artifacts, they weigh about 20MB together, and tracking them meant every
+render produced a 20MB binary diff. (The previously committed copies remain in
+git history: untracking them stops new blobs accruing, it does not shrink an
+existing clone.)
+
+The render is checked nightly, not only at release: the `manuscript` job in
+`.github/workflows/nightly.yml` renders the paper and runs
+`tools/ci/check_manuscript.R`, which scans the visible prose for bare
+`NA`/`NaN`/`Inf`, R error text, absolute developer paths, unresolved citations,
+missing figures or tables, and a disagreement between the Figure 1 and Table 1
+caption years. A render that exits 0 is not the same as a paper that reads
+correctly.
 
 Package versions are pinned in `renv.lock` (renv activates automatically via
 `.Rprofile`), so the render and tests are hermetic down to the package version.

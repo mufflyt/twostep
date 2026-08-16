@@ -424,6 +424,46 @@ jobs:
           fi
           echo "engine unmodified"
 
+  manuscript:
+    name: manuscript renders and reads correctly
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev pandoc
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rmarkdown
+            any::knitr
+            any::kableExtra
+          needs: check
+      # render.R verifies every consumed artifact against SHA256SUMS.txt before
+      # rendering, so a swapped or corrupted input fails here rather than
+      # producing a plausible paper from the wrong data.
+      - name: Render
+        run: Rscript render.R
+      # A render exiting 0 means the code ran, not that the paper is correct.
+      # This scans the visible prose for bare NA/NaN/Inf, R error text, absolute
+      # developer paths, unresolved citations, missing figures or tables, and
+      # checks that the Figure 1 and Table 1 caption years agree.
+      - name: Semantic QA
+        run: Rscript tools/ci/check_manuscript.R
+      - name: Upload the rendered manuscript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-manuscript
+          path: manuscript/e2sfca_accessibility_manuscript.html
+          retention-days: 14
+          if-no-files-found: ignore
+
   # --------------------------------------------------------------- tier 4: gate
   summary:
     name: nightly summary
@@ -432,7 +472,7 @@ jobs:
     if: always()
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
             R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
-            scientific-mutants]
+            scientific-mutants, manuscript]
     steps:
       - name: Report and gate
         run: |
@@ -449,6 +489,7 @@ jobs:
             echo "| R CMD check matrix | ${{ needs['R-CMD-check'].result }} |"
             echo "| testthat suite | ${{ needs.testthat.result }} |"
             echo "| scientific mutation corpus | ${{ needs['scientific-mutants'].result }} |"
+            echo "| manuscript render + QA | ${{ needs.manuscript.result }} |"
             echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
             echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
             echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
@@ -462,7 +503,8 @@ jobs:
                    "${{ needs['installed-isolation'].result }}" \
                    "${{ needs['minimal-deps'].result }}" \
                    "${{ needs['renv-restore'].result }}" \
-                   "${{ needs['scientific-mutants'].result }}"; do
+                   "${{ needs['scientific-mutants'].result }}" \
+                   "${{ needs.manuscript.result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error::a required nightly component did not succeed"
               exit 1

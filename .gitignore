@@ -28,3 +28,12 @@ renv/local/
 renv/cellar/
 renv/lock/
 .mutation-corpus-in-progress
+
+# Rendered manuscript outputs -- build products, not sources.
+# `Rscript render.R` regenerates the HTML from the Rmd plus the
+# checksum-verified frozen artifacts; `Rscript render_docx.R` converts it.
+# They weigh ~20MB together, so tracking them meant a 20MB binary diff on every
+# render. Published as RELEASE ASSETS instead; see
+# .github/workflows/release-manuscript.yml.
+manuscript/e2sfca_accessibility_manuscript.html
+manuscript/e2sfca_accessibility_manuscript.docx

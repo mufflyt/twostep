@@ -1,0 +1,119 @@
+name: release-manuscript
+
+# Publishes the rendered manuscript as RELEASE ASSETS.
+#
+# The HTML and DOCX used to be tracked in git, at roughly 20MB combined. They are
+# build products: `render.R` regenerates the HTML from the Rmd plus the
+# checksum-verified frozen artifacts, and `render_docx.R` converts it. Tracking
+# them meant every render produced a 20MB binary diff, and pushing one needed an
+# inflated http.postBuffer.
+#
+# They are now attached to releases instead, which is what a reader actually
+# wants: a stable URL to the exact rendered paper for a given tag, without
+# cloning anything.
+#
+# Two ways in:
+#   * push a tag matching v*        -> renders and attaches to that release
+#   * workflow_dispatch             -> renders and uploads as a build artifact
+#                                      only, so the render can be exercised
+#                                      without cutting a release
+#
+# NOTE ON HISTORY: the previously committed copies are still in git history, so
+# untracking them does not shrink the clone. Removing them from history would
+# require a rewrite of a public repository, which is not worth it -- the point of
+# this change is to stop ADDING a new 20MB blob on every render.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write        # required to attach assets to a release
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # See nightly.yml -- the repo .Rprofile would otherwise hide every installed
+  # package behind an empty renv project library.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+jobs:
+  render-and-publish:
+    name: render manuscript and attach to release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev pandoc
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rmarkdown
+            any::knitr
+            any::kableExtra
+          needs: check
+
+      # render.R verifies every consumed artifact against SHA256SUMS.txt BEFORE
+      # rendering, so a swapped or corrupted input fails loudly here rather than
+      # producing a plausible-looking paper from the wrong data.
+      - name: Render the manuscript
+        run: Rscript render.R
+
+      - name: Convert to DOCX
+        run: Rscript render_docx.R
+
+      # Do not publish a paper that renders but does not read correctly.
+      - name: Manuscript semantic QA
+        run: Rscript tools/ci/check_manuscript.R
+
+      - name: Report output sizes
+        run: |
+          ls -la manuscript/e2sfca_accessibility_manuscript.html \
+                 manuscript/e2sfca_accessibility_manuscript.docx
+          {
+            echo "### Rendered manuscript"
+            echo '```'
+            du -h manuscript/e2sfca_accessibility_manuscript.html \
+                  manuscript/e2sfca_accessibility_manuscript.docx
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Always available, tag or not, so a dispatch run is still useful.
+      - name: Upload as build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manuscript-${{ github.ref_name }}
+          path: |
+            manuscript/e2sfca_accessibility_manuscript.html
+            manuscript/e2sfca_accessibility_manuscript.docx
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            manuscript/e2sfca_accessibility_manuscript.html
+            manuscript/e2sfca_accessibility_manuscript.docx
+          fail_on_unmatched_files: true
+          body: |
+            Rendered manuscript for `${{ github.ref_name }}`.
+
+            * `e2sfca_accessibility_manuscript.html` — self-contained; open directly in a browser
+            * `e2sfca_accessibility_manuscript.docx` — Word conversion of the same render
+
+            Both were produced by `Rscript render.R` && `Rscript render_docx.R`
+            from this tag, after verifying every consumed artifact against
+            `SHA256SUMS.txt`, and both passed `tools/ci/check_manuscript.R`.
