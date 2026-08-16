@@ -38,23 +38,30 @@ v3.0.0) via `mufflyaccess::urps_count()`: **1,306 nationally and 1,303 in the
 contiguous United States for 2023**. twostep is a *consumer* of that contract, not
 its owner.
 
-Four distinct years appear in this paper and are not interchangeable — the README
-and manuscript name the year explicitly rather than saying "current":
+Several distinct years appear in this paper and are not interchangeable — the
+README and manuscript name the year explicitly rather than saying "current":
 
 | Quantity | Year | Source |
 |---|---|---|
-| Headline active workforce + standardized supply (Table 1) | **2022** | frozen E2SFCA national summary |
-| URPS board-certified-active workforce (footnote) | **2023** | `mufflyaccess::urps_count()` (1,306 national / 1,303 CONUS) |
+| Headline active workforce + standardized supply (Table 1) | **2020** | frozen E2SFCA national summary |
 | Spatial-distribution / disparity analysis (Table 2, Figures 3–6) and the Figure 1 image | **2020** | 2020-vintage frozen artifacts |
-| ACS demand denominator for the 2022 headline | **2022 ACS 5-year** | ACS 2018–2022, Table B01001 |
+| ACS demand denominator | **ACS 2020** | 2020 tract vintage; ACS 2020 |
+| Temporal-change window (Table 1 "Change" column, trend analyses) | **2013–2022** | 2023 is right-censored and reported provisionally |
+| URPS board-certified-active workforce (cross-reference) | **2023** | `mufflyaccess::urps_count()` (1,306 national / 1,303 CONUS, `include_urology = TRUE`) |
 
 ## Status and open items
 
-- **Figure 1 is still the 2020 access surface.** Table 1's headline moved to 2022,
-  but Figure 1 (`manuscript/figures/fig0_level2020.jpg`) has **not** been
-  regenerated: its per-panel means are 2020 values and will disagree with Table 1's
-  2022 supply column until the production pipeline produces the validated 2022
-  surface. It is not a 2022 figure yet and must not be described as one.
+- **RESOLVED (2026-08-16): Figure 1 and Table 1 now agree at 2020.** This entry
+  previously warned that Table 1's headline had moved to 2022 while Figure 1
+  (`manuscript/figures/fig0_level2020.jpg`) remained the 2020 surface, so the two
+  would disagree. The manuscript's cross-sectional headline is now 2020
+  throughout — Table 1, Table 2 and Figure 1 — with 2013–2022 used only as the
+  temporal-change window. The mismatch no longer exists.
+
+  It is also now **mechanically enforced**: `tools/ci/check_manuscript.R` parses
+  the Figure 1 and Table 1 captions out of the rendered HTML and fails if the two
+  years disagree. It runs on every render, in the nightly, and in the
+  pull-request scientific gate, so this class of mismatch cannot silently return.
 - **The detailed disparity analysis remains 2020.** Table 2 (% outside 60/120/180
   min; Gini), Figures 3–6, and their Results prose are computed on the 2020 spatial
   artifacts and are labeled 2020. They are unaffected by the Table 1 headline move
@@ -138,6 +145,40 @@ manuscript HTML.
 **Figure S7. Complex family planning**, access change 2013 to 2023.
 
 ![Figure S7](manuscript/figures/figS_cfp.jpg)
+
+## Distribution: GitHub/Zenodo, not CRAN
+
+**Decided 2026-08-16.** twostep is released through GitHub and archived via
+Zenodo. It is deliberately **not** targeted at CRAN.
+
+The reason is a hard one rather than a preference. twostep `Imports:`
+**`mufflyaccess`**, the shared single-source-of-truth package that owns the
+drive-time bands, geography constants, denominators and the URPS workforce
+contract. `mufflyaccess` is public but lives on GitHub, and DESCRIPTION resolves
+it through `Remotes: mufflyt/mufflyaccess`. CRAN does not accept `Remotes`, and
+will not accept a package whose dependency is not itself on CRAN. Only three
+things would change that:
+
+1. publish `mufflyaccess` to CRAN first, or
+2. vendor its constants into twostep, which recreates exactly the cross-repo
+   drift the shared package exists to prevent and which the SSOT guards in
+   `tests/testthat/` are built to catch, or
+3. drop the dependency and hard-code the constants, which is option 2 with the
+   guards removed.
+
+None of those is worth doing for a manuscript-companion package. The scientific
+argument beats the packaging convenience: one authoritative definition of a
+drive-time band shared across isochrones / twostep / cliff is the property this
+codebase most needs to keep.
+
+Practically, this costs nothing. `remotes::install_github()` and `pak` both
+honour `Remotes`, and `renv::restore()` installs the pinned commit recorded in
+`renv.lock`, so a reproduction from a clean clone is exact. See
+[Installation](#installation) for the commands.
+
+`R CMD check` is nonetheless kept at **Status: OK** and runs nightly across
+Ubuntu (release, oldrel-1, devel), macOS and Windows. Not shipping to CRAN is a
+distribution decision, not permission to let the package rot.
 
 ## Reproduce the manuscript
 
@@ -238,6 +279,23 @@ The package carries an `renv` lockfile. Running `R CMD INSTALL` or `Rscript`
 **from inside the repository** activates that isolated library, which will not
 contain your other packages; install from the parent directory, or set
 `RENV_CONFIG_AUTOLOADER_ENABLED=FALSE`, if dependencies appear to be missing.
+
+This is the most common false alarm against this repo. If `Rscript
+tests/testthat.R` fails with *"there is no package called 'here'"*, or `R CMD
+check` reports `dplyr`/`sf`/`terra`/`exactextractr`/`mufflyaccess` as
+unavailable, the packages are almost certainly installed and simply hidden: the
+`.Rprofile` has pointed `.libPaths()` at an empty project library. Either
+
+```sh
+RENV_CONFIG_AUTOLOADER_ENABLED=false Rscript tests/testthat.R   # use your own library
+Rscript -e 'renv::restore()'                                    # or populate the project one
+```
+
+Every CI job sets `RENV_CONFIG_AUTOLOADER_ENABLED: false` for this reason, except
+the nightly `renv-restore` job, which exists precisely to prove `renv.lock` still
+restores and passes on a clean machine. Note that `renv::restore()` builds
+`KernSmooth` from source, so it needs a Fortran compiler (`gfortran`); without
+one the restore fails on macOS while CI, which has the toolchain, succeeds.
 
 ## Vocabulary guard
 
