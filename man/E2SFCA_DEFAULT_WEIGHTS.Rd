@@ -17,7 +17,27 @@ sensitivity analysis.
 }
 \references{
 Luo & Qi (2009) doi:10.1016/j.healthplace.2009.06.002 [source 2]
-  introduced the zonal distance-decay weight; these specific values are a
-  Gaussian decay (sigma = 60 min) evaluated at the four band edges and
-  normalized to the 30-min band (see [gaussian_band_weights], source 5).
+  introduced the zonal distance-decay weight. The first THREE values here are
+  that paper's published **weight set 1** -- the slower-decay scheme -- for its
+  three travel-time zones: 1.00, 0.68, 0.22. The fourth (0.09, for the 180-min
+  band) extends the published three-zone scheme to twostep's four bands and is
+  NOT from the paper. Pinned by tests/fixtures/luo_qi_2009_e2sfca.json and
+  guarded by tests/testthat/test-e2sfca-luo-qi-2009-published.R.
+
+  CORRECTION (2026-08-16): this block previously described all four values as
+  "a Gaussian decay (sigma = 60 min) evaluated at the four band edges and
+  normalized to the 30-min band". That does not reproduce them.
+  `gaussian_band_weights(c(30, 60, 120, 180), sigma = 60)` returns
+  (1.000, 0.687, 0.153, 0.013): only the 60-min value matches, and no single
+  sigma yields both 0.22 and 0.09. The canonical weights are a published
+  zonal scheme, not a Gaussian evaluation; [gaussian_band_weights] remains
+  available as a separate, genuinely Gaussian alternative for sensitivity
+  analysis (source 5).
+
+  Also note the paper's own erratum (doi:10.1016/j.healthplace.2010.10.006):
+  its weight set 2 was printed as (1.00, 0.42, 0.09) but should be
+  (1.00, 0.42, 0.03) to follow the Gaussian strictly. The authors used 0.09 in
+  their calculations, so the published results are internally consistent. That
+  0.09 is unrelated to the 0.09 above, which applies to a different band in a
+  different scheme -- recorded here because the coincidence invites confusion.
 }

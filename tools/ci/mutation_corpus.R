@@ -20,7 +20,8 @@ args   <- commandArgs(trailingOnly = TRUE)
 quick  <- "--quick" %in% args
 ENGINE <- "R/two_step_floating_catchment.R"
 
-SUITES <- c("tests/testthat/test-e2sfca-invariants-and-reference.R",
+SUITES <- c("tests/testthat/test-e2sfca-luo-qi-2009-published.R",
+            "tests/testthat/test-e2sfca-invariants-and-reference.R",
             "tests/testthat/test-e2sfca-metamorphic-and-algebra.R",
             if (!quick) "tests/testthat/test-e2sfca-simulation-null-and-signal.R")
 
@@ -60,6 +61,10 @@ MUTANTS <- list(
     old = "    ratio_for_surface = dplyr::if_else(weighted_demand > 0, supply / weighted_demand, 0),\n    excluded_supply   = dplyr::if_else(weighted_demand > 0, 0, supply)\n  )",
     new = "    ratio_for_surface = dplyr::if_else(weighted_demand > 0, sum(supply) / sum(weighted_demand), 0),\n    excluded_supply   = dplyr::if_else(weighted_demand > 0, 0, supply)\n  )",
     why = "All providers share one pooled ratio: supply leaks between unrelated regions."),
+  abel_tail_not_zero = list(
+    old = "  next_w <- c(wp[-1L], 0)                       # W beyond the last band = 0",
+    new = "  next_w <- c(wp[-1L], wp[length(wp)])          # W beyond the last band = 0",
+    why = "The Abel identity requires W beyond the last band to be 0; setting it to the last weight silently deletes the outermost band's contribution."),
   normalize_weights_accidentally = list(
     old = "  inc[inc < 0 & inc > -1e-9] <- 0               # clamp float error",
     new = "  inc <- inc / sum(inc)                        # clamp float error",

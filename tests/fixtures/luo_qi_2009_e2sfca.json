@@ -1,0 +1,62 @@
+{
+  "_comment": "Frozen scientific fixture for the PUBLISHED definition of E2SFCA. Every value below is derived from the equations of Luo & Qi (2009) by hand, not produced by twostep. If twostep stops reproducing these numbers, twostep has stopped implementing the published method. Reviewing a diff to this file is reviewing a change to what 'E2SFCA' means in this repository.",
+  "source": {
+    "citation": "Luo W, Qi Y (2009). An enhanced two-step floating catchment area (E2SFCA) method for measuring spatial accessibility to primary care physicians. Health & Place 15(4):1100-1107.",
+    "doi": "10.1016/j.healthplace.2009.06.002",
+    "erratum": {
+      "doi": "10.1016/j.healthplace.2010.10.006",
+      "note": "Corrects p.1103: weight set 2 was reported as (1.00, 0.42, 0.09) but should be (1.00, 0.42, 0.03) to follow the Gaussian strictly. The authors USED 0.09 in their calculations, so the published results are internally consistent; weight set 2 simply is not strictly Gaussian. Recorded here because anyone reproducing the paper's own tables must know which value was actually used."
+    }
+  },
+
+  "weight_set_1": {
+    "_comment": "The paper's weight set 1 -- the slower distance decay -- for its three 10-minute travel-time zones. twostep's first three canonical weights are exactly these values.",
+    "zones_minutes": [10, 20, 30],
+    "weights": [1.00, 0.68, 0.22]
+  },
+
+  "worked_example": {
+    "_comment": "A minimal system with one provider and three tracts, one per travel-time zone. Chosen so the arithmetic can be checked by hand from the paper's Eq. for R_j and A_i, with no reliance on any twostep code.",
+    "supply": {"P1": 10},
+    "tracts": [
+      {"GEOID": "T1", "zone_minutes": 10, "population": 1000},
+      {"GEOID": "T2", "zone_minutes": 20, "population": 2000},
+      {"GEOID": "T3", "zone_minutes": 30, "population": 500}
+    ],
+
+    "step1_provider_to_population_ratio": {
+      "_comment": "R_j = S_j / SUM_r SUM_{k in zone r} P_k W_r  =  10 / (1.00*1000 + 0.68*2000 + 0.22*500) = 10 / 2470",
+      "weighted_demand": 2470.0,
+      "R_P1": 0.004048582995951417
+    },
+
+    "step2_accessibility": {
+      "_comment": "A_i = SUM_r SUM_{j in zone r} R_j W_r. With a single provider this is simply W_r(i) * R.",
+      "T1": 0.004048582995951417,
+      "T2": 0.002753036437246964,
+      "T3": 0.000890688259109312
+    },
+
+    "step2_accessibility_per_100k": {
+      "T1": 404.8582995951417,
+      "T2": 275.3036437246964,
+      "T3": 89.0688259109312
+    }
+  },
+
+  "cumulative_band_translation": {
+    "_comment": "twostep does not store rings; its isochrone artifacts are CUMULATIVE, and it applies INCREMENTAL weights w'_b = W_b - W_{b+1} (Abel summation). The same system expressed that way must give identical answers -- that identity is the core mathematical claim of R/two_step_floating_catchment.R, and this fixture is what checks it against the published ring formulation.",
+    "cumulative_weights": {"10": 1.00, "20": 0.68, "30": 0.22},
+    "incremental_weights": {"10": 0.32, "20": 0.46, "30": 0.22},
+    "cumulative_overlap": {
+      "_comment": "Cumulative membership: T1 is inside all three bands, T2 inside the 20 and 30 bands, T3 only inside the 30 band.",
+      "T1": [10, 20, 30],
+      "T2": [20, 30],
+      "T3": [30]
+    },
+    "weighted_demand_check": {
+      "_comment": "0.32*(1000) + 0.46*(1000+2000) + 0.22*(1000+2000+500) = 320 + 1380 + 770 = 2470, identical to the ring computation above.",
+      "value": 2470.0
+    }
+  }
+}
