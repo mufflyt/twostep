@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       # Structural checks only, base R: DESCRIPTION parses and is complete, the
@@ -71,7 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       # The patterns that actually broke this repo: a top-level source() in R/
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       # No package installation: base R only, so this reports in well under a
@@ -100,7 +100,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       # Zero-dependency by design, so it also works inside the renv sandbox where
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # No R at all.
       - name: Verify every provenance manifest
         run: bash tools/ci/check_checksums.sh
@@ -125,7 +125,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       - name: Install jsonlite
@@ -139,7 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { use-public-rspm: true }
       - uses: r-lib/actions/setup-r-dependencies@v2
@@ -182,7 +182,7 @@ jobs:
           - { os: windows-latest, r: "release",  experimental: true  }
           - { os: ubuntu-latest,  r: "devel",    experimental: true  }
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: ${{ matrix.r }}
@@ -223,7 +223,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with:
           r-version: "release"
@@ -289,7 +289,7 @@ jobs:
     # bitops 1.0.9, nlme 3.1.166 -- dash forms normalised into dots). A gate that
     # finds a real bug and is then allowed to fail silently is worse than no gate.
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       # R version comes from the LOCKFILE, not "release". The first nightly ran
       # this on R release and caTools failed to load: RSPM binaries are built per
       # R minor version, so restoring a 4.4.2 lockfile onto 4.5.x installs
@@ -327,7 +327,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
@@ -358,7 +358,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
@@ -396,7 +396,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
@@ -429,7 +429,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
         with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries

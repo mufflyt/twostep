@@ -54,10 +54,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out twostep
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Check out mufflyaccess (the SSOT these tests are checked against)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: mufflyt/mufflyaccess
           path: .mufflyaccess
