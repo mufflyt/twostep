@@ -255,6 +255,13 @@ cat("\n=== MONTE CARLO AUDIT SUMMARY ======================================\n")
 .g <- function(k, d = NA) if (exists(k, envir = .mc_audit)) get(k, envir = .mc_audit) else d
 cat(sprintf("  replicates requested / completed:  %d / %s\n",
             N_REP, format(.g("replicates_completed"))))
+# Machine-readable twin of the line above. The workflow parses THIS, never the
+# prose: the first guard split the human-readable line on "/" and picked up the
+# slash in "requested / completed", so it read the completed count as
+# "completed:1000" and failed a run whose science was perfect. Prose is for
+# people; give the machine its own unambiguous field.
+cat(sprintf("MC-REPLICATES requested=%d completed=%s\n",
+            N_REP, format(.g("replicates_completed"))))
 cat(sprintf("  null mean bias:                    %+.6e\n", .g("null_mean_bias", NA_real_)))
 cat(sprintf("  null z (threshold |z| < %g):        %+.3f\n",
             MC_THRESHOLDS$null_abs_z_max, .g("null_z", NA_real_)))
