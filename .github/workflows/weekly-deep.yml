@@ -79,6 +79,22 @@ jobs:
           Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-simulation-null-and-signal.R", stop_on_failure = TRUE)' 2>&1 | tee deep-mc.log
           echo "DEEP-MC-COMPLETED" >> deep-mc.log
 
+      # `if-no-files-found: error` catches a MISSING log. It does not catch an
+      # EMPTY one, which uploads happily as a valid zero-byte artifact and is
+      # worse than no artifact at all: it looks like evidence and contains none.
+      # Assert size and content before handing it to the upload action.
+      - name: The log must exist, be non-empty, and contain run evidence
+        if: always()
+        run: |
+          test -s deep-mc.log || { echo "::error::deep-mc.log missing or empty"; exit 1; }
+          echo "deep-mc.log: $(wc -c < deep-mc.log) bytes, $(wc -l < deep-mc.log) lines"
+          grep -q "Monte Carlo run parameters" deep-mc.log \
+            || { echo "::error::deep-mc.log has no run-parameter banner"; exit 1; }
+          grep -q "\[null\] mean contrast" deep-mc.log \
+            || { echo "::error::deep-mc.log has no null-contrast statistics"; exit 1; }
+          grep -q "DEEP-MC-COMPLETED" deep-mc.log \
+            || { echo "::error::deep-mc.log has no completion sentinel"; exit 1; }
+
       - name: Upload the deep Monte Carlo log
         if: always()
         uses: actions/upload-artifact@v7
@@ -86,7 +102,7 @@ jobs:
           name: deep-monte-carlo
           path: deep-mc.log
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   kill-matrix:
     name: full mutation corpus (kill matrix)
@@ -125,6 +141,26 @@ jobs:
           fi
           echo "sources unmodified"
 
+      - name: The matrix must exist, be non-empty, and name every mutant
+        if: always()
+        run: |
+          test -s kill-matrix.log || { echo "::error::kill-matrix.log missing or empty"; exit 1; }
+          echo "kill-matrix.log: $(wc -c < kill-matrix.log) bytes, $(wc -l < kill-matrix.log) lines"
+          n=$(grep -cE "KILLED|SURVIVED" kill-matrix.log || true)
+          echo "mutant verdict lines: $n"
+          # A matrix that reports on nothing is the failure mode this guard
+          # exists for: the job would still be green and the artifact still
+          # present. Require a verdict for every mutant in the corpus.
+          # [a-z0-9_] not [a-z_]: m2_exponent_removed contains a digit, and an
+          # undercount here would silently weaken the guard rather than trip it.
+          expected=$(grep -cE "^  [a-z0-9_]+ = list\(" tools/ci/mutation_corpus.R || true)
+          echo "mutants declared in the corpus: $expected"
+          if [ "$n" -lt "$expected" ]; then
+            echo "::error::only $n verdicts for $expected declared mutants"; exit 1
+          fi
+          grep -q "KILL-MATRIX-COMPLETED" kill-matrix.log \
+            || { echo "::error::kill-matrix.log has no completion sentinel"; exit 1; }
+
       - name: Upload the kill matrix
         if: always()
         uses: actions/upload-artifact@v7
@@ -132,7 +168,7 @@ jobs:
           name: kill-matrix
           path: kill-matrix.log
           retention-days: 90
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   deep-gate:
     name: weekly deep gate

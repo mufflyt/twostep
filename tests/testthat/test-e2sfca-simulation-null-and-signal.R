@@ -29,7 +29,21 @@ N_REP <- {
   v <- suppressWarnings(as.integer(Sys.getenv("E2SFCA_MC_REPLICATES", "200")))
   if (is.na(v) || v < 20L) 200L else v
 }
-cat("Monte Carlo replicates:", N_REP, "\n")
+# Run banner. The weekly job captures this file's stdout as its forensic
+# artifact, and testthat's own output is nothing but progress counters -- it
+# records that 34 assertions passed, not WHAT was computed. Without the numbers
+# below, a green log and a subtly-biased log look identical after the fact.
+.mc_seeds <- list(null_contrast = "1..N_REP", permutation = 99L,
+                  known_signal = c(301, 302, 303), dose = 311L, convergence = 401L)
+cat("\n--- Monte Carlo run parameters -------------------------------------\n")
+cat("  replicates (E2SFCA_MC_REPLICATES): ", N_REP, "\n", sep = "")
+cat("  null-contrast seeds:                ", .mc_seeds$null_contrast, "\n", sep = "")
+cat("  permutations per replicate:         ", .mc_seeds$permutation, "\n", sep = "")
+cat("  known-signal seeds:                 ", paste(.mc_seeds$known_signal, collapse = ", "), "\n", sep = "")
+cat("  acceptance thresholds:              |z| < 4; sign-test p > 0.001;\n")
+cat("                                      false-positive rate < 0.20 at nominal 0.05;\n")
+cat("                                      dose recovery |err| < 1e-9\n")
+cat("--------------------------------------------------------------------\n\n")
 
 # Population-weighted contrast between the two label groups.
 null_contrast <- function(seed, n_tract = 24L, n_prov = 7L) {
@@ -50,6 +64,11 @@ test_that("MONTE CARLO NULL: the pipeline does not manufacture a group differenc
   # does not depend on the arbitrary units of the synthetic fixtures.
   se <- stats::sd(contrasts) / sqrt(N_REP)
   z  <- mean(contrasts) / se
+  cat(sprintf("  [null] mean contrast %+.6e  sd %.6e  SE %.6e  z %+.3f\n",
+              mean(contrasts), stats::sd(contrasts), se, z))
+  cat(sprintf("  [null] positive contrasts %d/%d  sign-test p %.4f\n",
+              sum(contrasts > 0), N_REP,
+              stats::binom.test(sum(contrasts > 0), N_REP, 0.5)$p.value))
   expect_lt(abs(z), 4,
             label = sprintf("mean null contrast is %.4g SEs from zero", abs(z)))
 
@@ -83,6 +102,8 @@ test_that("MONTE CARLO NULL: a permutation test holds its nominal false-positive
   }
   # Nominal 5%. Allow a generous band: this must catch a broken pipeline, not
   # flag ordinary Monte Carlo noise.
+  cat(sprintf("  [perm] rejections %d/%d = %.4f at nominal 0.05\n",
+              reject, N_REP, reject / N_REP))
   expect_lt(reject / N_REP, 0.20,
             label = sprintf("false-positive rate %.3f at nominal 0.05", reject / N_REP))
 })
@@ -125,6 +146,9 @@ test_that("KNOWN SIGNAL: dose-response is monotone and correctly ordered", {
     fx2$supply$supply[boost] <- fx2$supply$supply[boost] * (1 + d)
     pw_mean_access(prod_access(fx2), fx2$tract_pop, gA)
   }, numeric(1))
+  cat(sprintf("  [dose] means %s  ratios %s\n",
+              paste(sprintf("%.6e", means), collapse = " "),
+              paste(sprintf("%.4f", means / means[1]), collapse = " ")))
   expect_true(all(diff(means) > 0))                       # strictly increasing
   expect_equal(means / means[1], c(1, 1.10, 1.25, 1.50), tolerance = 1e-10)
 })
@@ -144,6 +168,8 @@ test_that("KNOWN SIGNAL: the estimated contrast converges on truth as the fixtur
     g <- pw_mean_access(prod_access(fx2), fx2$tract_pop, gA)
     abs((g / b - 1) - d)
   }, numeric(1))
+  cat(sprintf("  [conv] |recovered dose - 0.40| by size: %s\n",
+              paste(sprintf("%.3e", err), collapse = " ")))
   expect_true(all(err < 1e-9),
               label = "recovered dose drifted from the injected 0.40")
 })
