@@ -1,0 +1,126 @@
+name: pr-scientific-gate
+
+# BLOCKING pull-request gate for scientific validity.
+#
+# Until this existed, the entire scientific layer -- 245 E2SFCA assertions and
+# the 9-mutant corpus -- ran ONLY at 23:17. A pull request could break the
+# accessibility calculation and merge cleanly, and nobody would learn until the
+# next nightly. contract-tests.yml runs on every push but covers a deliberately
+# dependency-light SUBSET that never loads the engine.
+#
+# Two jobs, cheapest first, so an obvious break reports in under a minute
+# instead of after a geospatial install:
+#
+#   structure   base R only, no package installation at all
+#   scientific  the four E2SFCA suites plus the mutation corpus
+#
+# Target is well under the 15-minute budget for a PR gate. Measured locally:
+# published 7s, invariants 17s, metamorphic 13s, simulation 57s, corpus ~2m45s.
+# Dependency installation dominates and is cached between runs.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-sci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # The repo root has a .Rprofile sourcing renv/activate.R, which switches
+  # .libPaths() to the empty renv project library and hides everything installed
+  # below. See the note in nightly.yml.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+jobs:
+  structure:
+    name: structure (no dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      # Base R only. These four catch the breaks that make everything else
+      # meaningless, and they finish before a dependency install would start.
+      - name: Repository preflight
+        run: Rscript tools/ci/check_preflight.R
+      - name: Syntax and package encoding
+        run: Rscript tools/ci/check_parse.R
+      - name: Package source hygiene
+        run: Rscript tools/ci/check_hygiene.R
+      - name: Export-tag drift
+        run: Rscript tools/sync_namespace.R --check
+
+  scientific:
+    name: scientific validity
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::testthat
+          needs: check
+
+      # Ordered so the EXTERNAL oracle speaks first: if twostep has stopped
+      # implementing the published method, that is the most informative failure
+      # and the cheapest to produce.
+      - name: Luo and Qi 2009 published fixture
+        run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-luo-qi-2009-published.R", stop_on_failure = TRUE)'
+      - name: Mathematical invariants and three-implementation agreement
+        run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-invariants-and-reference.R", stop_on_failure = TRUE)'
+      - name: Metamorphic geography, weight and overlap algebra, closed forms
+        run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-metamorphic-and-algebra.R", stop_on_failure = TRUE)'
+      - name: Monte Carlo null and known-signal recovery
+        run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-simulation-null-and-signal.R", stop_on_failure = TRUE)'
+
+      # The corpus is last because it is the slowest, and because it is only
+      # meaningful if the suites above are green: it asks whether those suites
+      # would NOTICE a scientific mistake, which presupposes they pass.
+      - name: Every named scientific mutant must be killed
+        run: Rscript tools/ci/mutation_corpus.R --quick
+      - name: Fail if the corpus left the engine mutated
+        run: |
+          if ! git diff --quiet R/two_step_floating_catchment.R; then
+            echo "::error::the mutation corpus left the engine modified"
+            git --no-pager diff --stat R/two_step_floating_catchment.R
+            exit 1
+          fi
+          echo "engine unmodified"
+
+  scientific-gate:
+    name: scientific gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: always()
+    needs: [structure, scientific]
+    steps:
+      - name: Require every scientific component to pass
+        run: |
+          {
+            echo "| component | result |"
+            echo "|---|---|"
+            echo "| structure | ${{ needs.structure.result }} |"
+            echo "| scientific validity | ${{ needs.scientific.result }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
+          for r in "${{ needs.structure.result }}" "${{ needs.scientific.result }}"; do
+            if [ "$r" != "success" ]; then
+              echo "::error::a scientific gate did not succeed; this PR must not merge"
+              exit 1
+            fi
+          done
+          echo "scientific gate: PASS"

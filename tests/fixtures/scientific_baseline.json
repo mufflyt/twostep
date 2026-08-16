@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "inputs": {
+    "engine_R": "6253d1ec1367d60b25680897401ea0884fe8891f857f2261364d344c21d0a6c2",
+    "manuscript_values_R": "4c929a4022dd327e36d406ea462faa9034e4526198d68a3d4503ec41af5bc023",
+    "national_summary_csv": "b33eb3e4f44c2a7f422a32d0b61c1afa5af4f76d55f230918a4dfedf6999ba3a",
+    "run_manifest_json": "a98096ec9ecb5640b6229996f7820a295750f2e5ab90b1d99072e581e767703b",
+    "sha256sums_txt": "19e626a88f311403c92faacec7496eda2c004360320c16ffb2fbaff55f17517d",
+    "luo_qi_fixture_json": "0f9a9ae3bb2964ae226008e7d9563802324a3c3433f26602d822ad43e434ca6c",
+    "frozen_run_id": "e2sfca_20260712_190734",
+    "allocator_method_id": "mass_conserving",
+    "production_resolution_m": 500
+  },
+  "headline": {
+    "n_rows": 77,
+    "n_subspecialties": 7,
+    "years": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
+    "female_pop_total": 157249324,
+    "series_sha256": "5a132611060badf8b628a07fde287eba7e20eb4ca730674673440f12aa6c0056",
+    "mean_access_per100k": {
+      "CFP": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.0394376652,
+        "last": 0.0548936793,
+        "absolute_change": 0.0154560142,
+        "max": 0.0548936793
+      },
+      "FPMRS": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.4840210051,
+        "last": 0.5775736972,
+        "absolute_change": 0.093552692,
+        "max": 0.5775736972
+      },
+      "GO": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.5183738263,
+        "last": 0.6227066286,
+        "absolute_change": 0.1043328023,
+        "max": 0.6227066286
+      },
+      "MFM": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 1.0125769298,
+        "last": 0.8160544306,
+        "absolute_change": -0.1965224992,
+        "max": 1.038772586
+      },
+      "MIGS": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.1742766973,
+        "last": 0.2762872718,
+        "absolute_change": 0.1020105745,
+        "max": 0.2762872718
+      },
+      "PAG": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.066783023,
+        "last": 0.0756280246,
+        "absolute_change": 0.0088450016,
+        "max": 0.0815105821
+      },
+      "REI": {
+        "first_year": 2013,
+        "last_year": 2023,
+        "first": 0.5329984616,
+        "last": 0.5873315413,
+        "absolute_change": 0.0543330797,
+        "max": 0.5873315413
+      }
+    }
+  },
+  "context": {
+    "git_sha": "24dd4b3c9af5958aba2c786b68a95b39474706ec",
+    "r_version": "4.4.2",
+    "generated_note": "context is RECORDED for provenance, never compared"
+  }
+}

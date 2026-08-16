@@ -19,10 +19,21 @@
 args   <- commandArgs(trailingOnly = TRUE)
 quick  <- "--quick" %in% args
 ENGINE <- "R/two_step_floating_catchment.R"
+URPS   <- "R/urps_accessibility_scenarios.R"
+# Every file the corpus may touch. All are backed up before any mutation and
+# restored afterwards, whatever happens.
+TARGETS <- c(ENGINE, URPS)
 
+# The corpus stops at the first suite that kills a mutant, so a broader list
+# costs little: allocator and URPS mutants simply fall through the E2SFCA suites
+# to the ones that cover them.
 SUITES <- c("tests/testthat/test-e2sfca-luo-qi-2009-published.R",
             "tests/testthat/test-e2sfca-invariants-and-reference.R",
             "tests/testthat/test-e2sfca-metamorphic-and-algebra.R",
+            "tests/testthat/test-e2sfca-allocator-semantic-adversarial-2026-07-19.R",
+            "tests/testthat/test-two-step-floating-catchment.R",
+            "tests/testthat/test-urps-accessibility-scenarios.R",
+            "tests/testthat/test-urps-accessibility-e2sfca-adapter.R",
             if (!quick) "tests/testthat/test-e2sfca-simulation-null-and-signal.R")
 
 # --- the corpus ---------------------------------------------------------------
@@ -61,6 +72,43 @@ MUTANTS <- list(
     old = "    ratio_for_surface = dplyr::if_else(weighted_demand > 0, supply / weighted_demand, 0),\n    excluded_supply   = dplyr::if_else(weighted_demand > 0, 0, supply)\n  )",
     new = "    ratio_for_surface = dplyr::if_else(weighted_demand > 0, sum(supply) / sum(weighted_demand), 0),\n    excluded_supply   = dplyr::if_else(weighted_demand > 0, 0, supply)\n  )",
     why = "All providers share one pooled ratio: supply leaks between unrelated regions."),
+  # --- allocator: mass conservation is the whole point of this function --------
+  allocator_drops_area_share = list(
+    old = "    contrib <- popc[locid] * (area / tot[as.character(locid)])",
+    new = "    contrib <- popc[locid] * area",
+    suites = "tests/testthat/test-e2sfca-allocator-semantic-adversarial-2026-07-19.R",
+    why = "Area-weighted allocation loses its normaliser: population is multiplied by raw area, so the tract total no longer conserves."),
+  allocator_conservation_check_disabled = list(
+    old = "  if (worst > conservation_tol) {",
+    new = "  if (FALSE) {",
+    suites = "tests/testthat/test-e2sfca-allocator-semantic-adversarial-2026-07-19.R",
+    why = "The per-tract conservation guard is switched off, so a non-conserving allocation passes silently."),
+  # NOT INCLUDED: allocator_global_check_disabled.
+  # The global guard (`global_rel > conservation_tol`) is a redundant aggregate
+  # cross-check that cannot be reached while the per-tract guard is intact:
+  # global_rel is an aggregate of the same residuals, so it is never larger than
+  # the worst per-tract error, and the per-tract guard therefore always fires
+  # first. No test can kill a mutant of it without also disabling the per-tract
+  # guard. Established by analysis after it survived the corpus, and recorded
+  # here rather than quietly dropped -- it is defence in depth, not dead code,
+  # but it is untestable in isolation and this corpus does not pretend otherwise.
+
+  # --- URPS scenario supply ----------------------------------------------------
+  urps_scale_inverted = list(
+    old = "  scale <- ifelse(base_tot > 0, tgt / base_tot, 0)",
+    new = "  scale <- ifelse(base_tot > 0, base_tot / tgt, 0)",
+    file = URPS,
+    suites = c("tests/testthat/test-urps-accessibility-scenarios.R",
+               "tests/testthat/test-urps-accessibility-e2sfca-adapter.R"),
+    why = "Workforce-projection rescaling inverted: a scenario that should grow supply shrinks it."),
+  urps_reached_counts_all_tracts = list(
+    old = "    n_reached_tracts      = sum(a > 0),",
+    new = "      n_reached_tracts      = length(a),",
+    file = URPS,
+    suites = c("tests/testthat/test-urps-accessibility-scenarios.R",
+               "tests/testthat/test-urps-accessibility-e2sfca-adapter.R"),
+    why = "Every tract counts as reached regardless of access, inflating the SPAR denominator."),
+
   abel_tail_not_zero = list(
     old = "  next_w <- c(wp[-1L], 0)                       # W beyond the last band = 0",
     new = "  next_w <- c(wp[-1L], wp[length(wp)])          # W beyond the last band = 0",
@@ -78,9 +126,9 @@ MUTANTS <- list(
 )
 
 # --- harness ------------------------------------------------------------------
-original <- readLines(ENGINE, warn = FALSE)
-restore  <- function() writeLines(original, ENGINE)
-on.exit(restore(), add = TRUE)   # never leave a mutated engine behind
+originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
+restore <- function() for (f in TARGETS) writeLines(originals[[f]], f)
+on.exit(restore(), add = TRUE)   # never leave a mutated source behind
 
 run_suite <- function(path) {
   # Returns TRUE if the suite reported at least one failure or error.
@@ -101,17 +149,19 @@ cat("scientific mutation corpus:", length(MUTANTS), "mutants x",
 results <- list()
 for (nm in names(MUTANTS)) {
   m <- MUTANTS[[nm]]
-  txt <- paste(original, collapse = "\n")
+  target <- if (!is.null(m$file)) m$file else ENGINE
+  suites <- if (!is.null(m$suites)) m$suites else SUITES
+  txt <- paste(originals[[target]], collapse = "\n")
   hits <- lengths(regmatches(txt, gregexpr(m$old, txt, fixed = TRUE)))
   if (hits != 1L) {
-    cat(sprintf("  %-32s ANCHOR ERROR (%d matches)\n", nm, hits))
+    cat(sprintf("  %-32s ANCHOR ERROR in %s (%d matches)\n", nm, basename(target), hits))
     results[[nm]] <- list(killed = NA, by = NA_character_, hits = hits)
     next
   }
-  writeLines(strsplit(sub(m$old, m$new, txt, fixed = TRUE), "\n")[[1]], ENGINE)
+  writeLines(strsplit(sub(m$old, m$new, txt, fixed = TRUE), "\n")[[1]], target)
 
   killed_by <- NA_character_
-  for (s in SUITES) if (run_suite(s)) { killed_by <- basename(s); break }
+  for (s in suites) if (run_suite(s)) { killed_by <- basename(s); break }
   restore()
 
   results[[nm]] <- list(killed = !is.na(killed_by), by = killed_by, hits = 1L)
@@ -121,8 +171,9 @@ for (nm in names(MUTANTS)) {
 }
 
 restore()
-stopifnot(identical(readLines(ENGINE, warn = FALSE), original))
-cat("\nengine restored byte-identical\n")
+for (f in TARGETS)
+  stopifnot(identical(readLines(f, warn = FALSE), originals[[f]]))
+cat("\nall ", length(TARGETS), " mutated sources restored byte-identical\n", sep = "")
 
 survived <- names(Filter(function(r) isFALSE(r$killed), results))
 anchor_err <- names(Filter(function(r) is.na(r$killed), results))

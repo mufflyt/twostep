@@ -8,7 +8,7 @@
 #
 # DELIBERATE second CRS (NOT unified): EPSG:9311 (NAD83(2011) US National Atlas
 # Equal Area) is used by the older subspecialty-accessibility / bivariate-ADI modules
-# (R/calculate_subspecialty_accessibility.R,
+# (inst/scripts/calculate_subspecialty_accessibility.R,
 # inst/scripts/create_bivariate_map_access_x_adi.R).
 # The engine header documents that both 5070 and 9311 are used for equal-area work.
 # The drift scan below allows BOTH; it only fails on an unrecognised projected EPSG.

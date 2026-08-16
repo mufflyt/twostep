@@ -363,7 +363,7 @@ already exists and the core path already uses it.
 | CRS | Where | Role |
 |---|---|---|
 | **5070** (NAD83 CONUS Albers) | engine `E2SFCA_AREA_CRS`, seam gate, `map_allsubspec`, `map_go`, `run_2sfca` (all already reference the constant) | **CANONICAL** (`E2SFCA_AREA_CRS`, engine, seam-validated) |
-| **9311** (NAD83(2011) US National Atlas Equal Area) | `R/calculate_subspecialty_accessibility.R`, `inst/scripts/create_bivariate_map_access_x_adi.R` | **deliberate alt** for the older subspecialty/bivariate subsystems — preserved |
+| **9311** (NAD83(2011) US National Atlas Equal Area) | `inst/scripts/calculate_subspecialty_accessibility.R`, `inst/scripts/create_bivariate_map_access_x_adi.R` | **deliberate alt** for the older subspecialty/bivariate subsystems — preserved |
 | `5070` literals | `map_2sfca_coverage_by_year.R` (`CRS5070 <- 5070L`), `desjardins7/06`, `manuscript_catalog/*`, captions | duplicates/standalone/display |
 
 **Adjudication:** the engine header explicitly documents 5070+9311 coexistence, so a

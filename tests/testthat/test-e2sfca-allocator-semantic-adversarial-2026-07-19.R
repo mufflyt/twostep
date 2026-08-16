@@ -271,3 +271,41 @@ test_that("allocation length mismatch between pop and tracts is rejected", {
   # pop has length 1 but there are 2 tracts -> stopifnot in the allocator.
   expect_error(allocate_pop_areaweighted(tmpl, tr, pop = 100))
 })
+
+# ==============================================================================
+# 8. The conservation GUARDS themselves must fire.
+# ==============================================================================
+# Added 2026-08-16 after the scientific mutation corpus
+# (tools/ci/mutation_corpus.R) showed that replacing the per-tract conservation
+# check with `if (FALSE)` was killed by NO test. The allocator's whole purpose is
+# mass conservation, and its safety net was untested: every existing test
+# confirmed that conservation HOLDS, none confirmed that a violation would be
+# CAUGHT. Those are different claims, and only the second one protects you when
+# the arithmetic changes.
+test_that("the per-tract conservation guard fires when the tolerance is exceeded", {
+  tmpl <- .tmpl2()
+  tr   <- .sf_polys(list(.rect2(0, 2000, 0, 2000), .rect2(2000, 4000, 0, 2000)),
+                    c("A", "B"))
+  # A negative tolerance makes any conservation error at all -- including the
+  # unavoidable floating-point residue -- exceed it, so a wired-up guard MUST
+  # raise. With the guard disabled this call returns quietly and the test fails.
+  expect_error(
+    allocate_pop_areaweighted(tmpl, tr, pop = c(1000, 3000), conservation_tol = -1),
+    # SPECIFIC on purpose. A loose "conservation error" would also match the
+    # GLOBAL guard, so disabling the per-tract one would still pass.
+    "per-tract conservation error")
+})
+
+test_that("the allocator refuses inputs that would silently lose population", {
+  tmpl <- .tmpl2()
+  tr   <- .sf_polys(list(.rect2(0, 2000, 0, 2000)), "A")
+  # Negative source population is meaningless and must not be coerced away.
+  expect_error(allocate_pop_areaweighted(tmpl, tr, pop = -5),
+               "negative source population")
+  # A tract carrying population that falls entirely outside the template would
+  # drop that population on the floor; the allocator must refuse rather than
+  # quietly under-count.
+  far <- .sf_polys(list(.rect2(1e6, 1e6 + 1000, 1e6, 1e6 + 1000)), "FAR")
+  expect_error(allocate_pop_areaweighted(tmpl, far, pop = 250),
+               "zero template overlap|refusing to drop population")
+})

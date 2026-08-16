@@ -7,6 +7,6 @@ scripts/*
 R/desjardins7_e2sfca.R
 inst/scripts/create_bivariate_map_access_x_adi.R
 R/generate_bivariate_choropleth.R
-R/calculate_subspecialty_accessibility.R
+inst/scripts/calculate_subspecialty_accessibility.R
 # Rendered outputs.
 *.html
