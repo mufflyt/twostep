@@ -76,6 +76,29 @@ checks <- c(
   "unrendered chunk options"   = report("unrendered knitr option", "```\\{r|\\{r [a-z]")
 )
 
+# --- year-consistency gates --------------------------------------------------
+plain <- trimws(gsub("\\s+", " ", txt))
+capture_year <- function(label, pattern) {
+  m <- regexec(pattern, plain, perl = TRUE)
+  hit <- regmatches(plain, m)[[1]]
+  if (!length(hit)) {
+    bad("could not find ", label, " year in rendered prose")
+    return(NA_integer_)
+  }
+  as.integer(hit[2])
+}
+
+fig1_year <- capture_year(
+  "Figure 1",
+  "Figure 1\\. Potential spatial accessibility to each obstetrics-gynecology subspecialty, ([0-9]{4}),")
+table1_year <- capture_year(
+  "Table 1",
+  "Table 1\\. Active Workforce and Standardized Supply per Population by Obstetrics-Gynecology Subspecialty, ([0-9]{4})")
+if (!is.na(fig1_year) && !is.na(table1_year) && fig1_year != table1_year) {
+  bad(sprintf("Figure 1 year (%d) and Table 1 year (%d) disagree",
+              fig1_year, table1_year))
+}
+
 # --- structural sanity -------------------------------------------------------
 cat("\nstructure:\n")
 n_img <- lengths(regmatches(raw, gregexpr("<img ", raw, fixed = TRUE)))
