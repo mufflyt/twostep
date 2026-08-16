@@ -45,6 +45,15 @@ on:
 permissions:
   contents: read
 
+# remotes:: hits the GitHub API to resolve the mufflyaccess remote. Without a
+# token it works on push (ambient credentials) but FAILS on Dependabot pull
+# requests, which run with a restricted context: "GitHub authentication
+# credentials are not available / failed to resolve remote 'mufflyt/mufflyaccess'".
+# Every Dependabot PR therefore showed a spurious red. pr-scientific-gate.yml
+# already sets this, which is why it passed on the same PRs.
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
