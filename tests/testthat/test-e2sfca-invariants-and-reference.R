@@ -171,23 +171,35 @@ test_that("all THREE implementations agree: production, loop, and matrix algebra
     expect_identical(sort(prod$GEOID), sort(mat$GEOID))
     loop <- loop[match(prod$GEOID, loop$GEOID), ]
     mat  <- mat[match(prod$GEOID, mat$GEOID), ]
-    expect_equal(prod$access, loop$access, tolerance = 1e-10)
-    expect_equal(prod$access, mat$access,  tolerance = 1e-10)
+    # Compared on the ALGEBRAIC column. Both references zero-fill unreached
+    # tracts, which is the mathematical form; production's public `access` is
+    # the scientific form and is NA there. The algebra is what these three
+    # implementations are meant to agree about.
+    expect_equal(prod$access_math, loop$access, tolerance = 1e-10)
+    expect_equal(prod$access_math, mat$access,  tolerance = 1e-10)
   }
 })
 
-test_that("a tract no provider reaches keeps access 0 and is never dropped", {
+test_that("a tract no provider reaches is never dropped, and is marked outside the model", {
   # Dropping an unreached tract would silently shrink every denominator built
   # from this output. Production keeps it via left_join(distinct(pop, GEOID));
   # both references were originally keyed off `overlap` and DID drop it, which
   # is how this was found.
+  #
+  # Was: `access == 0` for those tracts. That kept them in the table at the cost
+  # of asserting they had been measured at zero. They are retained with an
+  # algebraic zero and a scientific NA, so the denominator is still right and
+  # the claim is no longer made.
   fx <- make_fixture(8L, n_prov = 2L, n_tract = 5L)
   unreached <- setdiff(fx$tract_pop$GEOID, unique(fx$overlap$GEOID))
   expect_gt(length(unreached), 0)                     # the fixture really has one
   prod <- prod_access(fx)
   expect_true(all(fx$tract_pop$GEOID %in% prod$GEOID))
-  expect_equal(prod$access[prod$GEOID %in% unreached],
+  expect_equal(prod$access_math[prod$GEOID %in% unreached],
                rep(0, length(unreached)), tolerance = 1e-12)
+  expect_true(all(is.na(prod$access[prod$GEOID %in% unreached])))
+  expect_true(all(prod$coverage_status[prod$GEOID %in% unreached] ==
+                    "outside_all_modeled_catchments"))
   for (f in list(ref_e2sfca, ref_e2sfca_matrix)) {
     r <- f(fx$overlap, fx$tract_pop, fx$supply, W4)
     expect_true(all(fx$tract_pop$GEOID %in% r$GEOID))

@@ -117,7 +117,12 @@ W4 <- E2SFCA_DEFAULT_WEIGHTS
 prod_access <- function(fx, W = E2SFCA_DEFAULT_WEIGHTS, ...) {
   r <- compute_e2sfca(fx$overlap, fx$tract_pop, fx$supply, weights = W, ...)
   a <- as.data.frame(r$access)
-  a[order(a$GEOID), c("GEOID", "access")]
+  # Carries both score columns: `access` is the scientific value (NA outside
+  # every modelled catchment) and `access_math` the algebraic zero-filled form.
+  # Reference implementations in these tests compute the algebraic form, so
+  # invariant comparisons use `access_math`; anything asserting what a reader
+  # would see uses `access`.
+  a[order(a$GEOID), c("GEOID", "access", "access_math", "coverage_status")]
 }
 
 # --- randomized fixture ------------------------------------------------------

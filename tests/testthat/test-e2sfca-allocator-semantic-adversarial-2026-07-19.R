@@ -178,17 +178,24 @@ test_that("compute_provider_supply drops NA-subspecialty rows and returns no ori
 # ==============================================================================
 # 5. compute_e2sfca: empty supply and zero-population edges never leak Inf/NaN
 # ==============================================================================
-test_that("compute_e2sfca with an empty cohort gives every tract zero access, no NaN", {
+test_that("compute_e2sfca with an empty cohort leaves every tract outside the model, no NaN", {
   overlap <- dplyr::tibble(coord_id = "A", band = 30L, GEOID = "T1",
                            overlap_fraction = 1)
   tractpop <- dplyr::tibble(GEOID = c("T1", "T2"), female_pop = c(100, 200))
   supply_empty <- dplyr::tibble(coord_id = character(0), supply = integer(0))
   res <- compute_e2sfca(overlap, tractpop, supply_empty, weights = c("30" = 1.0),
                         pop_col = "female_pop", per_capita_scale = 1)
-  # Every tract present in tract_pop still gets a row, all access exactly 0.
+  # Every tract present in tract_pop still gets a row. With no modelled
+  # provider there is no catchment, so no tract is inside one -- the scientific
+  # value is NA rather than a measured zero. (Was: `all(access == 0)`, which
+  # said an empty cohort had been measured and found to supply nothing.)
   expect_setequal(res$access$GEOID, c("T1", "T2"))
-  expect_true(all(res$access$access == 0))
-  expect_true(all(is.finite(res$access$access)))
+  expect_true(all(is.na(res$access$access)))
+  expect_true(all(res$access$coverage_status == "outside_all_modeled_catchments"))
+  # The algebraic form is still exactly 0 and still finite -- the NaN guard this
+  # test exists for is unchanged.
+  expect_true(all(res$access$access_math == 0))
+  expect_true(all(is.finite(res$access$access_math)))
   expect_true(all(res$access$n_providers == 0L))
 })
 
