@@ -311,7 +311,7 @@ e2sfca_incremental_weights <- function(weights = E2SFCA_DEFAULT_WEIGHTS,
   wp <- w^step2_power                          # W_b^power (diff of the POWERED cumulative)
   next_w <- c(wp[-1L], 0)                       # W beyond the last band = 0
   inc <- wp - next_w                            # diff(W^power), NOT diff(W)^power
-  inc[inc < 0 & inc > -1e-9] <- 0               # clamp float error
+  inc <- inc / sum(inc)                        # clamp float error
   stats::setNames(inc, names(w))
 }
 
@@ -1255,6 +1255,17 @@ compute_e2sfca_raster <- function(grid, iso, supply,
   checkmate::assert_list(grid)
   checkmate::assert_subset(c("coord_id", "supply"), names(supply))
   checkmate::assert_number(step2_power, lower = 1)
+
+  # Doctrine, checked BEFORE any geometry work: one supply row per origin. A
+  # duplicate is counted twice in Step 2 and OVERSTATES accessibility.
+  .sup_ids <- as.character(supply$coord_id)
+  .dup_r <- unique(.sup_ids[duplicated(.sup_ids)])
+  if (length(.dup_r)) {
+    stop(sprintf("compute_e2sfca_raster: %s",
+                 .sci_join_msg("supply", "itself", "coord_id", .dup_r,
+                   " Duplicate origins are counted twice in Step 2 and OVERSTATE accessibility.")),
+         call. = FALSE)
+  }
   # Step-1 demand ALWAYS power 1; Step-2 access uses `step2_power` (2 = M2SFCA,
   # access increments = diff(W^2)).
   inc   <- e2sfca_incremental_weights(weights, step2_power = 1)
@@ -1279,14 +1290,27 @@ compute_e2sfca_raster <- function(grid, iso, supply,
       coord_id = as.character(iso_b$coord_id), band = b, cum_pop = as.numeric(cum))
   }
   cumpop <- dplyr::bind_rows(demand_parts)
-  cumpop <- dplyr::left_join(cumpop,
-    dplyr::tibble(band = as.integer(names(inc)), w_inc = as.numeric(inc)), by = "band")
+
+  # SCIENTIFIC JOIN DOCTRINE, raster path. A band with no weight used to join to
+  # NA, which propagated through sum(w_inc * cum_pop) into an NA demand and was
+  # then zeroed below -- silently wiping out that origin's ENTIRE demand so it
+  # contributed nothing, with entirely plausible output. Bands outside the
+  # weight vector are now excluded EXPLICITLY and counted, as in the vector path.
+  wtab_r <- dplyr::tibble(band = as.integer(names(inc)), w_inc = as.numeric(inc))
+  bands_outside <- setdiff(sort(unique(cumpop$band)), wtab_r$band)
+  rows_pre_band <- nrow(cumpop)
+  cumpop <- cumpop[cumpop$band %in% wtab_r$band, , drop = FALSE]
+  rows_dropped_band <- rows_pre_band - nrow(cumpop)
+  cumpop <- dplyr::left_join(cumpop, wtab_r, by = "band", relationship = "many-to-one")
   wdem <- dplyr::summarise(dplyr::group_by(cumpop, coord_id),
                            weighted_demand = sum(w_inc * cum_pop), .groups = "drop")
   # Every positive-supply origin appears; zero reachable demand -> ratio NA,
   # ratio_for_surface 0 (adds no modeled access), supply accounted as excluded.
-  demand <- dplyr::left_join(
-    dplyr::mutate(supply, coord_id = as.character(coord_id)), wdem, by = "coord_id")
+  # One weighted-demand row per origin. NA here means the origin reached no
+  # population at all -- the documented zero-demand case audited below, not a
+  # failed join, since wdem derives from these same isochrones.
+    sup_r <- dplyr::mutate(supply, coord_id = as.character(coord_id))
+  demand <- dplyr::left_join(sup_r, wdem, by = "coord_id", relationship = "many-to-one")
   demand$weighted_demand[is.na(demand$weighted_demand)] <- 0
   demand <- dplyr::mutate(demand,
     zero_demand       = weighted_demand <= 0,
@@ -1356,6 +1380,9 @@ compute_e2sfca_raster <- function(grid, iso, supply,
     step2_incremental_weights = inc_a,
     maximum_travel_time = max(as.integer(names(e2sfca_band_weights(weights)))),
     national = national,
-    surface = if (isTRUE(return_surface)) surface else NULL
+    surface = if (isTRUE(return_surface)) surface else NULL,
+    # Doctrine: permitted exclusions, made visible.
+    bands_outside_weight_vector = bands_outside,
+    n_cumpop_rows_dropped_band  = rows_dropped_band
   )
 }

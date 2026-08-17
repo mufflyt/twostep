@@ -242,8 +242,19 @@ dj7_tract_access <- function(membership, supply, dvec, Wc = DJ7_WC_BASE) {
   for (bb in bands) {
     m <- membership[[bb]]
     if (is.null(m) || nrow(m) == 0) next
+    # SCIENTIFIC JOIN DOCTRINE. A tract inside a band with no demand entry used
+    # to be silently zeroed, removing its residents from the denominator and
+    # INFLATING accessibility -- the same failure the main engine now refuses.
+    # Missing demand is unknown, not empty.
+    miss_g <- setdiff(unique(as.character(m$GEOID)), names(dvec))
+    if (length(miss_g)) {
+      stop(sprintf("dj7_tract_access: %s",
+                   .sci_join_msg(sprintf("membership[[%s]]", bb), "dvec", "GEOID",
+                     miss_g, " Missing demand is unknown, not zero: zeroing it would drop those residents from the denominator and inflate accessibility.")),
+           call. = FALSE)
+    }
     d <- dvec[as.character(m$GEOID)]
-    d[is.na(d)] <- 0
+    d[is.na(d)] <- 0        # explicit NA in dvec, distinct from an absent key
     cp <- tapply(d, as.character(m$coord_id), sum)
     add <- as.numeric(cp); names(add) <- names(cp)
     hit <- intersect(names(add), names(Dj))
@@ -267,6 +278,16 @@ dj7_tract_access <- function(membership, supply, dvec, Wc = DJ7_WC_BASE) {
   parts <- strsplit(names(wmax), "\r", fixed = TRUE)
   gg <- vapply(parts, `[`, character(1), 1L)
   cc <- vapply(parts, `[`, character(1), 2L)
+  # An origin present in the membership with no supply-to-demand ratio is an
+  # unmatched key, not a zero. Excluding origins without supply is legitimate and
+  # happens upstream; reaching here means the two tables disagree.
+  miss_c <- setdiff(unique(cc), names(Rj))
+  if (length(miss_c)) {
+    stop(sprintf("dj7_tract_access: %s",
+                 .sci_join_msg("membership", "Rj", "coord_id", miss_c,
+                   " An origin with no ratio cannot be treated as contributing zero without hiding a table mismatch.")),
+         call. = FALSE)
+  }
   rj <- Rj[cc]; rj[is.na(rj)] <- 0
   contrib <- as.numeric(wmax) * rj
   A <- tapply(contrib, gg, sum)
