@@ -485,6 +485,42 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
   dplyr::filter(supply, supply > 0)
 }
 
+# =============================================================================
+# SCIENTIFIC JOIN DOCTRINE
+# =============================================================================
+#   No silent loss.           An unmatched scientific key -- tract, provider,
+#                             year, vintage -- never silently disappears. Either
+#                             it stops the calculation, or an explicit upstream
+#                             rule permits the exclusion AND that exclusion is
+#                             counted and reported in the audit.
+#   No silent multiplication. A many-to-many join is permitted only where the
+#                             data model declares it (a provider legitimately
+#                             reaching many tracts through the overlap table).
+#                             Everywhere else dplyr is told to error, not warn.
+#   No silent zeroing.        A recorded 0 is a measurement. A missing record or
+#                             an NA is not zero and must not become one.
+#
+# Every diagnostic says WHAT joined to WHAT, HOW MANY keys failed, and shows
+# representative offending ids, so a data problem is auditable on sight rather
+# than requiring a bisect.
+
+#' Standard message for an unmatched scientific join key.
+#' @keywords internal
+.sci_join_msg <- function(lhs, rhs, by, ids, extra = "") {
+  sprintf(
+    "%s -> %s joined on `%s`: %d key(s) in %s have no match in %s (%s%s).%s",
+    lhs, rhs, paste(by, collapse = "`, `"), length(ids), lhs, rhs,
+    paste(utils::head(ids, 5), collapse = ", "),
+    if (length(ids) > 5) sprintf(" and %d more", length(ids) - 5L) else "",
+    extra)
+}
+
+#' Keys present on the left of a join with no match on the right.
+#' @keywords internal
+.unmatched_keys <- function(x, y, by) {
+  setdiff(unique(as.character(x[[by]])), unique(as.character(y[[by]])))
+}
+
 #' Core E2SFCA computation for one (subspecialty, year) cell.
 #'
 #' Given the year-agnostic overlap table, the year's tract population, and the
@@ -629,15 +665,27 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
   }
   pop$pop[is.na(pop$pop)] <- 0
 
-  # Restrict overlap to active providers (supply > 0): providers with no
-  # supply contribute R_j = 0 and cannot affect any tract's access.
-  base <- dplyr::inner_join(
-    dplyr::mutate(overlap, coord_id = as.character(coord_id),
-                  GEOID = as.character(GEOID)),
-    dplyr::mutate(supply, coord_id = as.character(coord_id)),
-    by = "coord_id"
-  )
-  base <- dplyr::inner_join(base, wtab, by = "band")
+  # Restrict overlap to active providers (supply > 0): providers with no supply
+  # contribute R_j = 0 and cannot affect any tract's access. That is an EXPLICIT
+  # upstream rule, so the exclusion is permitted -- but it is not allowed to be
+  # silent. Count it and name it, so "my provider vanished" is answerable from
+  # the audit instead of by bisecting the pipeline.
+  ov_chr  <- dplyr::mutate(overlap, coord_id = as.character(coord_id),
+                           GEOID = as.character(GEOID))
+  sup_chr <- dplyr::mutate(supply, coord_id = as.character(coord_id))
+  dropped_coords <- .unmatched_keys(ov_chr, sup_chr, "coord_id")
+  n_rows_before <- nrow(ov_chr)
+  base <- dplyr::inner_join(ov_chr, sup_chr, by = "coord_id",
+                            relationship = "many-to-one")
+  dropped_overlap_rows <- n_rows_before - nrow(base)
+
+  # Bands outside the supplied weight vector are not part of the model. Also an
+  # explicit rule, also audited rather than silent: a band silently dropped here
+  # would remove real catchment area from every denominator.
+  dropped_bands <- setdiff(sort(unique(base$band)), as.integer(names(inc_d)))
+  n_rows_pre_band <- nrow(base)
+  base <- dplyr::inner_join(base, wtab, by = "band", relationship = "many-to-one")
+  dropped_band_rows <- n_rows_pre_band - nrow(base)
   # relationship = "many-to-one": one population record per tract. An accidental
   # many-to-many join here would MULTIPLY that tract's population through every
   # denominator while producing entirely plausible numbers, so dplyr is told to
@@ -706,7 +754,14 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
     supply_zero_demand       = sum(demand$supply[demand$zero_demand]),
     share_supply_zero_demand = if (supply_total > 0)
       sum(demand$supply[demand$zero_demand]) / supply_total else 0,
-    zero_demand_coord_ids    = demand$coord_id[demand$zero_demand]
+    zero_demand_coord_ids    = demand$coord_id[demand$zero_demand],
+    # Doctrine: exclusions permitted by explicit rule, made visible so they can
+    # never be silent.
+    n_coords_without_supply  = length(dropped_coords),
+    coords_without_supply    = utils::head(dropped_coords, 20),
+    n_overlap_rows_dropped_no_supply = dropped_overlap_rows,
+    bands_outside_weight_vector = dropped_bands,
+    n_overlap_rows_dropped_band = dropped_band_rows
   )
 
   # ---- Coverage status: measured zero vs never modelled ---------------------

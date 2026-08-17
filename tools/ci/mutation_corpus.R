@@ -124,7 +124,7 @@ MUTANTS <- list(
   # These attack the surface where a real study fails: correct math attached to
   # the wrong rows. Each is chosen to produce PLAUSIBLE output rather than crash.
   join_provider_tract_by_position = list(
-    old = "  base <- dplyr::inner_join(base, wtab, by = \"band\")",
+    old = "  base <- dplyr::inner_join(base, wtab, by = \"band\", relationship = \"many-to-one\")",
     new = "  base <- dplyr::bind_cols(base, wtab[rep_len(seq_len(nrow(wtab)), nrow(base)), c(\"w_inc\",\"w_acc\")])",
     suites = STUDY,
     why = "Band weights attached by ROW POSITION instead of joined on band: every row still gets a weight, and the numbers stay plausible."),

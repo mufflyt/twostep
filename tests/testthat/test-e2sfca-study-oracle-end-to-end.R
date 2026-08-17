@@ -528,3 +528,58 @@ test_that("the corpus mutant target still exists: unmatched tracts cannot reach 
   expect_equal(as.data.frame(r$provider_ratios)$weighted_demand[1],
                0.32 * 1000 + 0.68 * (1000 + 0.5 * 500), tolerance = 1e-9)
 })
+
+# =============================================================================
+# NO SILENT LOSS: permitted exclusions must still be visible
+# =============================================================================
+test_that("a provider in the overlap with no supply record is EXCLUDED BUT REPORTED", {
+  # compute_provider_supply drops coordinates with no physicians of the
+  # subspecialty, so such a coord_id appears in the overlap table and not in
+  # supply. Excluding it is correct -- it contributes R_j = 0 -- but it must not
+  # be silent, or "my provider vanished" can only be answered by bisecting.
+  is <- study_iso_sf()
+  ghost <- is[1, ]
+  sf::st_geometry(ghost) <- sf::st_sfc(.rect(0, 1000, 0, 1000), crs = 5070)
+  ghost$coord_id <- "PGHOST"; ghost$drive_time_minutes <- 30L
+  r <- run_study(iso = rbind(is, ghost))     # no cohort/map entry for PGHOST
+
+  expect_equal(r$res$audit$n_coords_without_supply, 1)
+  expect_true("PGHOST" %in% r$res$audit$coords_without_supply)
+  expect_gt(r$res$audit$n_overlap_rows_dropped_no_supply, 0)
+  # And the science is unchanged: a provider with no supply cannot move anyone.
+  for (g in A_TRACTS)
+    expect_equal(accm_of(r, g), accm_of(S, g), tolerance = TOL, info = g)
+})
+
+test_that("a band outside the weight vector is EXCLUDED BUT REPORTED", {
+  # Feeding only the 30-minute weight means every 60-minute row leaves the model.
+  # That is a legitimate narrowing, and it must be counted: a silently dropped
+  # band removes real catchment area from every denominator.
+  r <- run_study(W = c("30" = 1.00))
+  expect_true(60L %in% r$res$audit$bands_outside_weight_vector)
+  expect_gt(r$res$audit$n_overlap_rows_dropped_band, 0)
+  # Nothing silently vanished: the dropped rows are accounted for.
+  expect_equal(r$res$audit$n_overlap_rows_dropped_band,
+               sum(S$overlap$band == 60 &
+                     S$overlap$coord_id %in% r$ratios$coord_id))
+})
+
+test_that("a clean study reports ZERO exclusions", {
+  # The counters must be meaningful, not decorative: on the untouched fixture
+  # every one of them is zero.
+  expect_equal(S$res$audit$n_coords_without_supply, 0)
+  expect_equal(S$res$audit$n_overlap_rows_dropped_no_supply, 0)
+  expect_equal(length(S$res$audit$bands_outside_weight_vector), 0)
+  expect_equal(S$res$audit$n_overlap_rows_dropped_band, 0)
+})
+
+test_that("the unmatched-key diagnostic names what joined to what", {
+  ids <- c("A01", "A02", "A03", "A04", "A05", "A06", "A07")
+  m <- .sci_join_msg("overlap", "tract_pop", "GEOID", ids, " Vintage mismatch.")
+  expect_match(m, "overlap -> tract_pop")          # what joined to what
+  expect_match(m, "joined on `GEOID`")             # on which key
+  expect_match(m, "7 key\\(s\\)")                  # how many failed
+  expect_match(m, "A01, A02, A03, A04, A05")       # representative ids
+  expect_match(m, "and 2 more")                    # truncated, not hidden
+  expect_match(m, "Vintage mismatch")
+})
