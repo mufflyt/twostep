@@ -129,9 +129,12 @@ MUTANTS <- list(
     suites = STUDY,
     why = "Band weights attached by ROW POSITION instead of joined on band: every row still gets a weight, and the numbers stay plausible."),
   missing_population_becomes_zero_silently = list(
-    old = "  base$pop[is.na(base$pop)] <- 0",
-    new = "  base$pop[is.na(base$pop)] <- 1",
-    why = "Unmatched tracts get population 1 instead of 0 -- a tract that failed to join contributes phantom demand.",
+    # Re-pointed after the fail-closed change: unmatched tracts now ERROR, so the
+    # old anchor is gone. The imputation still exists on the explicit
+    # na_pop_policy = "zero" path, which the study suite exercises deliberately.
+    old = "  pop$pop[is.na(pop$pop)] <- 0",
+    new = "  pop$pop[is.na(pop$pop)] <- 1",
+    why = "Declared-zero imputation writes 1 instead of 0 -- an NA population becomes phantom demand on the one path where imputation is still permitted.",
     suites = STUDY),
   aggregate_unweighted_instead_of_population_weighted = list(
     old = "    access = sum(wf_a * ratio_for_surface),",

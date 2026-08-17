@@ -289,19 +289,78 @@ test_that("integer and double population columns agree exactly", {
   for (g in A_TRACTS) expect_equal(acc_of(ri, g), acc_of(rd, g), tolerance = 1e-15)
 })
 
-test_that("MISSING population is not silently treated as a real zero", {
-  # NA population is imputed to 0 by the engine. That is a documented choice, so
-  # this pins it and states the consequence rather than asserting it is right:
-  # a tract with UNKNOWN population contributes nothing to any denominator,
-  # exactly as if it were empty. The two are scientifically different.
+# =============================================================================
+# MISSING POPULATION IS NOT ZERO POPULATION
+# =============================================================================
+# Policy adopted after this suite showed the old behaviour inflated
+# accessibility: a tract whose population is UNKNOWN was treated as empty,
+# removing its residents from the Step 1 denominator and raising every affected
+# provider's ratio. Accessibility improved because data disappeared.
+#
+#   record present, value 0   -> valid measurement, proceed
+#   record present, value NA  -> unknown, FAIL
+#   record absent entirely    -> unmatched join, FAIL
+#
+test_that("an explicit ZERO population is valid and still proceeds", {
+  # A04 carries a literal 0 throughout the fixture and must never be confused
+  # with a missing record. This is the case the fail-closed rule must NOT break.
+  expect_equal(study_tract_pop()$female_pop[study_tract_pop()$GEOID == "A04"], 0)
+  expect_silent(r <- run_study())
+  expect_equal(acc_of(S, "A04"), 0)
+  expect_true(S$access$reached[match("A04", S$access$GEOID)])
+})
+
+test_that("FAIL CLOSED: NA population is refused, not coerced to zero", {
   po <- study_tract_pop(); po$female_pop[po$GEOID == "A02"] <- NA
-  r <- run_study(pop = po)
-  expect_true(all(is.finite(r$access$access_math)))
-  # A02's 2000 people leave the denominator, so PA1's ratio must RISE.
-  expect_gt(r$ratios$ratio_for_surface[r$ratios$coord_id == "PA1"],
-            ORACLE$stage_4_provider_ratio$PA1)
-  expect_equal(r$ratios$weighted_demand[r$ratios$coord_id == "PA1"],
-               0.32 * 1000 + 0.68 * 1000 + 0.68 * 0.5 * 500, tolerance = 1e-9)
+  expect_error(run_study(pop = po), "NA in population column")
+  expect_error(run_study(pop = po), "A02")                  # names the tract
+  expect_error(run_study(pop = po), "inflate accessibility") # states the direction
+  # The escape hatch exists but must be taken deliberately, never by default.
+  sup <- compute_provider_supply(study_year_coord_map(), study_cohort(), "GO", 2020L)
+  ov  <- compute_band_tract_overlap(study_iso_sf(), study_tracts_sf(), verbose = FALSE)
+  expect_silent(compute_e2sfca(ov, po, sup, weights = STUDY_W, na_pop_policy = "zero"))
+})
+
+test_that("FAIL CLOSED: a tract in a catchment with NO population record is refused", {
+  po <- study_tract_pop(); po <- po[po$GEOID != "A02", ]    # A02 is reached
+  expect_error(run_study(pop = po), "NO population record")
+  expect_error(run_study(pop = po), "A02")
+  expect_error(run_study(pop = po), "unmatched POPULATION JOIN")
+})
+
+test_that("FAIL CLOSED: a wrong-year population join is refused and reports the years", {
+  # The realistic form of the bug: the right tracts for the wrong year, so the
+  # GEOIDs do not line up and every reached tract goes unmatched.
+  po <- study_tract_pop()
+  po$GEOID <- sub("^A", "Y", po$GEOID)                      # a different vintage's ids
+  po$analysis_year <- 2010L
+  expect_error(run_study(pop = po), "NO population record")
+  expect_error(run_study(pop = po), "year/vintage/GEOID mismatch")
+  expect_error(run_study(pop = po), "2010")                 # surfaces the year present
+})
+
+test_that("FAIL CLOSED: a GEOID vintage mismatch is refused", {
+  po <- study_tract_pop(); po$GEOID <- paste0("08", po$GEOID)  # state-prefixed ids
+  expect_error(run_study(pop = po), "NO population record")
+})
+
+test_that("detection does not depend on row order", {
+  po <- study_tract_pop(); po <- po[po$GEOID != "A02", ]
+  for (ord in list(rev(seq_len(nrow(po))), sample(nrow(po)), order(po$GEOID))) {
+    expect_error(run_study(pop = po[ord, , drop = FALSE]), "NO population record")
+  }
+  po2 <- study_tract_pop(); po2$female_pop[po2$GEOID == "A02"] <- NA
+  for (ord in list(rev(seq_len(nrow(po2))), sample(nrow(po2)))) {
+    expect_error(run_study(pop = po2[ord, , drop = FALSE]), "NA in population column")
+  }
+})
+
+test_that("an unexpected many-to-many population join is an error, not a warning", {
+  # dplyr previously WARNED here and the pipeline carried on. In an accessibility
+  # model a many-to-many join multiplies a tract's population through every
+  # denominator while the output stays entirely plausible.
+  po <- study_tract_pop(); po <- rbind(po, po[po$GEOID == "A02", ])
+  expect_error(run_study(pop = po), "duplicate GEOID in tract_pop")
 })
 
 test_that("a physician with a placeholder location is excluded from supply", {
@@ -453,31 +512,19 @@ test_that("changing the linear unit of the geometry cannot change conclusions", 
   for (g in A_TRACTS) expect_equal(acc_of(r, g), acc_of(S, g), tolerance = 1e-9, info = g)
 })
 
-test_that("a tract in a catchment but ABSENT from the population table contributes no demand", {
-  # FOUND BY THE MUTATION CORPUS. missing_population_becomes_zero_silently
-  # survived every other test because every tract in this fixture had a
-  # population row, so the NA-imputation branch never executed. Nothing in the
-  # repository tested a BROKEN JOIN: a tract a provider genuinely reaches, that
-  # is missing from the demand table entirely.
-  #
-  # Current behaviour, pinned here: the tract is imputed to population 0 and
-  # therefore contributes nothing to any Step 1 denominator. The consequence is
-  # that a failed population join RAISES every affected provider's ratio and
-  # OVERSTATES accessibility -- the flattering direction. That is a real
-  # scientific choice, not an implementation detail, and it is recorded rather
-  # than assumed: fail-closed would be defensible too, and this test is where
-  # that decision would be changed.
-  po <- study_tract_pop()
-  po <- po[po$GEOID != "A02", ]        # A02 is reached by PA1 and PA2
-  r <- run_study(pop = po)
-
-  # PA1's denominator loses A02 entirely: 0.32*1*1000 + 0.68*(1*1000 + 0.5*500).
-  expect_equal(r$ratios$weighted_demand[r$ratios$coord_id == "PA1"],
+test_that("the corpus mutant target still exists: unmatched tracts cannot reach the imputation", {
+  # missing_population_becomes_zero_silently mutates the NA-imputation branch.
+  # Under the fail-closed contract that branch is now unreachable for unmatched
+  # tracts, so this asserts the ERROR path is what runs -- which is what kills
+  # the mutant, since a mutated imputation can never execute.
+  po <- study_tract_pop(); po <- po[po$GEOID != "A02", ]
+  expect_error(run_study(pop = po), "NO population record")
+  # And under the explicit opt-in the imputation DOES run, so the mutant has a
+  # live target and remains killable rather than becoming dead code.
+  sup <- compute_provider_supply(study_year_coord_map(), study_cohort(), "GO", 2020L)
+  ov  <- compute_band_tract_overlap(study_iso_sf(), study_tracts_sf(), verbose = FALSE)
+  po2 <- study_tract_pop(); po2$female_pop[po2$GEOID == "A02"] <- NA
+  r <- compute_e2sfca(ov, po2, sup, weights = STUDY_W, na_pop_policy = "zero")
+  expect_equal(as.data.frame(r$provider_ratios)$weighted_demand[1],
                0.32 * 1000 + 0.68 * (1000 + 0.5 * 500), tolerance = 1e-9)
-  # PA2 reaches ONLY A02, so it now has no demand at all and must be audited
-  # rather than divided by.
-  expect_equal(r$ratios$weighted_demand[r$ratios$coord_id == "PA2"], 0)
-  expect_true("PA2" %in% r$res$audit$zero_demand_coord_ids)
-  # And the overstatement is explicit: A01's accessibility RISES.
-  expect_gt(acc_of(r, "A01"), acc_of(S, "A01"))
 })

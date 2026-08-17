@@ -11,7 +11,8 @@ compute_e2sfca(
   weights = E2SFCA_DEFAULT_WEIGHTS,
   step2_power = 1,
   pop_col = "female_pop",
-  per_capita_scale = 1e+05
+  per_capita_scale = 1e+05,
+  na_pop_policy = c("error", "zero")
 )
 }
 \arguments{
@@ -33,6 +34,14 @@ demand-side sum; this is the M2SFCA-style sensitivity lever.}
 
 \item{per_capita_scale}{Multiply the accessibility index by this (default
 1e5 → "subspecialists per 100,000 women").}
+
+\item{na_pop_policy}{What to do when `pop_col` contains `NA`. `"error"`
+(default) refuses: NA is UNKNOWN population, and silently treating it as
+zero removes those residents from the Step 1 denominator and INFLATES
+accessibility. `"zero"` opts into that imputation explicitly, and should be
+used only where an upstream policy documents why the value is genuinely
+zero rather than unknown. A tract carrying an explicit `0` is unaffected by
+this setting: that is a valid measurement, not a missing one.}
 }
 \value{
 list with:

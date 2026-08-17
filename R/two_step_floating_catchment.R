@@ -504,6 +504,13 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
 #'   demand-side sum; this is the M2SFCA-style sensitivity lever.
 #' @param pop_col Name of the population column in `tract_pop` (default
 #'   "female_pop").
+#' @param na_pop_policy What to do when `pop_col` contains `NA`. `"error"`
+#'   (default) refuses: NA is UNKNOWN population, and silently treating it as
+#'   zero removes those residents from the Step 1 denominator and INFLATES
+#'   accessibility. `"zero"` opts into that imputation explicitly, and should be
+#'   used only where an upstream policy documents why the value is genuinely
+#'   zero rather than unknown. A tract carrying an explicit `0` is unaffected by
+#'   this setting: that is a valid measurement, not a missing one.
 #' @param per_capita_scale Multiply the accessibility index by this (default
 #'   1e5 → "subspecialists per 100,000 women").
 #' @section Zero versus outside the model:
@@ -556,7 +563,8 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
                            weights = E2SFCA_DEFAULT_WEIGHTS,
                            step2_power = 1,
                            pop_col = "female_pop",
-                           per_capita_scale = 1e5) {
+                           per_capita_scale = 1e5,
+                           na_pop_policy = c("error", "zero")) {
   checkmate::assert_subset(c("coord_id", "band", "GEOID", "overlap_fraction"),
                            names(overlap))
   checkmate::assert_subset(c("GEOID", pop_col), names(tract_pop))
@@ -595,11 +603,30 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
       call. = FALSE)
   }
 
+  # MISSING POPULATION IS NOT ZERO POPULATION.
+  #
+  # A record that says 0 is a scientifically valid measurement: nobody lives
+  # there, and the tract contributes no demand. A record that is ABSENT, or
+  # present but NA, is unknown. Treating unknown as zero removes people from the
+  # Step 1 denominator, which RAISES every affected provider's ratio and
+  # INFLATES accessibility -- the flattering direction, produced by data going
+  # missing rather than by access improving. Enforced here rather than left to
+  # the caller because the failure is invisible in the output.
+  na_pop_policy <- match.arg(na_pop_policy)
   pop <- dplyr::transmute(
     tract_pop,
     GEOID = as.character(GEOID),
     pop = as.numeric(.data[[pop_col]])
   )
+  na_rows <- which(is.na(pop$pop))
+  if (length(na_rows) && identical(na_pop_policy, "error")) {
+    stop(sprintf(
+      "compute_e2sfca: %d tract(s) have NA in population column '%s' (%s%s). NA is UNKNOWN population, not zero: coercing it to zero would drop those people from the Step 1 denominator and inflate accessibility. Fix the upstream join, or pass na_pop_policy = \"zero\" to declare an explicit, documented imputation.",
+      length(na_rows), pop_col,
+      paste(utils::head(pop$GEOID[na_rows], 5), collapse = ", "),
+      if (length(na_rows) > 5) sprintf(" and %d more", length(na_rows) - 5L) else ""),
+      call. = FALSE)
+  }
   pop$pop[is.na(pop$pop)] <- 0
 
   # Restrict overlap to active providers (supply > 0): providers with no
@@ -611,8 +638,28 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
     by = "coord_id"
   )
   base <- dplyr::inner_join(base, wtab, by = "band")
-  base <- dplyr::left_join(base, pop, by = "GEOID")
-  base$pop[is.na(base$pop)] <- 0
+  # relationship = "many-to-one": one population record per tract. An accidental
+  # many-to-many join here would MULTIPLY that tract's population through every
+  # denominator while producing entirely plausible numbers, so dplyr is told to
+  # error rather than warn.
+  base <- dplyr::left_join(base, pop, by = "GEOID", relationship = "many-to-one")
+
+  # A tract inside a catchment with NO population record at all. Same reasoning
+  # as the NA case above, and usually a symptom of a year, vintage or GEOID
+  # mismatch rather than a genuinely absent tract.
+  unmatched <- unique(base$GEOID[is.na(base$pop)])
+  if (length(unmatched)) {
+    yrs <- if ("analysis_year" %in% names(tract_pop))
+      paste0(" tract_pop years present: ",
+             paste(sort(unique(tract_pop$analysis_year)), collapse = ", "), ".") else ""
+    stop(sprintf(
+      "compute_e2sfca: %d tract(s) appear in a provider catchment but have NO population record (%s%s). This is an unmatched POPULATION JOIN, not an empty tract: the usual cause is a year/vintage/GEOID mismatch between the overlap table and tract_pop. Treating them as zero would remove their residents from the Step 1 denominator and inflate accessibility.%s",
+      length(unmatched),
+      paste(utils::head(unmatched, 5), collapse = ", "),
+      if (length(unmatched) > 5) sprintf(" and %d more", length(unmatched) - 5L) else "",
+      yrs),
+      call. = FALSE)
+  }
 
   # Per (coord_id, band, GEOID) weighted contribution terms (demand + access).
   base <- dplyr::mutate(base, wf = w_inc * overlap_fraction,
