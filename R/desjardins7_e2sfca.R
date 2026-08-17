@@ -307,8 +307,34 @@ dj7_tract_access <- function(membership, supply, dvec, Wc = DJ7_WC_BASE) {
 #' @export
 dj7_no_access_share <- function(access_df, dvec) {
   A <- stats::setNames(rep(0, length(dvec)), names(dvec))
-  hit <- intersect(as.character(access_df$GEOID), names(A))
-  A[hit] <- access_df$A[match(hit, as.character(access_df$GEOID))]
+  gid <- as.character(access_df$GEOID)
+
+  # Asymmetric on purpose, and both halves are scientific claims.
+  #
+  # A tract in `dvec` with no row in `access_df` IS a zero: dj7_tract_access
+  # only emits tracts some origin reached, so absence means unreached, which is
+  # the numerator this function exists to measure.
+  #
+  # A tract in `access_df` with no entry in `dvec` is the opposite -- a measured
+  # accessibility value with no population to weight it by. Dropping it silently
+  # would shrink the denominator and the zero-access set together, moving the
+  # headline share in a direction nobody chose.
+  dup <- unique(gid[duplicated(gid)])
+  if (length(dup)) {
+    stop(sprintf(paste0("dj7_no_access_share: access_df has %d duplicated GEOID(s) (%s). ",
+                        "match() would silently keep the first row and discard the rest."),
+                 length(dup), paste(utils::head(dup, 5), collapse = ", ")), call. = FALSE)
+  }
+  miss <- setdiff(gid, names(A))
+  if (length(miss)) {
+    stop(sprintf("dj7_no_access_share: %s",
+                 .sci_join_msg("access_df", "dvec", "GEOID", miss,
+                   " A tract with a measured access value but no demand weight cannot be dropped silently; it changes the population denominator.")),
+         call. = FALSE)
+  }
+
+  hit <- intersect(gid, names(A))
+  A[hit] <- access_df$A[match(hit, gid)]
   w <- dvec; w[is.na(w)] <- 0
   sw <- sum(w)
   if (!is.finite(sw) || sw <= 0) return(NA_real_)

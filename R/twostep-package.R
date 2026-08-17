@@ -35,6 +35,9 @@ utils::globalVariables(c(
   "GEOID", "coord_id", "band", "overlap_fraction", "w_inc", "w_acc",
   "weighted_demand", "wf", "wf_a", "ratio_for_surface", "cum_pop",
   "access_mean_area", "access_mean_population",
+  # access_math is the zero-filled algebraic access column introduced in #10 and
+  # consumed by NSE in the same mutate() that derives access_scaled_math.
+  "access_math",
   # --- compute_provider_supply / urps ----------------------------------------
   "npi", "analysis_year", "match_source",
   # --- generate_bivariate_choropleth.R ---------------------------------------

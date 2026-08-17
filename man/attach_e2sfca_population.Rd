@@ -10,7 +10,8 @@ attach_e2sfca_population(
   pop_col = "female_pop",
   pop_val_col = pop_col,
   alloc = c("area", "center"),
-  conservation_tol = 1e-06
+  conservation_tol = 1e-06,
+  na_pop_policy = c("error", "zero")
 )
 }
 \arguments{
@@ -29,6 +30,11 @@ center-based rasterization, retained only for the vintage-seam sensitivity
 comparison — NOT mass-conserving).}
 
 \item{conservation_tol}{Passed to [allocate_pop_areaweighted] (area mode).}
+
+\item{na_pop_policy}{What to do when a grid tract has no row in `pop_vals`,
+or has an `NA` population. `"error"` (default) fails closed and names the
+offending GEOIDs; `"zero"` restores the historical zero-fill as an
+explicit, documented imputation.}
 }
 \value{
 list(pop_rast, tracts, template, pop_col, resolution, area_crs, alloc).

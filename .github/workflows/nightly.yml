@@ -202,9 +202,16 @@ jobs:
             any::rcmdcheck
             any::BAMMtools
           needs: check
+      # error-on note, not the action's default of warning. This package reached
+      # Status: OK deliberately, and the default let it drift back: PR #10 added
+      # an NSE column without declaring it, and the resulting "undefined global"
+      # NOTE rode green nightlies for weeks because a NOTE is not a warning.
+      # If a platform-specific NOTE appears here that is genuinely not worth
+      # fixing, exempt it explicitly rather than lowering this back to warning.
       - uses: r-lib/actions/check-r-package@v2
         with:
           build_args: 'c("--no-manual")'
+          error-on: '"note"'
       # Debugging should not mean scrolling 20,000 log lines.
       - name: Upload check artifacts on failure
         if: failure()
@@ -268,6 +275,17 @@ jobs:
             cat testthat-accounting.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      # Asked here as well as on every PR, because the way this gate regresses
+      # is by ADDING an export, not by changing one: a new @export can land in a
+      # PR whose own tests are green and leave the function exercised by
+      # nothing. The report is kept as an artifact so the SUPPORT and OTHER
+      # tiers -- which warn rather than fail -- stay visible over time.
+      - name: Scientific-core coverage
+        if: always()
+        run: |
+          set -o pipefail
+          Rscript tools/ci/scientific_coverage.R 2>&1 | tee scientific-coverage.txt
+
       - name: Upload test output
         if: always()
         uses: actions/upload-artifact@v7
@@ -276,6 +294,7 @@ jobs:
           path: |
             testthat-output.txt
             testthat-accounting.txt
+            scientific-coverage.txt
           retention-days: 14
           if-no-files-found: ignore
 

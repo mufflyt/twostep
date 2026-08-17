@@ -1069,6 +1069,10 @@ allocate_pop_areaweighted <- function(template, tracts, pop,
 #'   center-based rasterization, retained only for the vintage-seam sensitivity
 #'   comparison — NOT mass-conserving).
 #' @param conservation_tol Passed to [allocate_pop_areaweighted] (area mode).
+#' @param na_pop_policy What to do when a grid tract has no row in `pop_vals`,
+#'   or has an `NA` population. `"error"` (default) fails closed and names the
+#'   offending GEOIDs; `"zero"` restores the historical zero-fill as an
+#'   explicit, documented imputation.
 #' @return list(pop_rast, tracts, template, pop_col, resolution, area_crs, alloc).
 #' @family E2SFCA raster grid
 #' @seealso [build_e2sfca_grid_geometry], [allocate_pop_areaweighted]
@@ -1076,13 +1080,48 @@ allocate_pop_areaweighted <- function(template, tracts, pop,
 attach_e2sfca_population <- function(grid_geom, pop_vals, pop_col = "female_pop",
                                      pop_val_col = pop_col,
                                      alloc = c("area", "center"),
-                                     conservation_tol = 1e-6) {
+                                     conservation_tol = 1e-6,
+                                     na_pop_policy = c("error", "zero")) {
   alloc <- match.arg(alloc)
+  na_pop_policy <- match.arg(na_pop_policy)
   checkmate::assert_list(grid_geom)
   checkmate::assert_subset(c("GEOID", pop_val_col), names(pop_vals))
   tr <- grid_geom$tracts
-  lu <- stats::setNames(as.numeric(pop_vals[[pop_val_col]]), as.character(pop_vals$GEOID))
-  tr$.pop <- as.numeric(lu[tr$GEOID]); tr$.pop[is.na(tr$.pop)] <- 0
+
+  # Same doctrine as compute_e2sfca, reached by a different road. This is the
+  # raster path's population join, and it used to coerce every unmatched or NA
+  # tract to zero without a word -- so a tract set and a population table that
+  # disagreed produced a complete-looking surface with a hole in the demand
+  # denominator, which INFLATES accessibility everywhere near that hole.
+  gid <- as.character(pop_vals$GEOID)
+  dup <- unique(gid[duplicated(gid)])
+  if (length(dup)) {
+    stop(sprintf(paste0("attach_e2sfca_population: pop_vals has %d duplicated GEOID(s) (%s). ",
+                        "The lookup would silently keep one row per tract and the ",
+                        "represented population would depend on row order."),
+                 length(dup), paste(utils::head(dup, 5), collapse = ", ")), call. = FALSE)
+  }
+  lu <- stats::setNames(as.numeric(pop_vals[[pop_val_col]]), gid)
+  tr$.pop <- as.numeric(lu[tr$GEOID])
+
+  miss <- unique(tr$GEOID[!tr$GEOID %in% gid])
+  if (length(miss) && identical(na_pop_policy, "error")) {
+    stop(sprintf("attach_e2sfca_population: %s",
+                 .sci_join_msg("grid tracts", "pop_vals", "GEOID", miss,
+                   " A tract with no population row is UNKNOWN, not empty; zero-filling it removes real people from the demand denominator and inflates access. Fix the upstream join, or pass na_pop_policy = \"zero\" to declare an explicit imputation.")),
+         call. = FALSE)
+  }
+  na_rows <- tr$GEOID[tr$GEOID %in% gid & is.na(tr$.pop)]
+  if (length(na_rows) && identical(na_pop_policy, "error")) {
+    stop(sprintf(paste0("attach_e2sfca_population: %d tract(s) have NA in population column '%s' (%s%s). ",
+                        "NA is UNKNOWN population, not zero. Pass na_pop_policy = \"zero\" to ",
+                        "declare an explicit, documented imputation."),
+                 length(na_rows), pop_val_col,
+                 paste(utils::head(na_rows, 5), collapse = ", "),
+                 if (length(na_rows) > 5) sprintf(" and %d more", length(na_rows) - 5L) else ""),
+         call. = FALSE)
+  }
+  tr$.pop[is.na(tr$.pop)] <- 0
 
   if (alloc == "center") {
     # Legacy: uniform over cells whose CENTRE falls in the tract (drops sub-cell

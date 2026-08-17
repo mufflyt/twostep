@@ -89,6 +89,16 @@ jobs:
       - name: Monte Carlo null and known-signal recovery
         run: Rscript -e 'testthat::set_max_fails(Inf); testthat::test_file("tests/testthat/test-e2sfca-simulation-null-and-signal.R", stop_on_failure = TRUE)'
 
+      # Coverage of the SCIENTIFIC CORE, asked as a yes/no question per export
+      # rather than as a percentage. A headline coverage number can stay high
+      # while an exported function is called by nothing at all -- which is how
+      # dj7_tract_access, then nine more, turned out to be untested. Runs here
+      # rather than in the structure job because it resolves each export against
+      # the installed namespace to tell a function from a constant; without the
+      # package it falls back to a name heuristic and is weaker.
+      - name: No scientific-core export may be untested
+        run: Rscript tools/ci/scientific_coverage.R
+
       # The corpus is last because it is the slowest, and because it is only
       # meaningful if the suites above are green: it asks whether those suites
       # would NOTICE a scientific mistake, which presupposes they pass.
