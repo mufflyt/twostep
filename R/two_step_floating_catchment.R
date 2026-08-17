@@ -506,42 +506,11 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
 #'   "female_pop").
 #' @param per_capita_scale Multiply the accessibility index by this (default
 #'   1e5 → "subspecialists per 100,000 women").
-#' @section Zero versus outside the model:
-#' `0` means modelled accessibility was calculated as zero. `NA` means the tract
-#' lies outside every modelled catchment. **These are not interchangeable.**
-#'
-#' A tract inside a catchment whose weighted supply works out to zero has a
-#' measured accessibility of zero. A tract no isochrone reaches has none. Before
-#' this distinction existed the second was filled with `0` and became
-#' indistinguishable from the first — 190 of 1,447 Colorado tracts, 13% of the
-#' state, each reported as a measured zero and shaded in the zero class of any
-#' downstream map.
-#'
-#' Coverage is established from catchment membership (the overlap x
-#' modelled-provider x weighted-band relationship), never inferred from the
-#' score, the supply or the population. A reached tract scoring zero stays
-#' `reached = TRUE`.
-#'
-#' Two score columns are therefore returned:
-#' \describe{
-#'   \item{`access`, `access_scaled`}{The scientific value. `NA` outside every
-#'     catchment. This is what a reader, a table or a map should consume.}
-#'   \item{`access_math`, `access_scaled_math`}{The algebraic form, zero-filled.
-#'     A tract outside every catchment contributes exactly zero to
-#'     \eqn{\sum_i P_i A_i}, so conservation identities and any other accounting
-#'     use this column. Do not reach for `na.rm = TRUE` on the scientific column
-#'     instead — that silently changes the estimand.}
-#' }
-#'
 #' @return list with:
-#'   * `access` — tibble(`GEOID`, `access`, `access_scaled`, `n_providers`,
-#'     `access_math`, `access_scaled_math`, `reached`, `coverage_status`) per
-#'     tract. `coverage_status` is `"within_modeled_catchment"` or
-#'     `"outside_all_modeled_catchments"` and agrees exactly with `reached`.
+#'   * `access` — tibble(`GEOID`, `access`, `access_scaled`,
+#'     `n_providers`) accessibility per tract.
 #'   * `provider_ratios` — tibble(`coord_id`,`supply`,`weighted_demand`,`ratio`).
 #'   * `weights` — the incremental weights used.
-#'   * `audit` — includes `n_within_modeled_catchment`,
-#'     `n_outside_all_modeled_catchments` and `n_reached_scoring_zero`.
 #' @references The two-step supply-ratio then demand-accumulation structure is
 #'   Luo & Wang (2003) doi:10.1068/b29120 [source 1]; the zonal decay in both
 #'   steps is Luo & Qi (2009) doi:10.1016/j.healthplace.2009.06.002 [source 2].
@@ -662,73 +631,17 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
     zero_demand_coord_ids    = demand$coord_id[demand$zero_demand]
   )
 
-  # ---- Coverage status: measured zero vs never modelled ---------------------
-  #
-  # These are two scientifically different states and this line used to collapse
-  # them:
-  #
-  #     access$access[is.na(access$access)] <- 0
-  #
-  # A tract inside somebody's catchment whose weighted supply works out to zero
-  # HAS a modelled accessibility of zero. A tract outside every catchment has no
-  # modelled accessibility at all. Filling the second with 0 asserts the first,
-  # and on a rare-subspecialty surface that is most of the country: 190 of 1,447
-  # Colorado tracts, 13%, every one of them reported as a measured zero. The map
-  # then shades them in the zero class and the legend labels it "0".
-  #
-  # Membership comes from `base` -- the actual overlap x modelled-provider x
-  # weighted-band relationship -- and is computed BEFORE the all-tract join.
-  # It is deliberately NOT inferred from the score, from supply, or from
-  # population: a reached tract may legitimately score zero, and inferring
-  # coverage from the number would merely relabel the same defect.
-  #
-  # `overlap_fraction > 0` and not merely row presence. A row recording zero
-  # shared area is not a catchment relationship -- it is the absence of one,
-  # written down. The metamorphic property that a zero-overlap row is
-  # equivalent to no row at all is load-bearing (test-e2sfca-metamorphic-and-
-  # algebra.R), and defining coverage by row presence quietly broke it.
-  reached_geoids <- unique(base$GEOID[base$overlap_fraction > 0])
-
+  # Tracts touched by no active provider have access 0 (append them so every
+  # tract present in tract_pop gets a row).
   all_tracts <- dplyr::distinct(pop, GEOID)
   access <- dplyr::left_join(all_tracts, access, by = "GEOID")
-  access$reached <- access$GEOID %in% reached_geoids
-
-  # Every reached tract must have come out of the step-2 summarise, and no
-  # unreached tract may have. If that ever stops holding, membership and the
-  # score have diverged and one of them is lying.
-  # A tract with only zero-overlap rows reaches step 2 and summarises to
-  # exactly 0, but is NOT in a catchment -- so `reached` may legitimately be
-  # FALSE where the score is non-NA. The reverse can never happen: a tract with
-  # positive overlap must have produced a step-2 row.
-  if (any(access$reached & is.na(access$access))) {
-    stop("compute_e2sfca(): a tract with positive catchment overlap produced ",
-         "no step-2 surface value; coverage_status cannot be trusted.",
-         call. = FALSE)
-  }
-
-  # `_math` carries the algebraic form the E2SFCA identities need -- a tract
-  # outside every catchment contributes exactly zero to sum(P_i * A_i), which is
-  # what makes the supply-conservation check work. `access` carries the
-  # scientific value a reader or a map should see.
-  access$access_math <- dplyr::coalesce(access$access, 0)
-  access$access <- dplyr::if_else(access$reached, access$access_math, NA_real_)
+  access$access[is.na(access$access)] <- 0
   access$n_providers[is.na(access$n_providers)] <- 0L
-  access$coverage_status <- dplyr::if_else(
-    access$reached, "within_modeled_catchment", "outside_all_modeled_catchments")
-  access <- dplyr::mutate(access,
-                          access_scaled = access * per_capita_scale,
-                          access_scaled_math = access_math * per_capita_scale)
-
-  audit$n_tracts <- nrow(access)
-  audit$n_outside_all_modeled_catchments <- sum(!access$reached)
-  audit$n_within_modeled_catchment <- sum(access$reached)
-  audit$n_reached_scoring_zero <- sum(access$reached & access$access_math == 0)
+  access <- dplyr::mutate(access, access_scaled = access * per_capita_scale)
 
   list(
     access = dplyr::arrange(
-      access[, c("GEOID", "access", "access_scaled", "n_providers",
-                 "access_math", "access_scaled_math", "reached",
-                 "coverage_status")], GEOID),
+      access[, c("GEOID", "access", "access_scaled", "n_providers")], GEOID),
     provider_ratios = dplyr::arrange(
       demand[, c("coord_id", "supply", "weighted_demand", "ratio",
                  "ratio_for_surface", "zero_demand", "excluded_supply")], coord_id),

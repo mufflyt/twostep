@@ -288,22 +288,10 @@ urps_e2sfca_spar_summary <- function(e2sfca, tract_pop, pop_col = "female_pop",
     stop(sprintf("[urps_accessibility] `tract_pop` needs columns `GEOID` and `%s`.", pop_col),
          call. = FALSE)
 
-  # SPAR is an ACCOUNTING quantity -- a population-weighted mean over the whole
-  # tract universe -- so a tract outside every modelled catchment contributes a
-  # mathematical zero rather than dropping out of the denominator. Since
-  # compute_e2sfca() began distinguishing "measured zero" from "outside every
-  # catchment", the scientific column `access_scaled` is NA for the latter;
-  # take the explicit algebraic column when it is present. The fallback keeps
-  # working for the synthetic $access frames this function also accepts, where
-  # an absent row still means unreached.
-  score_col <- if ("access_scaled_math" %in% names(acc)) {
-    "access_scaled_math"
-  } else {
-    "access_scaled"
-  }
-  m <- merge(tract_pop[, c("GEOID", pop_col)], acc[, c("GEOID", score_col)],
+  # left-join population onto access: unreached tracts (not in $access) -> 0 access
+  m <- merge(tract_pop[, c("GEOID", pop_col)], acc[, c("GEOID", "access_scaled")],
              by = "GEOID", all.x = TRUE)
-  a <- m[[score_col]]; a[is.na(a)] <- 0
+  a <- m$access_scaled; a[is.na(a)] <- 0
   w <- as.numeric(m[[pop_col]])
   mean_access <- stats::weighted.mean(a, w)
   spar <- if (mean_access > 0) a / mean_access else rep(0, length(a))

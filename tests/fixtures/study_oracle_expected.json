@@ -69,12 +69,12 @@
     "A02": 0.0010894736842105264,
     "A03": 0.00023859649122807017,
     "A04": 0.0,
-    "A05": 0.0,
+    "A05": null,
     "B01": 1.2500000000000002e-05,
     "B02": 1.2500000000000002e-05
   },
   "stage_6_component_A": {
-    "_comment": "Conservation: sum_i pop_i * A_i must equal the supply of providers with positive demand. PA3 reaches only a zero-population tract, so its 3 physicians are excluded and audited.",
+    "_comment": "Conservation: sum_i pop_i * A_i must equal the supply of providers with positive demand. PA3 reaches only a zero-population tract, so its 3 physicians are excluded and audited. Conservation is stated against access_math because it is an algebraic identity; A05 contributes 0 to it and NA to the reported value.",
     "sum_pop_times_access": 3.0,
     "usable_supply": 3,
     "population_weighted_mean_access": 0.0006976744186046512,
@@ -92,5 +92,28 @@
     "zero_population_tracts": [
       "A04"
     ]
+  },
+  "_semantics_note": "Updated for the change in #10: `access` is the SCIENTIFIC value and is NA for a tract outside every modelled catchment, because such a tract has no measured accessibility rather than a measured zero. `access_math` carries the zero-filled algebraic form. A tract that IS reached but scores zero -- A04, reached only by PA3, whose supply is excluded for having no demand -- keeps access 0 and reached TRUE. The conservation identity is stated against access_math, since it is an algebraic property of the equations.",
+  "stage_5_tract_access_math": {
+    "A01": 0.0007017543859649122,
+    "A02": 0.0010894736842105264,
+    "A03": 0.00023859649122807017,
+    "A04": 0.0,
+    "A05": 0.0,
+    "B01": 1.2500000000000002e-05,
+    "B02": 1.2500000000000002e-05
+  },
+  "stage_5_reached": {
+    "A01": true,
+    "A02": true,
+    "A03": true,
+    "A04": true,
+    "A05": false,
+    "B01": true,
+    "B02": true
+  },
+  "stage_5_coverage_status": {
+    "A05": "outside_all_modeled_catchments",
+    "A04": "within_modeled_catchment"
   }
 }

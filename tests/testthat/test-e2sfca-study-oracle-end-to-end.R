@@ -42,6 +42,9 @@ run_study <- function(cohort = study_cohort(), ycm = study_year_coord_map(),
 }
 
 acc_of <- function(r, g) r$access$access[match(g, r$access$GEOID)]
+# The algebraic (zero-filled) form, for invariance comparisons where an NA at an
+# unreached tract would otherwise poison an otherwise exact equality.
+accm_of <- function(r, g) r$access$access_math[match(g, r$access$GEOID)]
 pw_mean <- function(r, g, pop = study_tract_pop()) {
   a <- acc_of(r, g); p <- pop$female_pop[match(g, pop$GEOID)]
   sum(a * p) / sum(p)
@@ -98,23 +101,44 @@ test_that("STAGE 4 provider ratios match, and a no-demand provider is audited no
                ORACLE$audit_expectations$excluded_supply)
 })
 
-test_that("STAGE 5 tract accessibility matches, including unreached and zero-pop tracts", {
-  for (g in names(ORACLE$stage_5_tract_access))
-    expect_equal(acc_of(S, g), ORACLE$stage_5_tract_access[[g]], tolerance = TOL,
-                 info = paste("access at", g))
-  # An unreachable tract must be PRESENT with access 0, never dropped: dropping
-  # it would silently shrink every denominator built from this output.
+test_that("STAGE 5 tract accessibility matches, and unreached is NA rather than zero", {
+  # Semantics per #10: `access` is the scientific value and is NA outside every
+  # modelled catchment, because such a tract has no MEASURED accessibility --
+  # distinct from a reached tract that scores zero. `access_math` keeps the
+  # zero-filled algebraic form.
+  for (g in names(ORACLE$stage_5_tract_access_math))
+    expect_equal(S$access$access_math[match(g, S$access$GEOID)],
+                 ORACLE$stage_5_tract_access_math[[g]], tolerance = TOL,
+                 info = paste("access_math at", g))
+  for (g in names(ORACLE$stage_5_reached))
+    expect_equal(S$access$reached[match(g, S$access$GEOID)],
+                 ORACLE$stage_5_reached[[g]], info = paste("reached at", g))
+
+  # An unreachable tract must be PRESENT, never dropped -- dropping it would
+  # silently shrink every denominator built from this output -- and must be NA,
+  # not a measured zero.
   expect_true(all(A_TRACTS %in% S$access$GEOID))
-  expect_equal(acc_of(S, "A05"), 0)
+  expect_true(is.na(acc_of(S, "A05")))
+  expect_false(S$access$reached[match("A05", S$access$GEOID)])
+  expect_equal(S$access$coverage_status[match("A05", S$access$GEOID)],
+               ORACLE$stage_5_coverage_status$A05)
+
+  # A04 IS reached -- by PA3, whose supply is excluded for having no demand --
+  # so it scores a real zero and must NOT be conflated with A05.
+  expect_equal(acc_of(S, "A04"), 0)
+  expect_true(S$access$reached[match("A04", S$access$GEOID)])
 })
 
 test_that("STAGE 6 reporting: conservation holds and the summary is population-weighted", {
   e <- ORACLE$stage_6_component_A
   pop <- study_tract_pop()
-  a <- acc_of(S, A_TRACTS); p <- pop$female_pop[match(A_TRACTS, pop$GEOID)]
+  # Conservation is an ALGEBRAIC identity, so it is stated against access_math:
+  # the unreached tract contributes 0 to the algebra and NA to the report.
+  a <- S$access$access_math[match(A_TRACTS, S$access$GEOID)]
+  p <- pop$female_pop[match(A_TRACTS, pop$GEOID)]
   expect_equal(sum(a * p), e$sum_pop_times_access, tolerance = 1e-9)
   expect_equal(sum(a * p), e$usable_supply, tolerance = 1e-9)   # exact identity
-  expect_equal(pw_mean(S, A_TRACTS), e$population_weighted_mean_access, tolerance = TOL)
+  expect_equal(sum(a * p) / sum(p), e$population_weighted_mean_access, tolerance = TOL)
   # An UNWEIGHTED mean is the classic wrong aggregation and must differ.
   expect_false(isTRUE(all.equal(mean(a), e$population_weighted_mean_access,
                                 tolerance = 1e-6)))
@@ -249,8 +273,12 @@ test_that("adding an unreachable provider or an unreachable tract changes nothin
   po <- rbind(study_tract_pop(),
               data.frame(GEOID = "FART", female_pop = 99999, stringsAsFactors = FALSE))
   r2 <- run_study(tracts = rbind(tr, extra), pop = po)
-  for (g in A_TRACTS) expect_equal(acc_of(r2, g), acc_of(S, g), tolerance = TOL, info = g)
-  expect_equal(acc_of(r2, "FART"), 0)
+  for (g in A_TRACTS)
+    expect_equal(r2$access$access_math[match(g, r2$access$GEOID)],
+                 S$access$access_math[match(g, S$access$GEOID)], tolerance = TOL, info = g)
+  # The far tract is outside every catchment, so NA, not a measured zero.
+  expect_true(is.na(acc_of(r2, "FART")))
+  expect_false(r2$access$reached[match("FART", r2$access$GEOID)])
 })
 
 test_that("integer and double population columns agree exactly", {
@@ -268,7 +296,7 @@ test_that("MISSING population is not silently treated as a real zero", {
   # exactly as if it were empty. The two are scientifically different.
   po <- study_tract_pop(); po$female_pop[po$GEOID == "A02"] <- NA
   r <- run_study(pop = po)
-  expect_true(all(is.finite(r$access$access)))
+  expect_true(all(is.finite(r$access$access_math)))
   # A02's 2000 people leave the denominator, so PA1's ratio must RISE.
   expect_gt(r$ratios$ratio_for_surface[r$ratios$coord_id == "PA1"],
             ORACLE$stage_4_provider_ratio$PA1)
