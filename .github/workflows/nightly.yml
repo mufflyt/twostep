@@ -464,6 +464,81 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
+  scientific-fingerprint:
+    name: scientific fingerprint (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: r-lib/actions/setup-r@v2
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install system libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with: { needs: check }
+
+      # Every scientific suite runs on ubuntu and nowhere else, because tests/ is
+      # excluded from the package build -- so the E2SFCA science has never
+      # executed on macOS or Windows at all. Overlap fractions come out of GEOS,
+      # and accessibility is a floating-point sum over them, so a platform that
+      # intersects polygons differently produces different science while every
+      # test still passes. Pass/fail on three machines is weaker than three
+      # machines producing the SAME NUMBERS.
+      - name: Emit the scientific fingerprint
+        run: Rscript tools/ci/scientific_fingerprint.R fingerprint.json
+
+      # DETERMINISM, on this platform: a second independent R session must give
+      # bit-identical numbers. Tolerance 0 -- same inputs, same seeds, same code.
+      - name: Determinism -- a second session must be bit-identical
+        run: |
+          Rscript tools/ci/scientific_fingerprint.R fingerprint2.json
+          Rscript tools/ci/compare_fingerprints.R --tolerance 0 fingerprint.json fingerprint2.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: fingerprint-${{ matrix.os }}
+          path: fingerprint.json
+          retention-days: 30
+          if-no-files-found: error
+
+  scientific-cross-platform:
+    name: platforms must agree on the science
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: scientific-fingerprint
+    steps:
+      - uses: actions/checkout@v7
+      - uses: r-lib/actions/setup-r@v2
+        with: { use-public-rspm: true }
+      - name: Install jsonlite
+        run: install.packages("jsonlite")
+        shell: Rscript {0}
+      - uses: actions/download-artifact@v4
+        with: { pattern: fingerprint-*, path: fingerprints }
+      - name: Show what was collected
+        run: |
+          find fingerprints -name '*.json' | sort
+          n=$(find fingerprints -name '*.json' | wc -l)
+          echo "fingerprints collected: $n"
+          # Comparing one platform against itself would pass vacuously.
+          if [ "$n" -lt 3 ]; then
+            echo "::error::expected 3 platform fingerprints, got $n"; exit 1
+          fi
+      # Bit-identity across platforms is the WRONG demand -- GEOS and the C
+      # library legitimately differ in the last places. 1e-9 relative is far
+      # tighter than anything that could move a conclusion, and far looser than
+      # the noise floor.
+      - name: Linux, macOS and Windows must agree to 1e-9
+        run: Rscript tools/ci/compare_fingerprints.R --tolerance 1e-9 $(find fingerprints -name '*.json' | sort | tr '\n' ' ')
+
   # --------------------------------------------------------------- tier 4: gate
   summary:
     name: nightly summary
@@ -472,7 +547,7 @@ jobs:
     if: always()
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
             R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
-            scientific-mutants, manuscript]
+            scientific-mutants, manuscript, scientific-cross-platform]
     steps:
       - name: Report and gate
         run: |
@@ -490,6 +565,7 @@ jobs:
             echo "| testthat suite | ${{ needs.testthat.result }} |"
             echo "| scientific mutation corpus | ${{ needs['scientific-mutants'].result }} |"
             echo "| manuscript render + QA | ${{ needs.manuscript.result }} |"
+            echo "| cross-platform science | ${{ needs['scientific-cross-platform'].result }} |"
             echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
             echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
             echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
@@ -504,7 +580,8 @@ jobs:
                    "${{ needs['minimal-deps'].result }}" \
                    "${{ needs['renv-restore'].result }}" \
                    "${{ needs['scientific-mutants'].result }}" \
-                   "${{ needs.manuscript.result }}"; do
+                   "${{ needs.manuscript.result }}" \
+                   "${{ needs['scientific-cross-platform'].result }}"; do
             if [ "$r" != "success" ]; then
               echo "::error::a required nightly component did not succeed"
               exit 1

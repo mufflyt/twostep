@@ -166,7 +166,10 @@ MUTANTS <- list(
 # --- harness ------------------------------------------------------------------
 originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
 restore <- function() for (f in TARGETS) writeLines(originals[[f]], f)
-on.exit(restore(), add = TRUE)   # covers normal exit and R-level errors
+# NOTE: on.exit() does NOTHING at the top level of a script -- it registers on a
+# function frame, and there is none here. Both on.exit calls in earlier versions
+# of this file were silently inert. The restore below is explicit for that
+# reason, and so is the sentinel cleanup at the end.
 
 # on.exit does NOT run if the process is killed (Ctrl-C, SIGTERM, a CI timeout,
 # a runner going away), which leaves the sources MUTATED on disk. That happened
@@ -215,7 +218,8 @@ if (file.exists(SENTINEL)) {
 `%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
 
 saveRDS(list(head = .head, files = originals), SENTINEL)
-on.exit(unlink(SENTINEL), add = TRUE)
+# (No on.exit here either -- see the note above. Cleanup is explicit at the end
+# of the script, and on every early-quit path.)
 
 run_suite <- function(path) {
   # Returns TRUE if the suite reported at least one failure or error.
@@ -273,6 +277,7 @@ for (nm in names(MUTANTS)) {
 }
 
 restore()
+unlink(SENTINEL)          # the run completed: the tree is trustworthy again
 for (f in TARGETS)
   stopifnot(identical(readLines(f, warn = FALSE), originals[[f]]))
 cat("\nall ", length(TARGETS), " mutated sources restored byte-identical\n", sep = "")
@@ -305,6 +310,7 @@ if (length(survived)) {
   message("  A surviving high-consequence mutant is a release blocker whatever ",
           "the coverage number says.")
 }
+unlink(SENTINEL)
 if (length(survived) || length(anchor_err)) quit(status = 1L, save = "no")
 
 cat("all", length(MUTANTS), "scientific mutants killed\n")
