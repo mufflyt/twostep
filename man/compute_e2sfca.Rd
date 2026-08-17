@@ -36,10 +36,14 @@ demand-side sum; this is the M2SFCA-style sensitivity lever.}
 }
 \value{
 list with:
-  * `access` — tibble(`GEOID`, `access`, `access_scaled`,
-    `n_providers`) accessibility per tract.
+  * `access` — tibble(`GEOID`, `access`, `access_scaled`, `n_providers`,
+    `access_math`, `access_scaled_math`, `reached`, `coverage_status`) per
+    tract. `coverage_status` is `"within_modeled_catchment"` or
+    `"outside_all_modeled_catchments"` and agrees exactly with `reached`.
   * `provider_ratios` — tibble(`coord_id`,`supply`,`weighted_demand`,`ratio`).
   * `weights` — the incremental weights used.
+  * `audit` — includes `n_within_modeled_catchment`,
+    `n_outside_all_modeled_catchments` and `n_reached_scoring_zero`.
 }
 \description{
 Given the year-agnostic overlap table, the year's tract population, and the
@@ -49,6 +53,35 @@ cell's provider supply, compute:
 where f_jbi = fraction of tract i within provider j's cumulative band b, and
 w'_b are incremental band weights. (See module header for the ring equivalence.)
 }
+\section{Zero versus outside the model}{
+
+`0` means modelled accessibility was calculated as zero. `NA` means the tract
+lies outside every modelled catchment. **These are not interchangeable.**
+
+A tract inside a catchment whose weighted supply works out to zero has a
+measured accessibility of zero. A tract no isochrone reaches has none. Before
+this distinction existed the second was filled with `0` and became
+indistinguishable from the first — 190 of 1,447 Colorado tracts, 13% of the
+state, each reported as a measured zero and shaded in the zero class of any
+downstream map.
+
+Coverage is established from catchment membership (the overlap x
+modelled-provider x weighted-band relationship), never inferred from the
+score, the supply or the population. A reached tract scoring zero stays
+`reached = TRUE`.
+
+Two score columns are therefore returned:
+\describe{
+  \item{`access`, `access_scaled`}{The scientific value. `NA` outside every
+    catchment. This is what a reader, a table or a map should consume.}
+  \item{`access_math`, `access_scaled_math`}{The algebraic form, zero-filled.
+    A tract outside every catchment contributes exactly zero to
+    \eqn{\sum_i P_i A_i}, so conservation identities and any other accounting
+    use this column. Do not reach for `na.rm = TRUE` on the scientific column
+    instead — that silently changes the estimand.}
+}
+}
+
 \references{
 The two-step supply-ratio then demand-accumulation structure is
   Luo & Wang (2003) doi:10.1068/b29120 [source 1]; the zonal decay in both

@@ -171,16 +171,47 @@ on.exit(restore(), add = TRUE)   # covers normal exit and R-level errors
 # A sentinel file lets the next invocation notice and repair it, and tells a
 # human why their working tree suddenly disagrees with HEAD.
 SENTINEL <- ".mutation-corpus-in-progress"
+
+# on.exit does NOT run if the process is killed (Ctrl-C, SIGTERM, a CI timeout),
+# leaving sources MUTATED on disk. The sentinel records the pristine sources so a
+# later run can notice.
+#
+# It must NOT restore them blindly. A stale sentinel written before a `git pull`
+# holds sources from BEFORE the incoming change, and restoring it silently
+# reverts that change while leaving a clean-looking working tree. That is not
+# hypothetical: it happened here, and a whole upstream fix (#10) was reverted and
+# committed before anyone noticed. Auto-restore from a stale snapshot is more
+# dangerous than the interrupted run it was meant to repair, because git already
+# offers recovery and the snapshot does not know what it is overwriting.
+#
+# So the sentinel now records the git HEAD it was taken at, and only restores
+# when HEAD is unchanged. Otherwise it refuses, and says exactly what to run.
+.head <- tryCatch(trimws(system2("git", c("rev-parse", "HEAD"), stdout = TRUE,
+                                 stderr = FALSE))[1],
+                  error = function(e) NA_character_)
+
 if (file.exists(SENTINEL)) {
-  message("NOTE: a previous corpus run did not finish cleanly (found ", SENTINEL, ").")
-  message("      Restoring the recorded sources before starting.")
   prev <- tryCatch(readRDS(SENTINEL), error = function(e) NULL)
-  if (!is.null(prev)) for (f in names(prev)) writeLines(prev[[f]], f)
-  unlink(SENTINEL)
-  # Re-read: the files on disk are authoritative again.
-  originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
+  prev_head <- if (is.list(prev)) prev$head else NA_character_
+  if (is.list(prev) && identical(prev_head, .head)) {
+    message("NOTE: a previous corpus run did not finish cleanly at this same commit.")
+    message("      Restoring the sources it recorded.")
+    for (f in names(prev$files)) writeLines(prev$files[[f]], f)
+    unlink(SENTINEL)
+    originals <- stats::setNames(lapply(TARGETS, readLines, warn = FALSE), TARGETS)
+  } else {
+    unlink(SENTINEL)
+    message("FAIL: found a sentinel from a DIFFERENT commit (", substr(prev_head %||% "unknown", 1, 8),
+            " vs ", substr(.head, 1, 8), ").")
+    message("      Refusing to restore it: those sources predate whatever has landed since,")
+    message("      and writing them back would silently revert it.")
+    message("      Check the working tree yourself:  git status && git diff R/")
+    quit(status = 1L, save = "no")
+  }
 }
-saveRDS(originals, SENTINEL)
+`%||%` <- function(a, b) if (is.null(a) || is.na(a)) b else a
+
+saveRDS(list(head = .head, files = originals), SENTINEL)
 on.exit(unlink(SENTINEL), add = TRUE)
 
 run_suite <- function(path) {
