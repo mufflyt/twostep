@@ -1,0 +1,96 @@
+{
+  "_comment": "Frozen end-to-end oracle for the study fixture in study_oracle.R. Every value derived by hand from the E2SFCA equations applied to the fixture geometry, in an independent implementation. No twostep code produced any number here.",
+  "fixture": "tests/fixtures/study_oracle.R",
+  "schema_version": "1.0.0",
+  "weights_cumulative": {
+    "30": 1.0,
+    "60": 0.68
+  },
+  "weights_incremental": {
+    "30": 0.31999999999999995,
+    "60": 0.68
+  },
+  "stage_1_supply": {
+    "PA1": 2,
+    "PA2": 1,
+    "PA3": 3,
+    "PB1": 1
+  },
+  "stage_2_overlap_fraction": {
+    "PA1": {
+      "30": {
+        "A01": 1.0,
+        "A02": 0.5
+      },
+      "60": {
+        "A01": 1.0,
+        "A02": 1.0,
+        "A03": 0.5
+      }
+    },
+    "PA2": {
+      "30": {
+        "A02": 1.0
+      },
+      "60": {
+        "A02": 1.0
+      }
+    },
+    "PA3": {
+      "30": {
+        "A04": 1.0
+      }
+    },
+    "PB1": {
+      "30": {
+        "B01": 1.0,
+        "B02": 1.0
+      },
+      "60": {
+        "B01": 1.0,
+        "B02": 1.0
+      }
+    }
+  },
+  "stage_3_weighted_demand": {
+    "PA1": 2850.0,
+    "PA2": 2000.0,
+    "PA3": 0.0,
+    "PB1": 80000.0
+  },
+  "stage_4_provider_ratio": {
+    "PA1": 0.0007017543859649122,
+    "PA2": 0.0005,
+    "PA3": 0.0,
+    "PB1": 1.25e-05
+  },
+  "stage_5_tract_access": {
+    "A01": 0.0007017543859649122,
+    "A02": 0.0010894736842105264,
+    "A03": 0.00023859649122807017,
+    "A04": 0.0,
+    "A05": 0.0,
+    "B01": 1.2500000000000002e-05,
+    "B02": 1.2500000000000002e-05
+  },
+  "stage_6_component_A": {
+    "_comment": "Conservation: sum_i pop_i * A_i must equal the supply of providers with positive demand. PA3 reaches only a zero-population tract, so its 3 physicians are excluded and audited.",
+    "sum_pop_times_access": 3.0,
+    "usable_supply": 3,
+    "population_weighted_mean_access": 0.0006976744186046512,
+    "per_100k": 69.76744186046511,
+    "total_population": 4300
+  },
+  "audit_expectations": {
+    "zero_demand_coord_ids": [
+      "PA3"
+    ],
+    "excluded_supply": 3,
+    "unreachable_tracts": [
+      "A05"
+    ],
+    "zero_population_tracts": [
+      "A04"
+    ]
+  }
+}

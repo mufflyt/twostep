@@ -571,6 +571,30 @@ compute_e2sfca <- function(overlap, tract_pop, supply,
   wtab <- dplyr::tibble(band = as.integer(names(inc_d)),
                         w_inc = as.numeric(inc_d), w_acc = as.numeric(inc_a))
 
+  # FAIL CLOSED on duplicate keys. Both joins below are left joins, so a repeated
+  # key silently MULTIPLIES rows rather than erroring: a duplicated tract row
+  # double-counts that tract's population in every Step 1 denominator
+  # (understating accessibility), and a duplicated supply row double-counts the
+  # provider in Step 2 (overstating it). Both produce entirely believable
+  # numbers. A tract has one population and a coordinate has one supply count,
+  # so a repeat is scientifically impossible input, not a preference.
+  dup_g <- unique(as.character(tract_pop$GEOID)[duplicated(as.character(tract_pop$GEOID))])
+  if (length(dup_g)) {
+    stop(sprintf(
+      "compute_e2sfca: duplicate GEOID in tract_pop (%s%s). A repeated tract row multiplies that tract's population through the Step 1 denominator and understates accessibility; refusing to guess which row is authoritative.",
+      paste(utils::head(dup_g, 5), collapse = ", "),
+      if (length(dup_g) > 5) sprintf(" and %d more", length(dup_g) - 5L) else ""),
+      call. = FALSE)
+  }
+  dup_j <- unique(as.character(supply$coord_id)[duplicated(as.character(supply$coord_id))])
+  if (length(dup_j)) {
+    stop(sprintf(
+      "compute_e2sfca: duplicate coord_id in supply (%s%s). A repeated provider row is counted twice in Step 2 and OVERSTATES accessibility; refusing to guess which row is authoritative.",
+      paste(utils::head(dup_j, 5), collapse = ", "),
+      if (length(dup_j) > 5) sprintf(" and %d more", length(dup_j) - 5L) else ""),
+      call. = FALSE)
+  }
+
   pop <- dplyr::transmute(
     tract_pop,
     GEOID = as.character(GEOID),

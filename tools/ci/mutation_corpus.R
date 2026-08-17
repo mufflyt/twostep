@@ -35,6 +35,7 @@ TARGETS <- c(ENGINE, URPS)
 # costs little: allocator and URPS mutants simply fall through the E2SFCA suites
 # to the ones that cover them.
 SUITES <- c("tests/testthat/test-e2sfca-luo-qi-2009-published.R",
+            "tests/testthat/test-e2sfca-study-oracle-end-to-end.R",
             "tests/testthat/test-e2sfca-delamater-2013-m2sfca.R",
             "tests/testthat/test-e2sfca-invariants-and-reference.R",
             "tests/testthat/test-e2sfca-metamorphic-and-algebra.R",
@@ -43,6 +44,8 @@ SUITES <- c("tests/testthat/test-e2sfca-luo-qi-2009-published.R",
             "tests/testthat/test-urps-accessibility-scenarios.R",
             "tests/testthat/test-urps-accessibility-e2sfca-adapter.R",
             if (!quick) "tests/testthat/test-e2sfca-simulation-null-and-signal.R")
+
+STUDY <- "tests/testthat/test-e2sfca-study-oracle-end-to-end.R"
 
 # --- the corpus ---------------------------------------------------------------
 # name -> list(old, new, why). `old` must appear EXACTLY ONCE in the engine, so
@@ -116,6 +119,30 @@ MUTANTS <- list(
     suites = c("tests/testthat/test-urps-accessibility-scenarios.R",
                "tests/testthat/test-urps-accessibility-e2sfca-adapter.R"),
     why = "Every tract counts as reached regardless of access, inflating the SPAR denominator."),
+
+  # --- PIPELINE GLUE, not the equation ----------------------------------------
+  # These attack the surface where a real study fails: correct math attached to
+  # the wrong rows. Each is chosen to produce PLAUSIBLE output rather than crash.
+  join_provider_tract_by_position = list(
+    old = "  base <- dplyr::inner_join(base, wtab, by = \"band\")",
+    new = "  base <- dplyr::bind_cols(base, wtab[rep_len(seq_len(nrow(wtab)), nrow(base)), c(\"w_inc\",\"w_acc\")])",
+    suites = STUDY,
+    why = "Band weights attached by ROW POSITION instead of joined on band: every row still gets a weight, and the numbers stay plausible."),
+  missing_population_becomes_zero_silently = list(
+    old = "  base$pop[is.na(base$pop)] <- 0",
+    new = "  base$pop[is.na(base$pop)] <- 1",
+    why = "Unmatched tracts get population 1 instead of 0 -- a tract that failed to join contributes phantom demand.",
+    suites = STUDY),
+  aggregate_unweighted_instead_of_population_weighted = list(
+    old = "    access = sum(wf_a * ratio_for_surface),",
+    new = "    access = mean(wf_a * ratio_for_surface),",
+    suites = STUDY,
+    why = "Step 2 averages provider contributions instead of summing them: a tract reached by two providers reports the mean, not the total."),
+  drop_unmatched_tracts = list(
+    old = "  access <- dplyr::left_join(all_tracts, access, by = \"GEOID\")",
+    new = "  access <- dplyr::inner_join(all_tracts, access, by = \"GEOID\")",
+    suites = STUDY,
+    why = "Unreachable tracts are dropped from the output instead of reported as 0, silently shrinking every downstream denominator."),
 
   abel_tail_not_zero = list(
     old = "  next_w <- c(wp[-1L], 0)                       # W beyond the last band = 0",
