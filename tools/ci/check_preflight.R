@@ -8,6 +8,20 @@ bad   <- function(...) fails <<- c(fails, paste0(...))
 git <- function(...) system2("git", c(...), stdout = TRUE, stderr = FALSE)
 tracked <- git("ls-files")
 
+# --- a mutation corpus must not be mid-run ---------------------------------------
+# The corpus MUTATES tracked sources and restores them at the end. If a sentinel
+# is present, a run is either in flight or died partway, and the working tree is
+# not trustworthy. Committing during one is how a mutant reached main: the corpus
+# was backgrounded, `git add -A` ran while a source was mutated, and
+# `inc <- inc / sum(inc)` was committed and pushed. Preflight runs before every
+# commit and in CI, so this is where that becomes impossible.
+if (file.exists(".mutation-corpus-in-progress")) {
+  bad("a mutation corpus run is in progress or died partway ",
+      "(.mutation-corpus-in-progress exists). The working tree may contain a ",
+      "MUTATED source. Wait for it to finish, or check `git diff R/` and remove ",
+      "the sentinel, before committing.")
+}
+
 # --- DESCRIPTION is parseable and complete --------------------------------------
 d <- tryCatch(read.dcf("DESCRIPTION")[1, ], error = function(e) NULL)
 if (is.null(d)) {

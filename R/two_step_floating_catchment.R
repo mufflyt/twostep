@@ -311,7 +311,7 @@ e2sfca_incremental_weights <- function(weights = E2SFCA_DEFAULT_WEIGHTS,
   wp <- w^step2_power                          # W_b^power (diff of the POWERED cumulative)
   next_w <- c(wp[-1L], 0)                       # W beyond the last band = 0
   inc <- wp - next_w                            # diff(W^power), NOT diff(W)^power
-  inc <- inc / sum(inc)                        # clamp float error
+  inc[inc < 0 & inc > -1e-9] <- 0               # clamp float error
   stats::setNames(inc, names(w))
 }
 
