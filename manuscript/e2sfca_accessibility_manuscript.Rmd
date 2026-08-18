@@ -333,6 +333,77 @@ knitr::knit_hooks$set(document = function(x) {
 })
 ```
 
+```{r verbal-claim-guard, include=FALSE}
+# ---- verbal quantifiers must agree with the numbers they describe -----------
+# Every NUMBER in this paper is an inline R expression against the frozen run,
+# so numbers cannot go stale. The WORDS around them can. "About one in five",
+# "more than twice", "about six times" are hardcoded prose sitting next to
+# computed values, and nothing tied the two together: re-freeze on a different
+# run and the percentages update while the English silently does not.
+#
+# That is the same failure this project refuses everywhere else -- a result that
+# looks fine and is quietly wrong -- so the claims are asserted here and a
+# contradiction FAILS THE RENDER rather than shipping.
+#
+# Each rule states the arithmetic that makes the phrase honest, not merely a
+# range someone found convenient. Change the phrase and you must change the rule
+# with it; that is the point.
+#
+# Built as a plain list rather than a helper that accumulates with `<<-`: inside
+# knitr the chunk body and any function defined in it do not share a parent, so
+# `<<-` can write to a different binding than the check reads and the guard
+# would silently never fire. Caught by negative-testing this guard, which is the
+# only reason it is written this way.
+.checks <- local({
+  # "one in five" = 20%. A value earns that phrase when it is nearer 20% than
+  # any other multiple of five, i.e. within 2.5 points.
+  # One constant, used by both the test and the message, so the two can never
+  # disagree about what the rule actually is.
+  tol <- 2.5
+  one_in_five <- function(x) isTRUE(abs(x - 20) <= tol)
+  mrr    <- unname(gci("metro_rural_ratio")["point"])
+  rz     <- unname(gci("rural_zero")["point"])
+  mz     <- unname(gci("metro_zero")["point"])
+  zratio <- rz / mz
+
+  out <- list()
+  for (s in c("GO", "MFM")) {
+    v <- sp(s, "pct_outside_60")
+    out[[length(out) + 1L]] <- list(
+      ok = one_in_five(v),
+      msg = sprintf("Abstract 'About one in five' (%s): outside 60 min is %.1f%%, not within %.1f points of 20%%", s, v, tol))
+  }
+  for (s in c("GO", "MFM", "FPMRS")) {
+    v <- sp(s, "pct_outside_60")
+    out[[length(out) + 1L]] <- list(
+      ok = one_in_five(v),
+      msg = sprintf("Results 'Roughly one in five' (%s): outside 60 min is %.1f%%, not within %.1f points of 20%%", s, v, tol))
+  }
+  # "more than twice the access" is a strict inequality, so check it as one.
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(mrr > 2),
+    msg = sprintf("Abstract 'more than twice the access': metro:rural access ratio is %.3f, not more than twice", mrr))
+  # "about six times as likely": the rural:metro zero-access ratio must round to 6.
+  # NB computed from the artifact, never from the rounded percentages printed in
+  # the text -- 4.1/0.6 reads as 6.8 and would wrongly condemn a ratio of 6.45.
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(abs(zratio - 6) <= 0.5),
+    msg = sprintf("Abstract 'about six times as likely': rural:metro zero-access ratio is %.3f (%.4f%% vs %.4f%%), which does not round to six", zratio, rz, mz))
+  attr(out, "summary") <- sprintf("metro:rural %.2fx, zero-access %.2fx", mrr, zratio)
+  out
+})
+
+.bad <- vapply(.checks, function(z) !isTRUE(z$ok), logical(1))
+if (any(.bad)) {
+  stop(sprintf(
+    "Manuscript verbal claims contradict their own computed values:\n  - %s\nEither the wording or the underlying run changed. Fix the sentence, or the rule above if the phrasing was deliberately revised.",
+    paste(vapply(.checks[.bad], `[[`, character(1), "msg"), collapse = "\n  - ")),
+    call. = FALSE)
+}
+message(sprintf("verbal-claim guard: %d claims checked, all consistent (%s)",
+                length(.checks), attr(.checks, "summary")))
+```
+
 # Title Page {-}
 
 **Full title.** National travel-time accessibility to board-certified

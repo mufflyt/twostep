@@ -137,7 +137,15 @@ jobs:
   docs:
     name: documentation freshness
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # 90, not 45. Three jobs died at exactly 45 minutes inside
+    # setup-r-dependencies without ever running their actual step: a cold
+    # dependency cache installing the geospatial stack (sf/terra/GDAL bindings)
+    # does not reliably fit in 45 minutes, and the job is then reported as
+    # "cancelled", which reads like someone stopped it rather than like a
+    # timeout. weekly-deep already budgets 90-120 for the same reason -- it
+    # installs cold on purpose. Raising this buys a real result instead of a
+    # misleading cancellation; it does not weaken any gate.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -228,7 +236,7 @@ jobs:
   testthat:
     name: testthat suite (source tree)
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -344,7 +352,7 @@ jobs:
   installed-isolation:
     name: installed package works outside the repo
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -375,7 +383,7 @@ jobs:
   minimal-deps:
     name: loads with Imports only
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -413,7 +421,7 @@ jobs:
   scientific-mutants:
     name: scientific mutation corpus
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -446,7 +454,7 @@ jobs:
   manuscript:
     name: manuscript renders and reads correctly
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
@@ -486,7 +494,7 @@ jobs:
   scientific-fingerprint:
     name: scientific fingerprint (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
