@@ -304,6 +304,16 @@ dj7_tract_access <- function(membership, supply, dvec, Wc = DJ7_WC_BASE) {
 #' @param dvec named numeric demand vector over ALL tracts (unreached tracts
 #'   count as zero access).
 #' @return percent in [0, 100].
+#' @examples
+#' acc  <- data.frame(GEOID = c("A", "B", "C", "D"), A = c(0, 0, 0.5, 0.9))
+#' dvec <- c(A = 50, B = 50, C = 400, D = 500)
+#' # Population-weighted, NOT a tract count: the two zero-access tracts hold
+#' # 100 of 1000 women, so the share is 10 percent and not 50.
+#' dj7_no_access_share(acc, dvec)
+#'
+#' # A tract with a measured access value but no demand weight would change the
+#' # population denominator, so it is refused rather than dropped.
+#' try(dj7_no_access_share(rbind(acc, data.frame(GEOID = "Z", A = 0)), dvec))
 #' @export
 dj7_no_access_share <- function(access_df, dvec) {
   A <- stats::setNames(rep(0, length(dvec)), names(dvec))

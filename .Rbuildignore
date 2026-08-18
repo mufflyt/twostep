@@ -36,3 +36,4 @@
 ^render\.R$
 ^render_docx\.R$
 ^SHA256SUMS\.txt$
+^CHANGELOG\.md$

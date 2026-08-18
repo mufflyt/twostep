@@ -4,3 +4,14 @@ template:
   bootstrap: 5
   bootswatch: flatly
   light-switch: true
+
+# Vignettes are auto-discovered, but naming the article makes the navbar entry
+# read as a topic rather than a filename.
+articles:
+  - title: Method
+    navbar: ~
+    contents:
+      - e2sfca-accessibility
+
+news:
+  releases: []

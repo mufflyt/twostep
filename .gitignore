@@ -37,3 +37,7 @@ renv/lock/
 # .github/workflows/release-manuscript.yml.
 manuscript/e2sfca_accessibility_manuscript.html
 manuscript/e2sfca_accessibility_manuscript.docx
+
+# R CMD check output
+twostep.Rcheck/
+*.tar.gz

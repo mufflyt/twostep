@@ -594,6 +594,34 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
 #'   zero-demand convention (see the `$audit` block and eMethods S4).
 #' @family E2SFCA computation
 #' @seealso [compute_band_tract_overlap], [compute_provider_supply], [compute_e2sfca_raster]
+#' @examples
+#' # Four tracts, two providers, small enough to check by hand.
+#' tract_pop <- data.frame(
+#'   GEOID      = c("T1", "T2", "T3", "T4"),
+#'   female_pop = c(1000, 2000, 1500, 500)
+#' )
+#' # One row per (tract, provider, band), at the tract's TIGHTEST band.
+#' overlap <- data.frame(
+#'   GEOID            = c("T1", "T2", "T3", "T4", "T2", "T3"),
+#'   coord_id         = c("P1", "P1", "P1", "P2", "P2", "P2"),
+#'   band             = c(30L, 60L, 120L, 30L, 120L, 60L),
+#'   overlap_fraction = 1
+#' )
+#' supply <- data.frame(coord_id = c("P1", "P2"), supply = c(4, 6))
+#'
+#' # `weights` are CUMULATIVE; the increments are derived internally.
+#' res <- compute_e2sfca(overlap, tract_pop, supply,
+#'                       weights = c(`30` = 1, `60` = 0.68, `120` = 0.22, `180` = 0.09))
+#' res$access[, c("GEOID", "access", "access_math", "reached")]
+#'
+#' # Conservation: accessibility redistributes supply, it does not create it.
+#' pop <- tract_pop$female_pop[match(res$access$GEOID, tract_pop$GEOID)]
+#' stopifnot(all.equal(sum(pop * res$access$access_math), sum(supply$supply)))
+#'
+#' # Missing population is an ERROR, not a zero: zero-filling would drop people
+#' # from the Step 1 denominator and inflate accessibility.
+#' gap <- tract_pop; gap$female_pop[3] <- NA
+#' try(compute_e2sfca(overlap, gap, supply))
 #' @export
 compute_e2sfca <- function(overlap, tract_pop, supply,
                            weights = E2SFCA_DEFAULT_WEIGHTS,

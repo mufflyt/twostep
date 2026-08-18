@@ -23,6 +23,21 @@ no network access — its only external code dependency is the
 [`mufflyaccess`](https://github.com/mufflyt/mufflyaccess) package (data lineage in
 [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md)).
 
+## Learn the method
+
+A worked four-tract, two-provider example — small enough to check by hand — is in
+the vignette:
+
+```r
+vignette("e2sfca-accessibility", package = "twostep")
+```
+
+It covers the two steps, why nested band weights must be *subtracted* rather than
+used directly, the conservation identity that any correct surface satisfies, why
+an unreached tract is `NA` rather than zero, and how the package refuses
+ambiguous joins instead of quietly repairing them. It uses no external data, so
+it runs anywhere the package installs.
+
 ## Workforce counts, the URPS contract, and year handling
 
 Table 1's provider counts and standardized supply are derived from the frozen

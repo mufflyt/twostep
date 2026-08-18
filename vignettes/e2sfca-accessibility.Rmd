@@ -1,0 +1,212 @@
+---
+title: "Measuring geographic access with E2SFCA"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Measuring geographic access with E2SFCA}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+This vignette builds a four-tract, two-provider example small enough to check by
+hand, and walks it through the same functions the national analysis uses. Every
+number below is computed, not quoted, so if the engine changes the vignette
+changes with it.
+
+It uses no external data. The national surfaces depend on road-network
+isochrones and ACS extracts that cannot ship in a package; the arithmetic does
+not, and the arithmetic is what most people need to understand first.
+
+```{r setup}
+library(twostep)
+```
+
+## What the two steps are
+
+Accessibility here is a **supply-to-demand ratio, smeared over a catchment**.
+
+**Step 1** — for each provider *j*, add up the population that can reach it,
+weighting nearer people more heavily, and divide that provider's capacity by the
+total:
+
+$$R_j = \frac{S_j}{\sum_i w_{ij} \, P_i}$$
+
+**Step 2** — for each tract *i*, add up the ratios of every provider *i* can
+reach, with the same weights:
+
+$$A_i = \sum_j w_{ij} \, R_j$$
+
+The weights $w_{ij}$ come from drive-time bands: someone 20 minutes away counts
+more than someone 100 minutes away. That is the "enhanced" part — the original
+two-step method treated everyone inside the catchment identically.
+
+## Band weights, and why they are subtracted
+
+Isochrone bands are **nested**: the 60-minute polygon contains the 30-minute
+polygon. So the published weights are *cumulative*, and using them directly
+would count the innermost population once per band it falls inside.
+
+`e2sfca_incremental_weights()` performs the Abel summation that fixes this —
+each ring gets the difference between its own weight and the next one out:
+
+```{r weights}
+W_cumulative <- c(`30` = 1.00, `60` = 0.68, `120` = 0.22, `180` = 0.09)
+W_incremental <- e2sfca_incremental_weights(W_cumulative)
+W_incremental
+```
+
+The outermost band keeps its cumulative weight, and the increments sum back to
+the innermost cumulative weight — every ring counted exactly once:
+
+```{r weights-identity}
+sum(W_incremental)
+identical(unname(sum(W_incremental)), unname(W_cumulative[["30"]]))
+```
+
+Get this wrong and accessibility is overstated everywhere, in a way that looks
+entirely plausible. It is the single easiest place to introduce a believable
+error, which is why the test suite pins it from several directions.
+
+## A worked example
+
+Four tracts, two providers. Tract populations and which band each tract falls
+into for each provider:
+
+```{r fixture}
+# `pop_col` defaults to "female_pop", the denominator the study uses.
+tract_pop <- data.frame(
+  GEOID      = c("T1", "T2", "T3", "T4"),
+  female_pop = c(1000, 2000, 1500, 500),
+  stringsAsFactors = FALSE
+)
+
+# One row per (tract, provider, band). Nested bands: a tract in the 30-minute
+# ring is also inside the 60-minute polygon, but appears once, at its tightest.
+overlap <- data.frame(
+  GEOID    = c("T1", "T2", "T3", "T4", "T2", "T3"),
+  coord_id = c("P1", "P1", "P1", "P2", "P2", "P2"),
+  band     = c(30L,  60L,  120L, 30L,  120L, 60L),
+  # What fraction of the tract lies in that band. 1 = wholly inside.
+  overlap_fraction = 1,
+  stringsAsFactors = FALSE
+)
+
+supply <- data.frame(
+  coord_id = c("P1", "P2"),
+  supply   = c(4, 6),
+  stringsAsFactors = FALSE
+)
+```
+
+Step 1 by hand for provider P1: its weighted demand is
+`1000 x 0.32 + 2000 x 0.46 + 1500 x 0.13`, and its ratio is `4` divided by that.
+
+```{r step1-by-hand}
+w <- W_incremental
+demand_P1 <- 1000 * w[["30"]] + 2000 * w[["60"]] + 1500 * w[["120"]]
+demand_P1
+4 / demand_P1
+```
+
+Now the engine. Note it takes the **cumulative** weights and derives the
+increments itself, so the correction above cannot be skipped by accident:
+
+```{r run}
+res <- compute_e2sfca(
+  overlap   = overlap,
+  tract_pop = tract_pop,
+  supply    = supply,
+  weights   = W_cumulative
+)
+res$access[, c("GEOID", "access", "access_math", "reached")]
+```
+
+## The conservation identity
+
+The property worth internalising: **total supply is conserved**. Summing each
+tract's accessibility, weighted by its population, returns total capacity —
+accessibility redistributes supply across space, it does not create or destroy
+it:
+
+$$\sum_i P_i A_i = \sum_j S_j$$
+
+This is the strongest single check on an accessibility surface. A result that
+violates it is wrong no matter how plausible the map looks.
+
+```{r conservation}
+pop <- tract_pop$female_pop[match(res$access$GEOID, tract_pop$GEOID)]
+c(redistributed = sum(pop * res$access$access_math),
+  total_supply  = sum(supply$supply))
+```
+
+Those two agree exactly. Every tract with positive demand contributes; the identity holds over providers
+reachable by someone. Tracts outside every catchment are a separate matter, and
+the distinction is deliberate — see below.
+
+## Unmeasured is not zero
+
+A tract outside every modelled catchment has **no measurement**, which is not
+the same as measured zero access. Reporting the two identically would let
+missing data masquerade as a finding.
+
+`compute_e2sfca()` therefore returns both:
+
+- `access` is `NA` for tracts no provider reaches
+- `access_math` is the zero-filled algebraic form, for sums and identities
+
+Feed `access` to anything that averages and unreached tracts drop out; feed
+`access_math` and they count as zero. Which you want depends on the question,
+and the package refuses to choose for you.
+
+## Missing data fails closed
+
+The package will not silently repair an ambiguous join. If a tract has no
+population row, or a population of `NA`, that is an error rather than a zero:
+
+```{r fail-closed, error = TRUE}
+tract_pop_gap <- tract_pop
+tract_pop_gap$female_pop[tract_pop_gap$GEOID == "T3"] <- NA
+
+compute_e2sfca(
+  overlap   = overlap,
+  tract_pop = tract_pop_gap,
+  supply    = supply,
+  weights   = W_cumulative
+)
+```
+
+The reasoning is directional and worth stating plainly. Coercing unknown
+population to zero removes people from the Step 1 denominator, which **inflates**
+accessibility — the direction that makes a study look better than its data
+supports. If an imputation is genuinely intended it can be requested by name:
+
+```{r na-policy, eval = FALSE}
+compute_e2sfca(
+  overlap       = overlap,
+  tract_pop     = tract_pop_gap,
+  supply        = supply,
+  weights       = W_cumulative,
+  na_pop_policy = "zero"   # explicit, documented imputation
+)
+```
+
+The same rule governs unmatched tracts, unmatched providers, and duplicate keys
+throughout: **no silent loss, no silent multiplication, no silent zeroing.**
+Duplicate keys are refused because a lookup would otherwise keep one row and
+discard the rest, making the answer depend on row order. A duplicated supply row
+was once found to *double* a tract's accessibility.
+
+## Where to go next
+
+| topic | see |
+|---|---|
+| the desjardins7 tract-level engine | `?dj7_tract_access` |
+| the raster/grid path | `?build_e2sfca_grid_geometry`, `?compute_e2sfca_raster` |
+| mass-conserving demand allocation | `?allocate_pop_areaweighted` |
+| how figures and data were produced | `docs/FIGURE_PROVENANCE.md` |
+
+The published parameterisation, the sensitivity specifications, and the national
+results are in the manuscript, which reproduces from the frozen run.

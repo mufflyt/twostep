@@ -2,6 +2,58 @@
 
 ## twostep (development version)
 
+### Scientific validity: fail closed on ambiguous data
+
+A scientific join doctrine now governs every path that consumes scientific keys:
+**no silent loss, no silent multiplication, no silent zeroing.** An unmatched
+tract, provider, or year is an error naming what joined to what, how many keys
+failed, and representative offending IDs -- not a quietly dropped row.
+
+- `compute_e2sfca()` gains `na_pop_policy = c("error", "zero")`. `NA` population
+  is UNKNOWN, not zero; coercing it drops real people from the Step 1
+  denominator and **inflates** accessibility. The historical zero-fill is still
+  available but must be named.
+- `attach_e2sfca_population()` gains the same parameter. It previously
+  zero-filled every grid tract missing from `pop_vals`, so a tract set and a
+  population table that disagreed produced a complete-looking raster surface
+  with a hole in the demand denominator.
+- `dj7_no_access_share()` previously dropped tracts that had a measured access
+  value but no demand weight, silently changing the population denominator of
+  the reported no-access share.
+- `dj7_tract_access()` fails closed on tracts missing from `dvec` and origins
+  missing from `Rj`.
+- Duplicate scientific keys are refused wherever a lookup would otherwise keep
+  one row and discard the rest, which made results depend on row order.
+
+Two real defects were found this way: a duplicate tract row inflated demand
+(understating access) and a duplicate supply row **doubled** access. Neither was
+reachable from the frozen run, which reports `pop_excluded_missing_pop = 0`
+across all 77 rows.
+
+### Scientific-core coverage
+
+- New `tools/ci/scientific_coverage.R` asks a yes/no question per export -- does
+  any test call this? -- rather than reporting a percentage. A headline coverage
+  number stays high while an individual exported function is called by nothing.
+- It found **ten scientific-core exports with zero test contact**: seven `dj7_`
+  helpers and three raster-grid builders (`build_e2sfca_grid_geometry()`,
+  `prepare_e2sfca_iso()`, `attach_e2sfca_population()`), confirmed independently
+  by `covr` at 0% executed lines. Core coverage went 23/33 to 33/33 exercised.
+  Both `dj7_no_access_share()` and `attach_e2sfca_population()` defects above
+  were hiding behind that gap.
+- Exports are tiered CORE / SUPPORT / OTHER by hand, because what counts as
+  scientific core is a judgement about the study rather than a naming
+  convention. Only CORE is fatal.
+
+### Manuscript integrity
+
+- Verbal quantifiers in the paper are now asserted at render time. Numbers are
+  inline R against the frozen run and cannot go stale; the words around them
+  could. "About one in five", "more than twice", "about six times" are checked
+  against the values they describe, and a contradiction **fails the render**.
+  All four claims are currently true; this pins them rather than fixing them.
+
+
 ### Manuscript and data
 - Table 1 headline moved from 2020 to **2022** (the most recent non-right-censored
   year). 2022 provider counts and standardized supply are re-derived from the frozen
