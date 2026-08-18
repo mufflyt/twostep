@@ -14,6 +14,15 @@
 # complete-looking surface with a hole in the demand denominator -- and a hole
 # in the denominator INFLATES accessibility, which is the direction that makes a
 # study look better than the data supports.
+#
+# source() rather than library(twostep): the nightly testthat job deliberately
+# does NOT install the package, so every suite reaches the code through the
+# working tree. A file that relies on an attached package passes under
+# devtools::load_all() locally and errors with "could not find function" there.
+suppressWarnings(suppressMessages(library(testthat)))
+.root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION") | rprojroot::is_git_root)
+source(file.path(.root, "R", "two_step_floating_catchment.R"))
+source(file.path(.root, "R", "desjardins7_e2sfca.R"))
 
 make_tracts <- function() {
   # Four 0.1-degree square tracts in a row near Denver. Small, exactly known,

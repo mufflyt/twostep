@@ -16,6 +16,15 @@
 #
 # Writing the fix for dj7_no_access_share's silent drop (below) also only became
 # possible once something called it.
+#
+# source() rather than library(twostep): the nightly testthat job deliberately
+# does NOT install the package, so every suite reaches the code through the
+# working tree. A file that relies on an attached package passes under
+# devtools::load_all() locally and errors with "could not find function" there.
+suppressWarnings(suppressMessages(library(testthat)))
+.root <- rprojroot::find_root(rprojroot::has_file("DESCRIPTION") | rprojroot::is_git_root)
+source(file.path(.root, "R", "desjardins7_e2sfca.R"))
+source(file.path(.root, "R", "accessibility_stratification.R"))
 
 test_that("dj7_wmean matches the weighted-mean definition and its zero-weight rule", {
   x <- c(1, 2, 3, 4)
