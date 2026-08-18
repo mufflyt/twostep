@@ -46,6 +46,16 @@ env:
   # The renv-restore job deliberately UNSETS this: reproducing the pinned
   # environment is the whole point of that job.
   RENV_CONFIG_AUTOLOADER_ENABLED: false
+  # Pinned R for the ubuntu-latest jobs. Floating "release" repeatedly hung for a
+  # whole job budget inside setup-r@v2 -- installing R itself, before any repo
+  # file is read -- taking down R CMD check and the mutation corpus on separate
+  # runs while macOS and Windows on the same commit finished in minutes.
+  #
+  # BUMP THIS when R releases. macOS and Windows in the check matrix, and the
+  # cross-platform fingerprint job, deliberately stay on floating "release", so a
+  # new R that breaks this package still fails the nightly somewhere. This
+  # removes a flake; it does not remove the check.
+  R_PINNED: "4.6.1"
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
@@ -56,6 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       # Structural checks only, base R: DESCRIPTION parses and is complete, the
       # expected layout exists, no committed merge-conflict markers, no
@@ -73,6 +84,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       # The patterns that actually broke this repo: a top-level source() in R/
       # made R CMD INSTALL fail at lazy-load, which made the whole package
@@ -89,6 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       # No package installation: base R only, so this reports in well under a
       # minute and catches the breaks that make every other job pointless.
@@ -102,6 +115,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       # Zero-dependency by design, so it also works inside the renv sandbox where
       # roxygen2 is unavailable. Re-derives the export set from the @export tags
@@ -127,6 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       - name: Install jsonlite
         run: install.packages("jsonlite")
@@ -149,6 +164,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
@@ -181,7 +197,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest,  r: "release",  experimental: false }
+          # PINNED, not "release". This one matrix entry repeatedly hung for its
+          # entire job budget inside setup-r@v2 -- installing R itself, before
+          # checkout's code is used and before any dependency resolves -- while
+          # macOS, Windows, devel and oldrel-1 on the same commit finished in
+          # 1.6 to 30 minutes. Naming the version skips the release-resolution
+          # path that hangs.
+          #
+          # BUMP THIS when R releases. Floating "release" coverage is retained
+          # deliberately on macOS and Windows below, so a new R that breaks this
+          # package still fails the nightly somewhere -- pinning here removes a
+          # flake, it does not remove the check.
+          - { os: ubuntu-latest,  r: "4.6.1",    experimental: false }
           - { os: ubuntu-latest,  r: "oldrel-1", experimental: false }
           - { os: macos-latest,   r: "release",  experimental: false }
           # Informational. Windows needs source builds of the geospatial stack and
@@ -192,6 +219,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with:
           r-version: ${{ matrix.r }}
           use-public-rspm: true
@@ -240,8 +268,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with:
-          r-version: "release"
+          r-version: "${{ env.R_PINNED }}"
           use-public-rspm: true
       # The suite source()s the engine, which pulls sf/terra/exactextractr.
       - name: Install system libraries
@@ -328,6 +357,7 @@ jobs:
           echo "Lockfile R version: $v"
           echo "r=$v" >> "$GITHUB_OUTPUT"
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with:
           r-version: ${{ steps.lockr.outputs.r }}
           use-public-rspm: true
@@ -356,7 +386,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
-        with: { r-version: "release", use-public-rspm: true }
+        timeout-minutes: 10
+        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -387,7 +418,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
-        with: { r-version: "release", use-public-rspm: true }
+        timeout-minutes: 10
+        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -425,7 +457,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
-        with: { r-version: "release", use-public-rspm: true }
+        timeout-minutes: 10
+        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -458,7 +491,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
-        with: { r-version: "release", use-public-rspm: true }
+        timeout-minutes: 10
+        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -502,6 +536,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
         if: runner.os == 'Linux'
@@ -544,6 +579,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
         with: { use-public-rspm: true }
       - name: Install jsonlite
         run: install.packages("jsonlite")
