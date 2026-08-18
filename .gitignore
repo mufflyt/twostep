@@ -41,3 +41,4 @@ manuscript/e2sfca_accessibility_manuscript.docx
 # R CMD check output
 twostep.Rcheck/
 *.tar.gz
+pl_pfile_20050523-20260809.csv
