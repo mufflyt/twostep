@@ -37,3 +37,10 @@
 ^render_docx\.R$
 ^SHA256SUMS\.txt$
 ^CHANGELOG\.md$
+# Analysis scripts in Python, added alongside the secondary-location sensitivity
+# work. They sit at the repo root and are not package content -- same status as
+# render.R and the scripts directory above. Without this, R CMD check reports
+# them under "checking top-level files" as a NOTE, which the nightly treats as a
+# failure. Pattern rather than two literal names so the next one is covered too;
+# it is anchored so it only matches the package ROOT, never R/ or tools/.
+^[^/]+\.py$
