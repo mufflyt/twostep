@@ -1,0 +1,233 @@
+# =============================================================================
+# Specification-curve (multiverse) manifest for the twostep headline findings
+# =============================================================================
+# PRESPECIFIED. This file is written and frozen BEFORE any specification's
+# outcome is examined, and its SHA-256 is recorded in
+# specification_manifest.sha256. The analysis refuses to run if the two
+# disagree, so a specification cannot be added, dropped or re-tuned after its
+# answer is known.
+#
+# Discipline actually followed while writing this file: the base (primary)
+# values were read, because the grid is defined RELATIVE to the primary
+# analysis and the manuscript quotes them. The non-base variant values in
+# artifacts/2sfca/sensitivity/sensitivity_2020.csv were NOT examined. That
+# ordering is the whole point; recording it is how a later reader can judge it.
+#
+# The question this layer answers is no longer "does twostep compute E2SFCA
+# correctly?" -- equations, oracles, mutation testing, join doctrine and
+# manuscript quantifier guards already cover that. It is:
+#
+#   Do the substantive conclusions survive reasonable, defensible choices
+#   about decay, catchments, formulation, geometry, supply and demand?
+#
+# Fragility is a RESULT, not a failure. See failure_policy below.
+
+manifest_version: 1
+frozen_on: "2026-08-19"
+primary_specification: base
+cohort_year: 2020
+
+# ---------------------------------------------------------------------------
+# ESTIMANDS -- recomputed identically for every executed specification
+# ---------------------------------------------------------------------------
+estimands:
+  - id: E1
+    name: national population-weighted mean access
+    column: national
+    unit: providers per 100,000 women
+    per_subspecialty: true
+  - id: E2
+    name: rural-to-metropolitan access ratio
+    column: rural_metro_ratio
+    note: >
+      Ratio < 1 means rural disadvantage. The manuscript states the RECIPROCAL
+      ("metropolitan women had more than twice the access"), so the manuscript
+      threshold of 2.0 corresponds to rural_metro_ratio <= 0.5 here.
+    per_subspecialty: true
+  - id: E3
+    name: AIAN-to-White area-level access ratio
+    column: aian_white_ratio
+    note: Ratio < 1 means AIAN-area disadvantage.
+    per_subspecialty: true
+  - id: E4
+    name: subspecialty ordering by national mean access
+    derived: rank(national) within specification
+    per_subspecialty: false
+
+# ---------------------------------------------------------------------------
+# MANUSCRIPT CLAIMS UNDER TEST -- each with a prespecified decision rule
+# ---------------------------------------------------------------------------
+claims:
+  - id: C1
+    text: "Metropolitan women had more than twice the access of rural women (gynecologic oncology)."
+    rule: "GO rural_metro_ratio < 0.5"
+    threshold_crossing: true
+  - id: C2
+    text: "Rural areas were lower than metropolitan in every one of the seven subspecialties."
+    rule: "rural_metro_ratio < 1 for all 7 subspecialties"
+    threshold_crossing: false
+  - id: C3
+    text: "Areas where American Indian or Alaska Native women lived were lowest in every subspecialty."
+    rule: "aian_white_ratio < 1 for all 7 subspecialties"
+    threshold_crossing: false
+  - id: C4
+    text: "Disparities held across all sensitivity specifications."
+    rule: "C2 and C3 hold in EVERY executed specification"
+    note: >
+      This is the manuscript's own robustness assertion. It is the one claim
+      this layer can falsify directly, and the one place where a mismatch
+      SHOULD fail CI -- not because fragility is bad, but because asserting
+      robustness the results do not support is a misstatement.
+    threshold_crossing: false
+  - id: C5
+    text: "Subspecialty ordering by access is stable (MFM and GO highest, CFP lowest)."
+    rule: "rank of MFM, GO in top 2 and CFP last, by national mean"
+    threshold_crossing: false
+
+# ---------------------------------------------------------------------------
+# SPECIFICATION GRID
+# ---------------------------------------------------------------------------
+# status:
+#   frozen    outcome already computed by scripts/sensitivity_e2sfca_2020.R and
+#             stored in artifacts/2sfca/sensitivity/sensitivity_2020.csv
+#   pipeline  defensible and prespecified, but requires the production spatial
+#             pipeline (private isochrones inputs + ACS extracts). Declared here
+#             so its ABSENCE is visible rather than silently omitted, which is
+#             how a multiverse gets quietly trimmed to the flattering subset.
+specifications:
+  - id: S01
+    variant: base
+    axis: primary
+    status: frozen
+    changed: []
+    description: Luo & Qi (2009) weight set 1; bands 30/60/120/180; 1000 m grid; E2SFCA.
+    source: "Luo & Qi 2009 doi:10.1016/j.healthplace.2009.06.002"
+
+  - id: S02
+    variant: sharper
+    axis: distance_decay
+    status: frozen
+    changed: [decay_weights]
+    description: Steeper distance decay; nearer demand weighted more heavily.
+    source: "Luo & Qi 2009 alternative weight set"
+
+  - id: S03
+    variant: slower
+    axis: distance_decay
+    status: frozen
+    changed: [decay_weights]
+    description: Flatter distance decay; far demand retains more weight.
+    source: "Luo & Qi 2009 alternative weight set"
+
+  - id: S04
+    variant: gaussian
+    axis: decay_form
+    status: frozen
+    changed: [decay_form]
+    description: >
+      Four-band zonal approximation to a Gaussian decay, rather than the
+      published zonal presets. NOT continuous decay.
+    source: "McGrail 2012 doi:10.1186/1476-072X-11-50"
+
+  - id: S05
+    variant: drop180
+    axis: catchment_threshold
+    status: frozen
+    changed: [catchment_bands]
+    description: Catchment truncated at 120 minutes; the 180-minute band removed.
+    source: "catchment-size sensitivity, standard practice"
+
+  - id: S06
+    variant: res500
+    axis: grid_resolution
+    status: frozen
+    changed: [grid_resolution]
+    description: 500 m demand-allocation grid instead of 1000 m.
+    source: "MAUP sensitivity"
+
+  - id: S07
+    variant: m2sfca
+    axis: accessibility_formulation
+    status: frozen
+    changed: [formulation]
+    description: >
+      M2SFCA: step-2 power 2, access increments diff(W^2). Penalises
+      maldistribution. NOTE the estimand is not identical to E2SFCA in scale;
+      comparisons are by DIRECTION and by contrast ratio, not absolute level.
+    estimand_comparable: contrast_only
+    source: "Delamater 2013 doi:10.1016/j.healthplace.2013.07.012"
+
+  # ---- prespecified but NOT executable in this repository -------------------
+  - id: S08
+    variant: vector_tract
+    axis: implementation_geometry
+    status: pipeline
+    changed: [implementation]
+    description: Tract/vector implementation (compute_e2sfca) rather than raster.
+    blocked_by: "requires tract-band membership from the private isochrones pipeline"
+
+  - id: S09
+    variant: desjardins7
+    axis: formulation_family
+    status: pipeline
+    changed: [formulation, weights_application]
+    description: >
+      Desjardins7 tract-level formulation (dj7_tract_access), whose step 1 uses
+      incremental and step 2 cumulative weights -- a deliberate asymmetry.
+    blocked_by: "requires per-band tract membership tables"
+
+  - id: S10
+    variant: supply_definition
+    axis: provider_supply
+    status: pipeline
+    changed: [supply_definition]
+    description: Alternative provider-supply definition (e.g. headcount vs FTE-weighted).
+    blocked_by: "requires the provider cohort file"
+
+  - id: S11
+    variant: denominator
+    axis: demand_denominator
+    status: pipeline
+    changed: [population_denominator]
+    description: >
+      Alternative demand denominator (e.g. reproductive-age women rather than
+      total female population).
+    blocked_by: "requires ACS extracts beyond the frozen total-female denominator"
+
+  - id: S12
+    variant: boundary_rule
+    axis: boundary_inclusion
+    status: pipeline
+    changed: [provider_inclusion]
+    description: Inclusion/exclusion of providers just outside the CONUS boundary.
+    blocked_by: "requires the unfiltered provider cohort"
+
+# ---------------------------------------------------------------------------
+# ROBUSTNESS CLASSIFICATION -- thresholds fixed in advance
+# ---------------------------------------------------------------------------
+classification:
+  relative_magnitude_threshold: 0.25   # |spec - base| / |base|
+  classes:
+    - id: directionally_invariant
+      rule: "claim holds AND relative magnitude change <= 0.25"
+    - id: quantitatively_sensitive_same_conclusion
+      rule: "claim holds AND relative magnitude change > 0.25"
+    - id: materially_conclusion_sensitive
+      rule: "claim fails, or a manuscript threshold is crossed"
+    - id: not_comparable_estimand_changed
+      rule: "specification declares estimand_comparable: contrast_only, for level estimands"
+
+# ---------------------------------------------------------------------------
+# WHAT MAY FAIL CI
+# ---------------------------------------------------------------------------
+# Fragility is reported, never failed on. CI fails ONLY for these.
+failure_policy:
+  fail_on:
+    - prespecified_specification_not_reproducible
+    - same_specification_nondeterministic
+    - output_missing
+    - manifest_and_executed_analysis_disagree
+    - manuscript_asserts_robustness_unsupported_by_results   # claim C4
+  never_fail_on:
+    - a_finding_being_fragile
+    - a_specification_disagreeing_with_the_primary_analysis
