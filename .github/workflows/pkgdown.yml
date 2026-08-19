@@ -1,0 +1,136 @@
+name: pkgdown
+
+# Publishes the package website.
+#
+# NAMESPACE BOUNDARY, the reason this file is shaped the way it is:
+#
+#   main       source code and hand-maintained scientific provenance --
+#              docs/DATA_PROVENANCE.md, docs/FIGURE_PROVENANCE.md,
+#              docs/SSOT_LEDGER.md, the runbook. Cited from the README, NEWS,
+#              CHANGELOG and the manuscript Rmd.
+#   gh-pages   the disposable rendered website. Nothing here is a source of
+#              truth and the branch can be deleted and rebuilt at will.
+#
+# pkgdown's DEFAULT destination is docs/. In this repository that would aim a
+# site generator straight at those provenance documents. _pkgdown.yml therefore
+# sets `destination: pkgdown-site`, which is git-ignored and build-ignored, and
+# only that directory is deployed. docs/ is never read or written here.
+#
+# Generated HTML is never committed to main.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'R/**'
+      - 'man/**'
+      - 'vignettes/**'
+      - '_pkgdown.yml'
+      - 'README.md'
+      - 'NEWS.md'
+      - 'DESCRIPTION'
+      - '.github/workflows/pkgdown.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write        # required to push the gh-pages branch
+
+concurrency:
+  group: pkgdown-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  # See nightly.yml: the repo .Rprofile activates renv and would hide every
+  # package installed below behind an empty project library.
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
+
+jobs:
+  build-and-deploy:
+    name: build pkgdown and deploy to gh-pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      # See nightly.yml: the runner's apt mirrorlist points at
+      # azure.archive.ubuntu.com, which is intermittently unreachable, and
+      # setup-r runs `apt-get update` internally.
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with: { r-version: "release", use-public-rspm: true }
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev pandoc
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::pkgdown, local::.
+          needs: website
+
+      # install = TRUE matters: pkgdown renders vignettes against the INSTALLED
+      # package. Building against a stale library silently produces a site that
+      # documents an older API -- observed locally, where an outdated install
+      # lacked the columns the vignette selects.
+      - name: Build the site
+        run: |
+          Rscript -e 'pkgdown::build_site(pkg = ".", install = TRUE, new_process = FALSE, preview = FALSE)'
+
+      # Provenance: answer "which twostep generated this website?" from the site
+      # itself, without needing the Actions log.
+      - name: Stamp the build provenance
+        run: |
+          cat > pkgdown-site/BUILD-PROVENANCE.json <<EOF
+          {
+            "commit": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "run_id": "${{ github.run_id }}",
+            "run_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "r_version": "$(Rscript -e 'cat(as.character(getRversion()))')",
+            "pkgdown_version": "$(Rscript -e 'cat(as.character(packageVersion("pkgdown")))')",
+            "twostep_version": "$(Rscript -e 'cat(as.character(packageVersion("twostep")))')"
+          }
+          EOF
+          cat pkgdown-site/BUILD-PROVENANCE.json
+
+      # docs/ must be untouched by any of the above. This is the guard that
+      # makes the namespace boundary a checked property rather than an intention.
+      - name: docs/ must be byte-identical
+        run: |
+          if ! git diff --quiet -- docs/; then
+            echo "::error::the pkgdown build modified docs/, which holds hand-maintained provenance"
+            git --no-pager diff --stat -- docs/
+            exit 1
+          fi
+          echo "docs/ unmodified:"
+          sha256sum docs/*.md
+
+      # Nothing generated may leak into main.
+      - name: The working tree must be clean apart from ignored output
+        run: |
+          if [ -n "$(git status --porcelain --untracked-files=normal | grep -v '^?? pkgdown-site/' || true)" ]; then
+            echo "::error::the build left unexpected changes in the working tree"
+            git status --porcelain
+            exit 1
+          fi
+          echo "no generated content leaked into the source tree"
+
+      - name: Deploy to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: pkgdown-site
+          clean: true
+          single-commit: true
+          commit-message: "pkgdown site for ${{ github.sha }}"

@@ -1,8 +1,6 @@
-# twostep NEWS
+# twostep (development version)
 
-## twostep (development version)
-
-### Scientific validity: fail closed on ambiguous data
+## Scientific validity: fail closed on ambiguous data
 
 A scientific join doctrine now governs every path that consumes scientific keys:
 **no silent loss, no silent multiplication, no silent zeroing.** An unmatched
@@ -30,7 +28,7 @@ Two real defects were found this way: a duplicate tract row inflated demand
 reachable from the frozen run, which reports `pop_excluded_missing_pop = 0`
 across all 77 rows.
 
-### Scientific-core coverage
+## Scientific-core coverage
 
 - New `tools/ci/scientific_coverage.R` asks a yes/no question per export -- does
   any test call this? -- rather than reporting a percentage. A headline coverage
@@ -45,7 +43,7 @@ across all 77 rows.
   scientific core is a judgement about the study rather than a naming
   convention. Only CORE is fatal.
 
-### Manuscript integrity
+## Manuscript integrity
 
 - Verbal quantifiers in the paper are now asserted at render time. Numbers are
   inline R against the frozen run and cannot go stale; the words around them
@@ -54,7 +52,7 @@ across all 77 rows.
   All four claims are currently true; this pins them rather than fixing them.
 
 
-### Manuscript and data
+## Manuscript and data
 - Table 1 headline moved from 2020 to **2022** (the most recent non-right-censored
   year). 2022 provider counts and standardized supply are re-derived from the frozen
   E2SFCA national summary via the conservation identity and staged in
@@ -86,7 +84,7 @@ across all 77 rows.
   regenerates from twostep alone. Verified from the data: rural < metropolitan and
   American Indian or Alaska Native lowest in every subspecialty.
 
-### Figure provenance
+## Figure provenance
 - Added [`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md) and
   [`manuscript/figures/FIGURE_PROVENANCE.csv`](manuscript/figures/FIGURE_PROVENANCE.csv):
   for every figure, the generator script (isochrones, with the three vendored copies
@@ -95,20 +93,20 @@ across all 77 rows.
   figure chunk plus the Rmd reproducibility record. Documents that filenames do not
   track figure numbers (e.g. Figure 5 is `fig4_gotrends.jpg`).
 
-### Not yet done, require the production spatial pipeline, not documentation
+## Not yet done, require the production spatial pipeline, not documentation
 - **Figure 1 is still the 2020 access surface**; its validated 2022 regeneration is
   pending a production-pipeline run and it is not described as 2022.
 - Table 2 and Figures 3-6 (detailed disparity analysis) remain 2020 and are labeled
   as such.
 
-## twostep 0.1.0
+# twostep 0.1.0
 
 Standalone analysis and manuscript for national travel-time accessibility to the
 seven ABOG-certified obstetric and gynecologic subspecialties (E2SFCA on
 road-network isochrones, 2013-2023), extracted from the isochrones pipeline so the
 paper builds and reproduces on its own.
 
-### Analysis and manuscript
+## Analysis and manuscript
 - Enhanced two-step floating catchment area (E2SFCA) engine
   (`R/two_step_floating_catchment.R`, SHA-gated), mass-conserving area-weighted
   demand allocation on a 500 m EPSG:5070 grid, and a Spatial Access Ratio (SPAR).
@@ -117,13 +115,13 @@ paper builds and reproduces on its own.
 - Live-computed values via `scripts/manuscript_e2sfca_values.R`; primary temporal
   change reported for 2013-2022 (2023 is right-censored and reported provisionally).
 
-### Single source of truth (mufflyaccess)
+## Single source of truth (mufflyaccess)
 - Shared band/geography/denominator constants and the disparity statistics are
   sourced live from the public, pinned `mufflyaccess` package (Imports; `renv.lock`
   pins `mufflyt/mufflyaccess@0.10.0`); the 2023 URPS workforce cross-reference in
   the manuscript is pulled via `mufflyaccess::urps_count()`, never hardcoded.
 
-### Reproducibility and integrity guards
+## Reproducibility and integrity guards
 - `render.R` verifies `SHA256SUMS.txt` for all consumed artifacts before rendering.
 - `e2sfca_reconcile_disparity_artifacts()` reconciles the disparity/coverage
   artifacts against the frozen national summary (wrong-source tripwire).
@@ -133,13 +131,13 @@ paper builds and reproduces on its own.
   shortage/adequacy labels on the modeled accessibility index.
 - 25 test files (765 checks), inline fixtures only.
 
-### E2SFCA Access Explorer (Shiny)
+## E2SFCA Access Explorer (Shiny)
 - `inst/shiny/access_explorer/` (`twostep::run_access_explorer()`): a separate app
   from the isochrones coverage maps, disparities, sensitivity, temporal, and a
   provenance tab reading the frozen artifacts; verifiable provenance emitted as
   `PROVENANCE.md` / `provenance.json` / `provenance.txt` (SHA256SUMS format).
 
-### Governance
+## Governance
 - One-direction cross-repo dependency contract (`docs/REPO_CHARTERS.md`,
   `docs/data-ownership.md`): isochrones builds the roster, mufflyaccess certifies
   the number, twostep measures access, cliff projects the future.

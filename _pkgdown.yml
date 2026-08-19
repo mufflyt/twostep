@@ -1,5 +1,15 @@
 url: https://mufflyt.github.io/twostep
 
+# NOT docs/. pkgdown's default destination is docs/, but in this repository
+# docs/ is hand-maintained scientific material -- DATA_PROVENANCE.md,
+# FIGURE_PROVENANCE.md, SSOT_LEDGER.md, the runbook -- cited from the README,
+# NEWS, CHANGELOG and the manuscript Rmd. Pointing a site generator at that
+# directory risks destroying source-of-truth documents.
+#
+# The generated site is disposable and lives on gh-pages. main holds source and
+# scientific provenance; gh-pages holds the rendered website. Hard boundary.
+destination: pkgdown-site
+
 template:
   bootstrap: 5
   bootswatch: flatly

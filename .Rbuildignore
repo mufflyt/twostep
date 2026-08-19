@@ -44,3 +44,6 @@
 # failure. Pattern rather than two literal names so the next one is covered too;
 # it is anchored so it only matches the package ROOT, never R/ or tools/.
 ^[^/]+\.py$
+# Generated pkgdown output. Never package content; would otherwise be reported
+# by R CMD check under "checking top-level files", which the nightly fails on.
+^pkgdown-site$

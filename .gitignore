@@ -42,3 +42,6 @@ manuscript/e2sfca_accessibility_manuscript.docx
 twostep.Rcheck/
 *.tar.gz
 pl_pfile_20050523-20260809.csv
+
+# Generated pkgdown site. Deployed to gh-pages, never committed to main.
+pkgdown-site/
