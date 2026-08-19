@@ -127,7 +127,10 @@ jobs:
           echo "no generated content leaked into the source tree"
 
       - name: Deploy to gh-pages
-        uses: JamesIves/github-pages-deploy-action@v4
+        # Third-party action pinned to a full commit SHA, not a floating tag:
+        # a tag can be repointed at new code by its owner, a 40-char SHA cannot.
+        # v4.9.0. Update deliberately, re-resolving the tag to its SHA.
+        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445
         with:
           branch: gh-pages
           folder: pkgdown-site
