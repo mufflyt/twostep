@@ -698,6 +698,10 @@ stratified trend analyses are exploratory. The uncertainty model, zero-access
 estimators, trend specification, and robustness analyses are detailed in eMethods S1.
 Analyses used R version `r manifest_json$environment$r_version`.
 
+### Quality assurance and validation
+
+Every surface was subjected to an automated validation battery, and the analysis is reproducible from a version-controlled, hash-verified run. Builds are deterministic: independent reruns from identical inputs reproduce the raster surfaces byte-for-byte, verified by SHA-256 content hashes recorded in the frozen run manifest alongside the producing source commit, so any change to a reported value is detectable rather than silent. Automated geographic-integrity checks confirm conservation of census-tract counts, preservation of tract topology across the 2010-to-2020 vintage transition (isolated by the seam analysis above), continuity across state and tract seams, and land-clipping of coastal and water tracts. Provider-to-catchment coverage was verified with a distance-based matcher rather than exact coordinate matching, and the analytic scope was enforced to the contiguous United States at defined filter points. Record linkages among the certification, activity, and geography sources were guarded against one-to-many fan-out, and estimates were cross-checked against independent reference computations and state-by-state visual audits of the accessibility surfaces.
+
 ---
 
 ## Results

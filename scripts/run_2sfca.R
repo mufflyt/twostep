@@ -107,9 +107,44 @@ PROD_ALLOC_MODE       <- "area"
 # trips on any edit; if allocate_pop_areaweighted's BODY ever changes, do NOT
 # re-pin here -- re-run the seam test and pin from that run.
 #   seam-validated ancestor (ff3aac4a): 2b78718bf65c2ecb7a1c99fb027d4aa52aeabc345faf6ec71291197e3fe25c43
+#
+# Re-pinned 2026-08-18, when twostep became the canonical owner of the E2SFCA
+# study layer. The pin was STALE: it still carried 11abdec3, while this repo's
+# R/two_step_floating_catchment.R hashed to e162507c after the 2026-08-16 engine
+# work (53cfd45, 998ad40, a5ed663, ce7841c). The gate was therefore failing
+# closed against this repo's own engine.
+#
+# Evidence gathered before re-pinning, by PARSING both file versions and hashing
+# the DEPARSED definitions -- not by line ranges:
+#
+#   BYTE-IDENTICAL between this engine and isochrones@origin/main (whose copy is
+#   in turn certified byte-identical to the seam-validated ancestor ff3aac4a):
+#     allocate_pop_areaweighted   (f25bfdfaff3a)   <- the gated allocator itself
+#     build_e2sfca_raster_grid    (0ea5d3135509)
+#     build_e2sfca_grid_geometry  (4e42d9a390ac)
+#     e2sfca_cell_summaries       (5e612404610f)
+#     compute_provider_supply     (79d204f4320f)
+#     e2sfca_incremental_weights  (f5bc77a8138a)   <- so step2_power/M2SFCA match
+#
+#   DIFFERENT (this repo is AHEAD of isochrones, deliberately):
+#     attach_e2sfca_population    (629d7dc3014f vs d7ead42bb104)
+#     compute_e2sfca_raster       (03e712a55000 vs 1aca21611cbf)
+#
+# The allocator BODY is unchanged, which is what this gate's own protocol
+# requires for a re-pin. But read the second list honestly: those two engine
+# deltas are this repo's OWN reviewed changes -- "missing population is not zero
+# population" (998ad40) and "stop reporting unreached tracts as measured zeros"
+# (53cfd45). They are INTENTIONALLY NOT numerically neutral: an unreached tract
+# now reports NA rather than a measured 0. So, unlike the isochrones re-pin of
+# 2026-08-16, NO claim of 0.000e+00 equivalence is made or implied here.
+#
+# CONSEQUENCE: this pin re-certifies the ALLOCATION (mass conservation, area
+# overlap), not the full surface numerics. The seam test should be re-run against
+# this engine to re-certify those, and this constant re-pinned from that run.
+# Tracked in inst/doc-provenance/E2SFCA_PORT_FROM_ISOCHRONES_2026-08-18.md.
 SEAM_ALLOCATOR_SHA256 <- Sys.getenv(
   "E2SFCA_SEAM_ALLOCATOR_SHA256",
-  "11abdec3e577e81e098846c51e71821a3b3d0ad12b69c0d8d597d06cbd48362a")
+  "e162507c224f74b594d806b3757ae135df8ef4c88e795cfe182fd42d86930080")
 .module_path <- file.path(ROOT, "R", "two_step_floating_catchment.R")
 .module_sha  <- digest::digest(file = .module_path, algo = "sha256")
 log_msg("ALLOCATOR IDENTITY: fn=%s()  mode=%s  module=%s", PROD_ALLOCATOR,

@@ -30,6 +30,15 @@ ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normaliz
 # tests/testthat/test-accessibility-stratification.R, incl. the Monte-Carlo
 # clamp/filter regression test and the B01001[*]_017-not-_026 footgun guard).
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+# relabel_ct_geoids_safe(): CT planning-region -> legacy county GEOIDs. Without
+# it the ACS denominator join below matches ZERO Connecticut tracts for 2022+.
+source(file.path(ROOT, "R", "ct_geoid_relabel.R"))
+# assert_state_join_loss() / partition_unknown_access(): fail-closed join
+# accounting and the NA-is-not-zero partition.
+source(file.path(ROOT, "R", "study_join_accounting.R"))
+stopifnot(is.function(relabel_ct_geoids_safe),
+          is.function(assert_state_join_loss),
+          is.function(partition_unknown_access))
 A <- commandArgs(trailingOnly = TRUE)
 getA <- function(f, d=NULL){ i<-which(A==f); if(length(i)&&i<length(A)) A[i+1] else d }
 hasA <- function(f) f %in% A
@@ -70,12 +79,22 @@ ruca_of <- function(y){ r <- if (vintage_of(y)==2020L) ruca_2020 else ruca_2010
 # is the guard against the _026-on-a-race-table footgun.
 VARS <- c(total_f = unname(TOTAL_FEMALE_VAR), RACE_FEMALE_VARS)
 fetch_den <- function(ay){ cf<-file.path(CACHE,sprintf("acs_den_%d.rds",ay))
-  if (file.exists(cf)) return(readRDS(cf))
+  # Caches written BEFORE the CT relabel landed still carry planning-region
+  # GEOIDs, so re-apply on the cached path too. relabel_ct_geoids_safe() is
+  # idempotent and a no-op below 2022, so this cannot double-relabel.
+  if (file.exists(cf)) return(relabel_ct_geoids_safe(readRDS(cf), as.integer(ay)))
   say("fetching ACS %d denominators (not cached)", ay)
   raw<-purrr::map_dfr(conus(), function(s) suppressMessages(tidycensus::get_acs(
     geography="tract", variables=VARS, state=s, year=ay, geometry=FALSE)))
   den<-raw|>transmute(GEOID=as.character(GEOID),variable,estimate=as.numeric(estimate))|>
     tidyr::pivot_wider(names_from=variable,values_from=estimate)
+  # CONNECTICUT PLANNING-REGION RELABEL (ported from isochrones fe25f0ed3).
+  # From ACS 2022 the Census Bureau returns CT tracts under planning-region
+  # county FIPS (09110-09190) while the access surface uses legacy county FIPS
+  # (09001-09015). Without this, the denominator join in stratify_one() matches
+  # ZERO Connecticut tracts and the state vanishes from every stratum -- which
+  # is exactly what happened for 2022 and 2023 (879 tracts lost).
+  den <- relabel_ct_geoids_safe(den, as.integer(ay))
   saveRDS(den,cf); den }
 DEN <- setNames(lapply(unique(vapply(YEARS,acs_year_of,0L)), fetch_den),
                 as.character(unique(vapply(YEARS,acs_year_of,0L))))
@@ -97,8 +116,29 @@ stratify_one <- function(sub){
   for (y in YEARS){
     af<-file.path(ACCDIR,sprintf("step_4_2sfca_%s_%d.rds",sub,y)); stopifnot(file.exists(af))
     acc<-readRDS(af)|>transmute(GEOID=as.character(GEOID),access=access_mean_population_per100k)
-    d<-acc|>inner_join(ruca_of(y),by="GEOID")|>inner_join(DEN[[as.character(acs_year_of(y))]],by="GEOID")
-    d$access[is.na(d$access)]<-0
+    # ACCOUNTED JOINS (ported from isochrones fe25f0ed3). These were two
+    # inner_join()s, which drop unmatched tracts with no record that they were
+    # dropped. Both the Connecticut vocabulary break and the (smaller) RUCA gap
+    # travelled through here silently. A left join plus an explicit per-state
+    # check makes a vocabulary mismatch fail loudly instead of removing a state.
+    d <- acc |>
+      left_join(ruca_of(y), by = "GEOID") |>
+      left_join(DEN[[as.character(acs_year_of(y))]], by = "GEOID")
+    .lost_ruca <- is.na(d$rurality)
+    .lost_den  <- is.na(d$total_f)
+    # Per-state fail-closed gate (tested: tests/testthat/test-study-join-accounting.R).
+    assert_state_join_loss(as.character(d$GEOID), .lost_den,
+                           context = sprintf("%s %d ACS denominator join", sub, y))
+    # NA ACCESS IS NOT ZERO ACCESS. The line here used to be
+    #   d$access[is.na(d$access)] <- 0
+    # which converts a provenance gap into a MEASURED observation of no access,
+    # biasing the mean down and the zero-share up. Partition it instead: rows
+    # with unknown access carry no weight, and the count is reported.
+    d <- d[!.lost_ruca & !.lost_den, , drop = FALSE]
+    .part <- partition_unknown_access(d, "access")
+    say("%s %d: dropped %d no-RUCA, %d no-denominator; %d NA-access excluded (not zeroed)",
+        sub, y, sum(.lost_ruca), sum(.lost_den), .part$n_unknown)
+    d <- .part$kept
     rl[[as.character(y)]]<-d|>group_by(rurality)|>summarise(year=y,
       mean_access=wmean(access,total_f), pct_zero=100*zshare(access,total_f),
       women=sum(total_f,na.rm=TRUE), .groups="drop")
