@@ -47,6 +47,26 @@ env:
   # environment is the whole point of that job.
   RENV_CONFIG_AUTOLOADER_ENABLED: false
 
+  # R VERSION POLICY, two tiers on purpose.
+  #
+  #   every job except renv-restore   "release" -- test against the R people
+  #                                   actually have, so a new R that breaks this
+  #                                   package surfaces here and not in a user's
+  #                                   session. Today that resolves to 4.6.1.
+  #   renv-restore                    the version recorded in renv.lock (4.4.2),
+  #                                   read from the lockfile at run time.
+  #
+  # renv.lock pins the PACKAGE ENVIRONMENT and records the R version used to
+  # build it. That is not a claim that every job must run 4.4.2 -- it is the
+  # reproducibility contract for one job. Hard-pinning all of CI to the lockfile
+  # version would be WEAKER, not stronger: it would freeze the whole matrix on
+  # an ageing R and blind the nightly to release-driven breakage.
+  #
+  # A workflow-level pin was briefly added here while a CI hang was being
+  # mis-diagnosed as R release resolution; the real cause was an unreachable
+  # Ubuntu apt mirror. Do not reintroduce a global pin without a compatibility
+  # reason, and record the reason if you do.
+
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
   preflight:
