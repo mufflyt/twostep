@@ -1,0 +1,84 @@
+# =============================================================================
+# Can a specification change the ZERO/NONZERO SUPPORT at all?
+# =============================================================================
+# A specification-curve point is only evidence about zero-access if the
+# specification could, in principle, move a cell between zero and nonzero
+# access. Many cannot.
+#
+# The E2SFCA surface at a cell is  sum_j w'_b(i,j) * R_j.  Its ZERO/NONZERO
+# support is determined by REACHABILITY -- whether any origin with a positive
+# ratio covers the cell in any band carrying positive weight. Rescaling a
+# positive weight to another positive value changes the MAGNITUDE and cannot
+# change the support. Raising step 2 to a power likewise cannot turn a positive
+# sum into zero, nor zero into positive.
+#
+# So reporting "zero-access was identical in 6 of 7 specifications" would be
+# arithmetic dressed as robustness. Only specifications that alter reachability
+# are genuine tests of zero-access prevalence, and they must be counted and
+# reported separately.
+
+classification_version: 1
+applies_to_estimands: [zero_total, zero_metro, zero_rural, zero_white, zero_aian]
+
+specifications:
+  - id: S01
+    variant: base
+    support_class: primary
+    rationale: the primary analysis; defines the reference support.
+
+  - id: S02
+    variant: sharper
+    support_class: magnitude_only
+    rationale: >
+      All four band weights remain strictly positive; only their relative sizes
+      change. A cell reachable in some band stays reachable. Zero-access is
+      INVARIANT BY CONSTRUCTION, not robust by evidence.
+
+  - id: S03
+    variant: slower
+    support_class: magnitude_only
+    rationale: As sharper -- positive weights rescaled, support untouched.
+
+  - id: S04
+    variant: gaussian
+    support_class: magnitude_only
+    rationale: >
+      A four-band zonal approximation, still four positive weights on the same
+      bands. Support unchanged. Would be support-changing ONLY if a band weight
+      were set to exactly zero.
+
+  - id: S05
+    variant: drop180
+    support_class: support_changing
+    rationale: >
+      REMOVES the 180-minute band. A cell reachable only at 180 minutes becomes
+      unreachable, so zero-access can genuinely increase. This is the one frozen
+      specification that is a real test of zero-access prevalence.
+
+  - id: S06
+    variant: res500
+    support_class: support_changing
+    rationale: >
+      Changes cell geometry. A finer grid resolves catchment boundaries
+      differently, so cells near an isochrone edge can change zero/nonzero
+      status. The effect is a boundary/MAUP effect, expected to be small but
+      genuinely capable of moving the support in either direction.
+
+  - id: S07
+    variant: m2sfca
+    support_class: magnitude_only
+    rationale: >
+      step2_power = 2 with increments diff(W^2). Squaring positive weights keeps
+      them positive; a positive sum stays positive and a zero sum stays zero.
+      Support invariant by construction.
+
+# How to report, so an invariant is never sold as a finding
+reporting_rule: >
+  Report zero-access robustness over SUPPORT-CHANGING specifications only.
+  Magnitude-only specifications must be reported as
+  "zero_access_invariant_by_construction" and must NOT be counted as
+  independent evidence that the zero-access conclusion is robust. With the
+  current frozen grid that leaves 2 genuine tests (drop180, res500) out of 7
+  specifications -- a materially weaker evidence base than the mean-access
+  estimands enjoy, and that weakness must be stated wherever these numbers
+  appear.

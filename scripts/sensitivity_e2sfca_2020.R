@@ -112,7 +112,14 @@ if (file.exists(acs_cf)) { acs <- readRDS(acs_cf); say("loaded cached ACS 2020 t
   acs <- list(geom=geom, den=wide); saveRDS(acs, acs_cf)
 }
 # RUCA 2020 -> rurality; split total female into metro/rural weights
-ruca <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"), colClasses="character") |>
+# E2SFCA_RUCA_PATH: same freeze-by-env pattern as the ycm/cohort/isochrone
+# inputs. The RUCA tract mapping is a vendored external input that is NOT in
+# this repository's data/ tree, so hardcoding the path made the script
+# unrunnable here. Overriding beats copying an unprovenanced CSV into a repo
+# that governs its inputs by checksum in data/PROVENANCE_vendored_inputs.md.
+.ruca_path <- Sys.getenv("E2SFCA_RUCA_PATH",
+                         file.path(ROOT,"data","external","ruca_tract_mapping.csv"))
+ruca <- read.csv(.ruca_path, colClasses="character") |>
   dplyr::transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(ruca_code))
 den <- acs$den |> dplyr::left_join(ruca, by="GEOID") |>
   dplyr::mutate(dplyr::across(c(total_f,white_f,aian_f), ~tidyr::replace_na(.,0)),
@@ -127,7 +134,11 @@ sup_all <- setNames(lapply(SUBS, function(s) compute_provider_supply(ycm, cohort
 orig_all <- unique(unlist(lapply(sup_all, function(s) as.character(s$coord_id))))
 # SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
 iso_all <- do.call(rbind, lapply(c(30L,60L,120L,180L), function(b){
-  x<-readRDS(file.path(ROOT,"artifacts","isochrones",sprintf("isochrones_%dmin_consolidated.rds",b)))
+  # E2SFCA_ISO_DIR: the other two inputs are already overridable by env for a
+  # frozen publication run; this one was hardcoded to the repo, which made the
+  # script unrunnable anywhere the isochrones are not vendored in-tree.
+  .isodir <- Sys.getenv("E2SFCA_ISO_DIR", file.path(ROOT,"artifacts","isochrones"))
+  x<-readRDS(file.path(.isodir,sprintf("isochrones_%dmin_consolidated.rds",b)))
   x$coord_id<-as.character(if("coord_id"%in%names(x)) x$coord_id else x$location_key)
   x<-x[x$coord_id %in% orig_all,,drop=FALSE]; if(!"drive_time_minutes"%in%names(x)) x$drive_time_minutes<-b
   x<-x[,c("coord_id","drive_time_minutes","geometry")]; sf::st_geometry(x)<-"geometry"; x }))
@@ -157,6 +168,71 @@ wmean_rast <- function(surf_scaled, wrast){
   sum(a * w) / sum(w)
 }
 
+# Population-weighted ZERO-ACCESS audit.
+#
+# NA SEMANTICS, established empirically rather than assumed. compute_e2sfca_raster
+# builds the surface DENSELY:
+#
+#   surface <- grid$template; terra::values(surface) <- 0
+#   rb <- terra::rasterize(..., background = 0); surface <- surface + rb
+#
+# Every cell therefore carries a computed number, and a cell outside every
+# catchment holds an explicit 0. Verified on a fixture where three of four tracts
+# lie outside all catchments: 665 cells, 0 NA in the surface, 0 NA in the
+# population raster, 393 populated cells at exactly 0.
+#
+# So NA is NOT "no provider reachable". Zero access is an explicit 0. An NA means
+# something else went wrong -- an incomplete surface, a template/population
+# mismatch, a failed routing input -- and treating it as zero access would
+# INFLATE the reported zero-access share using missing data. That is precisely
+# the confusion this project refuses elsewhere: explicit zero is not missing.
+#
+# My first version of this function coerced NA to 0 "matching the mean above".
+# The mean does do that, but the mean is a magnitude that NA-to-zero merely
+# biases downward; here it would manufacture the headline finding. Copying a
+# convention across estimands without checking what it means is how that happens.
+#
+# Returns a full coverage audit, never a bare number, so the denominator can be
+# inspected rather than trusted.
+zero_access_audit <- function(surf_scaled, wrast, tol_unresolved = 0){
+  a <- terra::values(surf_scaled)[,1]
+  w <- terra::values(wrast)[,1]
+  eligible      <- sum(w[!is.na(w)])                       # all population with a weight
+  excluded      <- sum(w[is.na(w)], na.rm = TRUE)          # NA weight: no eligible pop here
+  ok            <- !is.na(w) & w > 0
+  unresolved    <- sum(w[ok & is.na(a)])                   # population with NO evaluable access
+  evaluable     <- sum(w[ok & !is.na(a)])
+  zero_pop      <- sum(w[ok & !is.na(a) & a <= 0])
+  list(
+    eligible_population   = eligible,
+    evaluable_population  = evaluable,
+    zero_access_population = zero_pop,
+    excluded_population   = excluded,
+    unresolved_population = unresolved,
+    pct_evaluable         = if (eligible > 0) 100 * evaluable / eligible else NA_real_,
+    # The share is over EVALUABLE population and is returned only when the
+    # unresolved population is within the prespecified tolerance. Silently
+    # shrinking the denominator is the failure mode this guards.
+    zero_share = if (!is.finite(evaluable) || evaluable <= 0) NA_real_
+                 else if (unresolved > tol_unresolved) NA_real_
+                 else 100 * zero_pop / evaluable)
+}
+
+# Thin accessor. FAILS CLOSED: any population whose access is unresolved beyond
+# the tolerance aborts rather than returning a plausible number.
+zshare_rast <- function(surf_scaled, wrast, tol_unresolved = 0){
+  au <- zero_access_audit(surf_scaled, wrast, tol_unresolved)
+  if (is.na(au$zero_share) && isTRUE(au$unresolved_population > tol_unresolved))
+    stop(sprintf(paste0("zero-access: %.0f of %.0f eligible population have NO evaluable ",
+                        "accessibility (%.4f%%). NA access is an incomplete surface, not ",
+                        "zero access; counting it as zero would inflate the zero-access ",
+                        "share using missing data. Fix the surface or declare a tolerance."),
+                 au$unresolved_population, au$eligible_population,
+                 100 * au$unresolved_population / max(au$eligible_population, 1)),
+         call. = FALSE)
+  au$zero_share
+}
+
 # ---- run all (variant x subspecialty) ---------------------------------------
 rows <- list()
 for (vn in names(VARIANTS)){
@@ -178,12 +254,28 @@ for (vn in names(VARIANTS)){
     m_rural <- wmean_rast(surf, G$wr$rural_f)
     m_white <- wmean_rast(surf, G$wr$white_f)
     m_aian  <- wmean_rast(surf, G$wr$aian_f)
+    # ZERO-ACCESS shares, same surface, same weight rasters, same specification.
+    z_total <- zshare_rast(surf, G$wr$total)
+    z_metro <- zshare_rast(surf, G$wr$metro_f)
+    z_rural <- zshare_rast(surf, G$wr$rural_f)
+    z_white <- zshare_rast(surf, G$wr$white_f)
+    z_aian  <- zshare_rast(surf, G$wr$aian_f)
     rows[[paste(vn,s)]] <- tibble::tibble(variant=vn, res=res, subspec=s,
       national=m_nat, national_check=m_total, metro=m_metro, rural=m_rural,
       white=m_white, aian=m_aian,
-      rural_metro_ratio = m_rural/m_metro, aian_white_ratio = m_aian/m_white)
-    say("  %-7s %-5s nat=%.3f (chk %.3f) rural/metro=%.3f aian/white=%.3f",
-        vn, s, m_nat, m_total, m_rural/m_metro, m_aian/m_white)
+      rural_metro_ratio = m_rural/m_metro, aian_white_ratio = m_aian/m_white,
+      zero_total=z_total, zero_metro=z_metro, zero_rural=z_rural,
+      zero_white=z_white, zero_aian=z_aian,
+      # Ratios of SHARES, not of access. Reported alongside the difference in
+      # percentage points because a ratio of two small shares is unstable: 4.1
+      # vs 0.6 percent is a ratio of 6.4, but 0.41 vs 0.06 is the same ratio on
+      # a hundredth of the population.
+      zero_rural_metro_ratio = z_rural / z_metro,
+      zero_aian_white_ratio  = z_aian  / z_white,
+      zero_aian_minus_white_pp = z_aian - z_white)
+    say("  %-7s %-5s nat=%.3f (chk %.3f) rural/metro=%.3f aian/white=%.3f | zero: nat=%.2f%% rural=%.2f%% metro=%.2f%% aian=%.2f%%",
+        vn, s, m_nat, m_total, m_rural/m_metro, m_aian/m_white,
+        z_total, z_rural, z_metro, z_aian)
   }
 }
 res_tbl <- dplyr::bind_rows(rows)
@@ -264,7 +356,7 @@ readr::write_csv(res_tbl, CSV); say("wrote %s", CSV)
 # ---- REPRODUCIBILITY MANIFEST (frozen inputs + SHA-256) ----------------------
 ISO_PATHS <- file.path(ROOT,"artifacts","isochrones",
                        sprintf("isochrones_%dmin_consolidated.rds", c(30,60,120,180)))
-RUCA_PATH <- file.path(ROOT,"data","external","ruca_tract_mapping.csv")
+RUCA_PATH <- Sys.getenv("E2SFCA_RUCA_PATH", file.path(ROOT,"data","external","ruca_tract_mapping.csv"))
 manifest <- list(
   code_commit = tryCatch(system("git rev-parse HEAD", intern=TRUE), error=function(e) NA_character_),
   quick = QUICK, run_composite = RUN_COMPOSITE,

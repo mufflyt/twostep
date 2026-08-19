@@ -45,3 +45,6 @@ pl_pfile_20050523-20260809.csv
 
 # Generated pkgdown site. Deployed to gh-pages, never committed to main.
 pkgdown-site/
+
+# Derived ACS cache written by scripts/sensitivity_e2sfca_2020.R (56 MB)
+artifacts/2sfca/sensitivity/cache/
