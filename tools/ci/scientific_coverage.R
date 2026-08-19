@@ -52,6 +52,7 @@ CORE <- c(
   "urps_scenario_supply", "urps_allocate_origins", "urps_project_accessibility",
   "urps_e2sfca_spar_summary",
   "weighted_mean_all", "zero_access_share", "mc_weighted_ci", "annual_trend",
+  "zero_access_audit", "zshare_rast",
   "rurality_from_ruca", "classify_bivariate"
 )
 SUPPORT <- c(

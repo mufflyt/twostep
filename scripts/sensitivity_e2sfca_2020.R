@@ -168,70 +168,11 @@ wmean_rast <- function(surf_scaled, wrast){
   sum(a * w) / sum(w)
 }
 
-# Population-weighted ZERO-ACCESS audit.
-#
-# NA SEMANTICS, established empirically rather than assumed. compute_e2sfca_raster
-# builds the surface DENSELY:
-#
-#   surface <- grid$template; terra::values(surface) <- 0
-#   rb <- terra::rasterize(..., background = 0); surface <- surface + rb
-#
-# Every cell therefore carries a computed number, and a cell outside every
-# catchment holds an explicit 0. Verified on a fixture where three of four tracts
-# lie outside all catchments: 665 cells, 0 NA in the surface, 0 NA in the
-# population raster, 393 populated cells at exactly 0.
-#
-# So NA is NOT "no provider reachable". Zero access is an explicit 0. An NA means
-# something else went wrong -- an incomplete surface, a template/population
-# mismatch, a failed routing input -- and treating it as zero access would
-# INFLATE the reported zero-access share using missing data. That is precisely
-# the confusion this project refuses elsewhere: explicit zero is not missing.
-#
-# My first version of this function coerced NA to 0 "matching the mean above".
-# The mean does do that, but the mean is a magnitude that NA-to-zero merely
-# biases downward; here it would manufacture the headline finding. Copying a
-# convention across estimands without checking what it means is how that happens.
-#
-# Returns a full coverage audit, never a bare number, so the denominator can be
-# inspected rather than trusted.
-zero_access_audit <- function(surf_scaled, wrast, tol_unresolved = 0){
-  a <- terra::values(surf_scaled)[,1]
-  w <- terra::values(wrast)[,1]
-  eligible      <- sum(w[!is.na(w)])                       # all population with a weight
-  excluded      <- sum(w[is.na(w)], na.rm = TRUE)          # NA weight: no eligible pop here
-  ok            <- !is.na(w) & w > 0
-  unresolved    <- sum(w[ok & is.na(a)])                   # population with NO evaluable access
-  evaluable     <- sum(w[ok & !is.na(a)])
-  zero_pop      <- sum(w[ok & !is.na(a) & a <= 0])
-  list(
-    eligible_population   = eligible,
-    evaluable_population  = evaluable,
-    zero_access_population = zero_pop,
-    excluded_population   = excluded,
-    unresolved_population = unresolved,
-    pct_evaluable         = if (eligible > 0) 100 * evaluable / eligible else NA_real_,
-    # The share is over EVALUABLE population and is returned only when the
-    # unresolved population is within the prespecified tolerance. Silently
-    # shrinking the denominator is the failure mode this guards.
-    zero_share = if (!is.finite(evaluable) || evaluable <= 0) NA_real_
-                 else if (unresolved > tol_unresolved) NA_real_
-                 else 100 * zero_pop / evaluable)
-}
-
-# Thin accessor. FAILS CLOSED: any population whose access is unresolved beyond
-# the tolerance aborts rather than returning a plausible number.
-zshare_rast <- function(surf_scaled, wrast, tol_unresolved = 0){
-  au <- zero_access_audit(surf_scaled, wrast, tol_unresolved)
-  if (is.na(au$zero_share) && isTRUE(au$unresolved_population > tol_unresolved))
-    stop(sprintf(paste0("zero-access: %.0f of %.0f eligible population have NO evaluable ",
-                        "accessibility (%.4f%%). NA access is an incomplete surface, not ",
-                        "zero access; counting it as zero would inflate the zero-access ",
-                        "share using missing data. Fix the surface or declare a tolerance."),
-                 au$unresolved_population, au$eligible_population,
-                 100 * au$unresolved_population / max(au$eligible_population, 1)),
-         call. = FALSE)
-  au$zero_share
-}
+# Zero-access estimands now live in the PACKAGE (R/zero_access.R) as
+# zero_access_audit() and zshare_rast(), so they are documented, exported,
+# covered by the scientific-core coverage gate, and tested by the repo suite --
+# rather than defined inline in a script the test suite never loads.
+# See ?zero_access_audit for why NA is not zero access.
 
 # ---- run all (variant x subspecialty) ---------------------------------------
 rows <- list()

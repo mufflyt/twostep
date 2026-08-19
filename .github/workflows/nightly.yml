@@ -69,6 +69,86 @@ env:
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
+  artifact-provenance:
+    name: frozen artifacts record their inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with: { use-public-rspm: true }
+      # A checksum pins what an artifact IS; it says nothing about what produced
+      # it. Attempting to re-run the sensitivity generator against inputs chosen
+      # by search reproduced NONE of the frozen artifact -- the primary national
+      # estimate came out 16.7% different -- and nothing recorded which input set
+      # was correct. Non-strict for now: the gap is REPORTED because the inputs
+      # are not currently recoverable. Switch to --strict once the manifests
+      # exist, so it can never silently reappear.
+      - name: Artifact input-provenance audit
+        run: Rscript tools/ci/check_artifact_provenance.R
+
+  multiverse:
+    name: specification curve (freeze + determinism)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with: { r-version: "release", use-public-rspm: true }
+      - name: Install the few packages the runner needs
+        run: install.packages(c("yaml","jsonlite","digest","rprojroot"))
+        shell: Rscript {0}
+      # Enforces the frozen grid before reading any outcome, checks completeness
+      # and manifest/execution agreement, and fails if the MANUSCRIPT asserts a
+      # robustness the specifications do not support. Fragility itself never
+      # fails -- that is a scientific result, not a defect.
+      - name: Run the frozen specification curve
+        run: Rscript tools/multiverse/run_multiverse.R
+      # Same inputs must give the same table. A nondeterministic specification is
+      # a failure condition named in the manifest.
+      - name: The same specification must be deterministic
+        run: |
+          a=$(sha256sum artifacts/multiverse/multiverse_results.csv | cut -d" " -f1)
+          Rscript tools/multiverse/run_multiverse.R >/dev/null
+          b=$(sha256sum artifacts/multiverse/multiverse_results.csv | cut -d" " -f1)
+          if [ "$a" != "$b" ]; then
+            echo "::error::the multiverse is nondeterministic: $a vs $b"; exit 1
+          fi
+          echo "deterministic: $a"
+      # Catches a claim truth value edited by hand between runs.
+      - name: Recorded claims must match recomputation
+        run: Rscript tools/multiverse/run_multiverse.R --verify
+      # The RESULT artifacts must reproduce byte-for-byte. provenance.json is
+      # excluded because it records `executed_at`, a real wall-clock stamp that
+      # legitimately differs every run -- checking it would make this job fail
+      # every night for no scientific reason. Nothing is lost: provenance.json
+      # carries the sha256 of each result file, and those files are compared
+      # directly here, so a genuine change still fails.
+      - name: Committed results must match a fresh run
+        run: |
+          changed=$(git diff --name-only -- artifacts/multiverse/ \
+                    | grep -v 'provenance.json' || true)
+          if [ -n "$changed" ]; then
+            echo "::error::committed multiverse artifacts disagree with a fresh run"
+            echo "$changed"
+            git --no-pager diff --stat -- $changed
+            exit 1
+          fi
+          echo "committed multiverse result artifacts reproduce exactly"
+          echo "(provenance.json executed_at differs by design)"
+
   preflight:
     name: repository preflight
     runs-on: ubuntu-latest
@@ -864,7 +944,7 @@ jobs:
     if: always()
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
             R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
-            scientific-mutants, manuscript, scientific-cross-platform]
+            scientific-mutants, manuscript, scientific-cross-platform, artifact-provenance, multiverse]
     steps:
       - name: Report and gate
         run: |
@@ -886,6 +966,8 @@ jobs:
             echo "| installed-package isolation | ${{ needs['installed-isolation'].result }} |"
             echo "| Imports-only load | ${{ needs['minimal-deps'].result }} |"
             echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
+            echo "| artifact input provenance | ${{ needs['artifact-provenance'].result }} |"
+            echo "| specification curve | ${{ needs.multiverse.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
           for r in "${{ needs.preflight.result }}" "${{ needs.hygiene.result }}" \
@@ -897,6 +979,8 @@ jobs:
                    "${{ needs['minimal-deps'].result }}" \
                    "${{ needs['renv-restore'].result }}" \
                    "${{ needs['scientific-mutants'].result }}" \
+                   "${{ needs['artifact-provenance'].result }}" \
+                   "${{ needs.multiverse.result }}" \
                    "${{ needs.manuscript.result }}" \
                    "${{ needs['scientific-cross-platform'].result }}"; do
             if [ "$r" != "success" ]; then
