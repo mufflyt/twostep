@@ -491,7 +491,7 @@ Areas where American Indian or Alaska Native women lived had the highest zero-ac
 points higher than areas where non-Hispanic White women lived. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
 (`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine alone declined
-(`r pp1(mfm_c22$rel_change_pct)`%). Disparities held across all sensitivity
+(`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
 specifications.
 
 **Conclusion.** Access to obstetrics-gynecology subspecialists shows large,

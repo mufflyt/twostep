@@ -1,0 +1,16 @@
+{
+  "manifest_sha256": "a86e952691473f7668066428b397aad2ddd0d6e95444ee45a405c0d67b403f10",
+  "runner_sha256": "9158b1fbec4a8c1513bb91d09cec062ead2a031a4e9a235e39f0ca02ccdf7e9f",
+  "input_artifact": "artifacts/2sfca/sensitivity/sensitivity_2020.csv",
+  "input_sha256": "51b21ecb5b1edbe50f45aeb1b8feddc35a0736da8e7d65fc6e3b5dcea7f1f925",
+  "results_sha256": "99326c0e679d26b639d9aa3d7d12db19f04b935a2c79373a6dc3adc7d259959e",
+  "claims_sha256": "6b9574eda62ebc5c1128e81d460748c3ec56e36496cc06f07c1bdf45893726da",
+  "loo_sha256": "daa595433c302e729dd4f345dd9d66c8f2d859e98e1fbfa37755f01a1337329c",
+  "summary_sha256": "8e276e88f7380d1b16f04ede0fc511ad103ff6988cdfb06fb96664a135cfcd5d",
+  "executed_at": "2026-08-18T21:19:02-0600",
+  "r_version": "4.4.2",
+  "platform": "x86_64-apple-darwin20",
+  "n_specifications": 12,
+  "n_executable": 7,
+  "n_not_executable": 5
+}
