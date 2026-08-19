@@ -56,11 +56,23 @@ test_that("no code uses an unrecognised projected EPSG literal (drift scan)", {
                         file.path(root, "inst", "scripts")),
                       pattern = "[.]R$", full.names = TRUE, recursive = TRUE)
   offenders <- character(0)
-  pat <- "(?:st_transform\\([^,]*,\\s*|crs\\s*=\\s*)([0-9]{4,5})L?"
+  # Three positions: st_transform(x, EPSG), the PIPED st_transform(EPSG), and
+  # crs = EPSG.
+  #
+  # `[^,\n]*` (not `[^,]*`) matters: with `[^,]*` a single match could run from
+  # one line's `st_transform(5070)` across the newline to the next line's
+  # `st_transform(acs$geom, 5070)`. Combined with the old `gsub("\\D","",m)` --
+  # which stripped non-digits from the WHOLE match rather than reading the
+  # captured group -- that produced the phantom EPSG "50705070" out of two
+  # perfectly legal 5070s. It also meant the first st_transform() on such a pair
+  # was never checked at all, so the bug hid real offenders as well as inventing
+  # fake ones. Read the capture group, and never let a match cross a line.
+  pat <- paste0("(?:st_transform\\([^,\n]*,\\s*|st_transform\\(\\s*|crs\\s*=\\s*)",
+                "([0-9]{4,5})L?")
   for (f in files) {
     txt <- paste(readLines(f, warn = FALSE), collapse = "\n")
     m <- regmatches(txt, gregexpr(pat, txt, perl = TRUE))[[1]]
-    epsg <- suppressWarnings(as.integer(gsub("\\D", "", m)))
+    epsg <- suppressWarnings(as.integer(sub("^.*?([0-9]{4,5})L?$", "\\1", m)))
     bad <- setdiff(unique(epsg[!is.na(epsg)]), ALLOW)
     if (length(bad)) offenders <- c(offenders,
                                     sprintf("%s: %s", basename(f),
