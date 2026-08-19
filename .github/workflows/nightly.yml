@@ -46,16 +46,6 @@ env:
   # The renv-restore job deliberately UNSETS this: reproducing the pinned
   # environment is the whole point of that job.
   RENV_CONFIG_AUTOLOADER_ENABLED: false
-  # Pinned R for the ubuntu-latest jobs. Floating "release" repeatedly hung for a
-  # whole job budget inside setup-r@v2 -- installing R itself, before any repo
-  # file is read -- taking down R CMD check and the mutation corpus on separate
-  # runs while macOS and Windows on the same commit finished in minutes.
-  #
-  # BUMP THIS when R releases. macOS and Windows in the check matrix, and the
-  # cross-platform fingerprint job, deliberately stay on floating "release", so a
-  # new R that breaks this package still fails the nightly somewhere. This
-  # removes a flake; it does not remove the check.
-  R_PINNED: "4.6.1"
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
@@ -299,18 +289,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # PINNED, not "release". This one matrix entry repeatedly hung for its
-          # entire job budget inside setup-r@v2 -- installing R itself, before
-          # checkout's code is used and before any dependency resolves -- while
-          # macOS, Windows, devel and oldrel-1 on the same commit finished in
-          # 1.6 to 30 minutes. Naming the version skips the release-resolution
-          # path that hangs.
-          #
-          # BUMP THIS when R releases. Floating "release" coverage is retained
-          # deliberately on macOS and Windows below, so a new R that breaks this
-          # package still fails the nightly somewhere -- pinning here removes a
-          # flake, it does not remove the check.
-          - { os: ubuntu-latest,  r: "4.6.1",    experimental: false }
+          - { os: ubuntu-latest,  r: "release",  experimental: false }
           - { os: ubuntu-latest,  r: "oldrel-1", experimental: false }
           - { os: macos-latest,   r: "release",  experimental: false }
           # Informational. Windows needs source builds of the geospatial stack and
@@ -406,7 +385,7 @@ jobs:
       - uses: r-lib/actions/setup-r@v2
         timeout-minutes: 10
         with:
-          r-version: "${{ env.R_PINNED }}"
+          r-version: "release"
           use-public-rspm: true
       # The suite source()s the engine, which pulls sf/terra/exactextractr.
       - name: Install system libraries
@@ -557,7 +536,7 @@ jobs:
           grep -c archive.ubuntu.com /etc/apt/apt-mirrors.txt || true
       - uses: r-lib/actions/setup-r@v2
         timeout-minutes: 10
-        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
+        with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -606,7 +585,7 @@ jobs:
           grep -c archive.ubuntu.com /etc/apt/apt-mirrors.txt || true
       - uses: r-lib/actions/setup-r@v2
         timeout-minutes: 10
-        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
+        with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -662,7 +641,7 @@ jobs:
           grep -c archive.ubuntu.com /etc/apt/apt-mirrors.txt || true
       - uses: r-lib/actions/setup-r@v2
         timeout-minutes: 10
-        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
+        with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
@@ -713,7 +692,7 @@ jobs:
           grep -c archive.ubuntu.com /etc/apt/apt-mirrors.txt || true
       - uses: r-lib/actions/setup-r@v2
         timeout-minutes: 10
-        with: { r-version: "${{ env.R_PINNED }}", use-public-rspm: true }
+        with: { r-version: "release", use-public-rspm: true }
       - name: Install system libraries
         run: |
           sudo apt-get update
