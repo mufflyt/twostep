@@ -142,9 +142,35 @@ PROD_ALLOC_MODE       <- "area"
 # overlap), not the full surface numerics. The seam test should be re-run against
 # this engine to re-certify those, and this constant re-pinned from that run.
 # Tracked in inst/doc-provenance/E2SFCA_PORT_FROM_ISOCHRONES_2026-08-18.md.
+# Re-pinned 2026-08-20. The engine changed from e162507c to 88c561f0 for a
+# DOCUMENTATION-ONLY reason: four roxygen prose lines had an unescaped "%",
+# which is the Rd comment character, so the rendered documentation was silently
+# truncating text and one malformed .Rd made R CMD check emit 2 WARNINGs across
+# every platform.
+#
+# Evidence gathered by this gate's own protocol -- PARSING both file versions
+# and hashing the DEPARSED definitions, not line ranges. All 14 functions in the
+# module, including every gated one, are BYTE-IDENTICAL across the change:
+#
+#   allocate_pop_areaweighted   a1b1110b5380   <- the gated allocator itself
+#   build_e2sfca_raster_grid    3d208454e0ac
+#   build_e2sfca_grid_geometry  d717f19382ff
+#   e2sfca_cell_summaries       243ac6409b42
+#   compute_provider_supply     28e6dcb40ea2
+#   e2sfca_incremental_weights  a65121ae4bc6
+#   attach_e2sfca_population    d7a653ec6f49
+#   compute_e2sfca_raster       211ef2d7e62b
+#   compute_e2sfca              fa8b4f839f7a
+#
+#   functions added: none.  removed: none.  bodies changed: NONE.
+#
+# This re-pin therefore carries NO numerical claim beyond the previous one: it
+# certifies that the module is byte-identical in behaviour to e162507c, which is
+# a strictly weaker and fully verified statement. The seam-test caveat recorded
+# above for e162507c still stands unchanged and is NOT discharged by this.
 SEAM_ALLOCATOR_SHA256 <- Sys.getenv(
   "E2SFCA_SEAM_ALLOCATOR_SHA256",
-  "e162507c224f74b594d806b3757ae135df8ef4c88e795cfe182fd42d86930080")
+  "88c561f0d501179abcda9d9724557d7c39fc8a33ba964752e3fe10ea9446b60d")
 .module_path <- file.path(ROOT, "R", "two_step_floating_catchment.R")
 .module_sha  <- digest::digest(file = .module_path, algo = "sha256")
 log_msg("ALLOCATOR IDENTITY: fn=%s()  mode=%s  module=%s", PROD_ALLOCATOR,
