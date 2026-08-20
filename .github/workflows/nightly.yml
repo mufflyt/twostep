@@ -69,6 +69,31 @@ env:
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
+  readme:
+    name: README agrees with the repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with: { use-public-rspm: true }
+      - name: Install yaml
+        run: install.packages(c("yaml","rprojroot"))
+        shell: Rscript {0}
+      # The README is the front page: every figure must exist, every
+      # self-referential count must match what the tools report, and its claims
+      # about the specification-curve result must match the frozen artifacts.
+      # Hand-maintained numbers look precise and rot silently -- "35/35
+      # exercised" was true the hour it was written.
+      - name: README consistency audit
+        run: Rscript tools/ci/check_readme.R
+
   artifact-provenance:
     name: frozen artifacts record their inputs
     runs-on: ubuntu-latest
@@ -517,6 +542,10 @@ jobs:
           Rscript tests/testthat.R 2>&1 | tee testthat-output.txt
           echo "SUITE-COMPLETED" >> testthat-output.txt
           grep -E '^\[ FAIL' testthat-output.txt | tail -1 > testthat-accounting.txt || true
+          # Persist the accounting where check_readme.R reads it, so the README's
+          # assertion badge is compared against a REAL run rather than a guess.
+          mkdir -p artifacts/ci
+          cp testthat-accounting.txt artifacts/ci/testthat-accounting.txt
           if ! grep -q 'SUITE-COMPLETED' testthat-output.txt; then
             echo "::error::suite did not reach the end-of-run sentinel"; exit 1
           fi
@@ -944,7 +973,8 @@ jobs:
     if: always()
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
             R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
-            scientific-mutants, manuscript, scientific-cross-platform, artifact-provenance, multiverse]
+            scientific-mutants, manuscript, scientific-cross-platform, artifact-provenance, multiverse,
+            readme]
     steps:
       - name: Report and gate
         run: |
@@ -968,6 +998,7 @@ jobs:
             echo "| pinned environment reproduces | ${{ needs['renv-restore'].result }} |"
             echo "| artifact input provenance | ${{ needs['artifact-provenance'].result }} |"
             echo "| specification curve | ${{ needs.multiverse.result }} |"
+            echo "| README consistency | ${{ needs.readme.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
           for r in "${{ needs.preflight.result }}" "${{ needs.hygiene.result }}" \
@@ -981,6 +1012,7 @@ jobs:
                    "${{ needs['scientific-mutants'].result }}" \
                    "${{ needs['artifact-provenance'].result }}" \
                    "${{ needs.multiverse.result }}" \
+                   "${{ needs.readme.result }}" \
                    "${{ needs.manuscript.result }}" \
                    "${{ needs['scientific-cross-platform'].result }}"; do
             if [ "$r" != "success" ]; then
