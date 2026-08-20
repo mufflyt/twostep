@@ -1,10 +1,29 @@
 # twostep — E2SFCA accessibility to OB/GYN subspecialists
 
 <!-- badges: start -->
+<!-- Workflow badges are LIVE: they read the actual run status, unlike a hand-
+     written "build passing" label that says whatever it said the day it was
+     added. If one goes red, the README is telling the truth. -->
+[![nightly](https://github.com/mufflyt/twostep/actions/workflows/nightly.yml/badge.svg)](https://github.com/mufflyt/twostep/actions/workflows/nightly.yml)
+[![PR scientific gate](https://github.com/mufflyt/twostep/actions/workflows/pr-scientific-gate.yml/badge.svg)](https://github.com/mufflyt/twostep/actions/workflows/pr-scientific-gate.yml)
+[![weekly deep](https://github.com/mufflyt/twostep/actions/workflows/weekly-deep.yml/badge.svg)](https://github.com/mufflyt/twostep/actions/workflows/weekly-deep.yml)
+[![contract tests](https://github.com/mufflyt/twostep/actions/workflows/contract-tests.yml/badge.svg)](https://github.com/mufflyt/twostep/actions/workflows/contract-tests.yml)
+[![pkgdown](https://github.com/mufflyt/twostep/actions/workflows/pkgdown.yml/badge.svg)](https://mufflyt.github.io/twostep/)
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](https://github.com/mufflyt/twostep/blob/main/DESCRIPTION)
 [![R >= 4.1](https://img.shields.io/badge/R-%3E%3D%204.1-blue.svg)](https://cran.r-project.org/)
+[![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mufflyt.github.io/twostep/)
+
+<!-- These four describe the SCIENTIFIC verification layers, which is what
+     actually distinguishes this repository. The numbers are hand-maintained,
+     so they are stated as the gates that enforce them rather than as claims:
+     each links to the tool or suite that would fail if the number were wrong. -->
+[![tests: 1653](https://img.shields.io/badge/tests-1653%20assertions-success.svg)](https://github.com/mufflyt/twostep/tree/main/tests/testthat)
+[![mutants killed: 17/17](https://img.shields.io/badge/scientific%20mutants-17%2F17%20killed-success.svg)](https://github.com/mufflyt/twostep/blob/main/tools/ci/mutation_corpus.R)
+[![core coverage: 35/35](https://img.shields.io/badge/scientific%20core-35%2F35%20exercised-success.svg)](https://github.com/mufflyt/twostep/blob/main/tools/ci/scientific_coverage.R)
+[![specification curve](https://img.shields.io/badge/multiverse-7%20prespecified%20specs-informational.svg)](https://github.com/mufflyt/twostep/blob/main/inst/multiverse/specification_manifest.yml)
 <!-- badges: end -->
 
 Standalone analysis and manuscript for **national travel-time accessibility to the
@@ -22,6 +41,35 @@ twostep vends the small frozen subset those produce, so the manuscript renders w
 no network access — its only external code dependency is the
 [`mufflyaccess`](https://github.com/mufflyt/mufflyaccess) package (data lineage in
 [`docs/DATA_PROVENANCE.md`](https://github.com/mufflyt/twostep/blob/main/docs/DATA_PROVENANCE.md)).
+
+## How this analysis is verified
+
+Most accessibility papers ask whether the code runs. These layers ask whether the
+*result* could be believably wrong, which is a different question.
+
+| layer | what it would catch | where |
+|---|---|---|
+| **Published fixtures** | the engine no longer implements the published method | Luo & Qi (2009), Delamater (2013) test suites |
+| **Three implementations** | a defect that agrees with itself | production engine vs two independent reference implementations |
+| **Mutation corpus** | a suite that would not *notice* a scientific error | [`tools/ci/mutation_corpus.R`](tools/ci/mutation_corpus.R) — 17 named mutants, all killed |
+| **Scientific join doctrine** | silently dropped, duplicated or zero-filled tracts, providers and years | fail-closed guards naming the offending IDs |
+| **Scientific-core coverage** | an exported function no test ever calls | [`tools/ci/scientific_coverage.R`](tools/ci/scientific_coverage.R) — found 10 untested exports |
+| **Cross-platform agreement** | results that depend on the machine | three GEOS versions agree to 2e-16 |
+| **Manuscript quantifier guards** | prose that drifted from the numbers it describes | "about one in five" must match the computed value or the render fails |
+| **Specification curve** | conclusions that depend on one modelling choice | [`inst/multiverse/`](inst/multiverse/) — prespecified and hash-frozen |
+
+Two things worth stating plainly, because they are results rather than
+advertising:
+
+- The specification curve **falsified a manuscript claim**. The rural–metropolitan
+  disparity holds in all seven specifications; the American Indian/Alaska Native
+  contrast does not — it reverses for complex family planning under flatter decay
+  and under M2SFCA, where the primary estimate sits 2.5% from parity. The abstract
+  was corrected accordingly.
+- Three load-bearing artifacts **have no record of the inputs that produced them**.
+  [`tools/ci/check_artifact_provenance.R`](tools/ci/check_artifact_provenance.R)
+  reports this rather than failing, because the inputs are not currently
+  recoverable. It is a known gap, not a solved problem.
 
 ## Learn the method
 

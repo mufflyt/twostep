@@ -1,0 +1,79 @@
+{
+  "title": "twostep: E2SFCA Accessibility to OB/GYN Subspecialists in the Contiguous United States",
+  "description": "<p>Standalone analysis and manuscript for national travel-time accessibility to the seven ABOG-certified obstetric and gynecologic subspecialties across the contiguous United States, 2013-2023, using an Enhanced Two-Step Floating Catchment Area (E2SFCA) method on road-network isochrones with a mass-conserving demand allocation and a Spatial Access Ratio (SPAR).</p><p><strong>Scientific verification.</strong> The accessibility engine is validated against published fixtures from Luo &amp; Qi (2009) and Delamater (2013), cross-checked against two independent reference implementations, exercised by a named mutation corpus, and gated by a scientific join doctrine that fails closed on unmatched keys, duplicate keys and missing population rather than silently dropping, multiplying or zeroing them. A prespecified, hash-frozen specification-curve (multiverse) analysis reports which conclusions survive defensible alternative modelling choices.</p><p><strong>Reproducibility.</strong> The manuscript renders from a frozen run whose inputs are verified by checksum before use, and verbal quantifiers in the paper are asserted against the values they describe at render time.</p>",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "version": "0.1.0",
+  "language": "eng",
+  "creators": [
+    {
+      "name": "Muffly, Tyler",
+      "orcid": "0000-0002-2044-1693",
+      "affiliation": "Department of Obstetrics and Gynecology, Denver Health, Denver, Colorado, USA"
+    }
+  ],
+  "keywords": [
+    "E2SFCA",
+    "two-step floating catchment area",
+    "spatial accessibility",
+    "Spatial Access Ratio",
+    "SPAR",
+    "obstetrics and gynecology",
+    "subspecialty workforce",
+    "isochrones",
+    "drive-time access",
+    "health disparities",
+    "rural health",
+    "geographic access to care",
+    "reproducible research",
+    "specification curve analysis",
+    "multiverse analysis",
+    "R"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/mufflyt/twostep",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://mufflyt.github.io/twostep/",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-softwaredocumentation",
+      "scheme": "url"
+    },
+    {
+      "identifier": "10.1016/j.healthplace.2009.06.002",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/j.healthplace.2013.07.012",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1186/1476-072X-11-50",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1068/b29120",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.1016/j.apgeog.2011.05.001",
+      "relation": "cites",
+      "resource_type": "publication-article",
+      "scheme": "doi"
+    }
+  ],
+  "notes": "Archived from the mufflyt/twostep repository. The methodological sources listed under related_identifiers are the papers this implementation reproduces and is tested against, not merely background reading: Luo & Qi (2009) supplies the E2SFCA weight sets and a published worked fixture, Delamater (2013) the M2SFCA formulation, McGrail (2012) the Gaussian decay variant, Luo & Wang (2003) the original 2SFCA baseline, and Wan et al. (2012) the Spatial Access Ratio."
+}

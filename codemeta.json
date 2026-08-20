@@ -41,5 +41,59 @@
     "https://github.com/mufflyt/cliff",
     "https://github.com/mufflyt/mysterymaps",
     "https://github.com/mufflyt/isochrones"
-  ]
+  ],
+  "citation": [
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1016/j.healthplace.2009.06.002",
+      "name": "An enhanced two-step floating catchment area (E2SFCA) method for measuring spatial accessibility to primary care physicians",
+      "datePublished": "2009"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1016/j.healthplace.2013.07.012",
+      "name": "Spatial accessibility in suboptimally configured health care systems (M2SFCA)",
+      "datePublished": "2013"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1186/1476-072X-11-50",
+      "name": "Spatial accessibility of primary health care utilising the two step floating catchment area method",
+      "datePublished": "2012"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1068/b29120",
+      "name": "Measures of spatial accessibility to health care in a GIS environment",
+      "datePublished": "2003"
+    },
+    {
+      "@type": "ScholarlyArticle",
+      "@id": "https://doi.org/10.1016/j.apgeog.2011.05.001",
+      "name": "A relative spatial access assessment approach (SPAR)",
+      "datePublished": "2012"
+    }
+  ],
+  "keywords": [
+    "E2SFCA",
+    "two-step floating catchment area",
+    "spatial accessibility",
+    "Spatial Access Ratio",
+    "SPAR",
+    "obstetrics and gynecology",
+    "subspecialty workforce",
+    "isochrones",
+    "drive-time access",
+    "health disparities",
+    "rural health",
+    "geographic access to care",
+    "reproducible research",
+    "specification curve analysis",
+    "multiverse analysis"
+  ],
+  "developmentStatus": "https://www.repostatus.org/#wip",
+  "applicationCategory": "Health geography / spatial epidemiology",
+  "readme": "https://github.com/mufflyt/twostep/blob/main/README.md",
+  "softwareHelp": "https://mufflyt.github.io/twostep/",
+  "contIntegration": "https://github.com/mufflyt/twostep/actions"
 }

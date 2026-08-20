@@ -31,3 +31,60 @@ keywords:
   - drive-time access
   - health disparities
   - reproducible research
+# The papers this implementation REPRODUCES and is tested against, not
+# background reading. Each has a fixture or a variant in the test suite:
+# Luo & Qi supplies the published weight sets and a worked example the suite
+# reproduces exactly; Delamater supplies M2SFCA, which a mutation-corpus mutant
+# is killed by; McGrail supplies the Gaussian decay variant used in the
+# specification curve; Wan et al. supplies the Spatial Access Ratio.
+references:
+  - type: article
+    authors:
+      - family-names: Luo
+        given-names: Wei
+      - family-names: Qi
+        given-names: Yi
+    title: "An enhanced two-step floating catchment area (E2SFCA) method for measuring spatial accessibility to primary care physicians"
+    journal: "Health & Place"
+    year: 2009
+    doi: 10.1016/j.healthplace.2009.06.002
+  - type: article
+    authors:
+      - family-names: Delamater
+        given-names: Paul L.
+    title: "Spatial accessibility in suboptimally configured health care systems: a modified two-step floating catchment area (M2SFCA) metric"
+    journal: "Health & Place"
+    year: 2013
+    doi: 10.1016/j.healthplace.2013.07.012
+  - type: article
+    authors:
+      - family-names: McGrail
+        given-names: Matthew R.
+    title: "Spatial accessibility of primary health care utilising the two step floating catchment area method: an assessment of recent improvements"
+    journal: "International Journal of Health Geographics"
+    year: 2012
+    doi: 10.1186/1476-072X-11-50
+  - type: article
+    authors:
+      - family-names: Luo
+        given-names: Wei
+      - family-names: Wang
+        given-names: Fahui
+    title: "Measures of spatial accessibility to health care in a GIS environment: synthesis and a case study in the Chicago region"
+    journal: "Environment and Planning B"
+    year: 2003
+    doi: 10.1068/b29120
+  - type: article
+    authors:
+      - family-names: Wan
+        given-names: Neng
+      - family-names: Zhan
+        given-names: F. Benjamin
+      - family-names: Zou
+        given-names: Bin
+      - family-names: Chow
+        given-names: Eric
+    title: "A relative spatial access assessment approach for analyzing potential spatial access to colorectal cancer services in Texas"
+    journal: "Applied Geography"
+    year: 2012
+    doi: 10.1016/j.apgeog.2011.05.001

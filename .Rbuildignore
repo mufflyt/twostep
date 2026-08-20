@@ -47,3 +47,4 @@
 # Generated pkgdown output. Never package content; would otherwise be reported
 # by R CMD check under "checking top-level files", which the nightly fails on.
 ^pkgdown-site$
+^\.zenodo\.json$

@@ -1,0 +1,23 @@
+{
+  "status": "SUCCESS",
+  "run_id": "e2sfca_20260712_190734",
+  "instance": "",
+  "git_sha": "ff3aac4a7aa97094fc3a9e69422425fe1a52b091",
+  "ami": "ami-081b31d5df91089c4",
+  "when": "2026-07-13 00:30:32",
+  "authoritative_gate_method": "mass_conserving (area-overlap, native totals)",
+  "allocator_sha256": "2b78718bf65c2ecb7a1c99fb027d4aa52aeabc345faf6ec71291197e3fe25c43",
+  "n_cells": 77,
+  "verdict": "11-year (2013-2023) national E2SFCA series COMPLETE under the AUTHORITATIVE mass_conserving area-overlap production allocator (module sha==seam-validated 2b78718bf65c2ecb7a1c99fb027d4aa52aeabc345faf6ec71291197e3fe25c43). Per-year national population conservation asserted (tol 0.5%); allocator per-tract+global conservation asserted (tol 1e-6). Grid/resolution/CRS identical to seam gate (500m, EPSG:5070). Authoritative gate method = mass_conserving; equal_total/geometry_only are diagnostics, not the gate. 77 (subspec,year) cells.",
+  "environment": {
+    "r_version": "4.5.1",
+    "sf": "1.1.1",
+    "terra": "1.9.34",
+    "exactextractr": "0.10.1",
+    "geos": "3.13.0",
+    "gdal": "3.10.3",
+    "proj": "9.6.2"
+  },
+  "input_checksums": ["b2a66353a2a601f5495285c5bd7b29685784d6c5abf24d4224bec80c4e18d8d5  acs_bundle_2013_2022.rds  ", "79f0080c3897c63d8bf6f3bdf0121a2746750d1cf39229207e6e43fa858f21f9  step_3_year_coord_map.rds  ", "154e67ddc293947bf1ee20a508b5b268cc9f9f88db8404c212a4533122ee174e  step_2.5_final_cohort.rds  ", "09482ddd051bf8df3bb21f8057f6f6ebd05944e1ccf129e4ce2dffbe8d289d33  seam_report_all_2020.rds  ", "917d60e3e9f2f5c6a6c5f94d5024b71c050f2b700a6506ba642b23186aa38ea7  isochrones_30min_consolidated.rds  ", "3ce5041be6e81ea6b047125f3f5542abbab4de9c4cd6351183dd68fb5128a29d  isochrones_60min_consolidated.rds  ", "e6bc2ae5af32ea8b474509a95016fbbbab7741d2b9ddb43c75ed9b7db2df1127  isochrones_120min_consolidated.rds  ", "4bfbd5c29814cc2cde4910b1a5bb00277f68c74b3258fe453b29a8e6ab80c99d  isochrones_180min_consolidated.rds  "],
+  "output_checksums": ["9a33fa1c8e2f10e50d141b300e5f70979fe888282db55aaee34dfadaa718bea3  e2sfca_index.csv  8715", "b33eb3e4f44c2a7f422a32d0b61c1afa5af4f76d55f230918a4dfedf6999ba3a  e2sfca_national_summary.csv  9437", "a98096ec9ecb5640b6229996f7820a295750f2e5ab90b1d99072e581e767703b  e2sfca_run_manifest.json  15180", "4ce2ac86c49a4b9895c2c5e052e8d595f1176a1dfa05cf33870eab3ecf389fa4  e2sfca_outputs_e2sfca_20260712_190734.tar.gz  102003960", "96c326589f8663f9b1f8c766126fe9db0f5e59e65ef045467e6749270ed10714  e2sfca.log  495539"]
+}
