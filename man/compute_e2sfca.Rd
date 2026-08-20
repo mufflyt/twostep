@@ -70,7 +70,7 @@ lies outside every modelled catchment. **These are not interchangeable.**
 A tract inside a catchment whose weighted supply works out to zero has a
 measured accessibility of zero. A tract no isochrone reaches has none. Before
 this distinction existed the second was filled with `0` and became
-indistinguishable from the first — 190 of 1,447 Colorado tracts, 13% of the
+indistinguishable from the first — 190 of 1,447 Colorado tracts, 13\% of the
 state, each reported as a measured zero and shaded in the zero class of any
 downstream map.
 

@@ -16,7 +16,7 @@ match (typically `is.na(joined_column)`).}
 \item{context}{`character(1)` prefix for the error message, e.g. `"GO 2023"`.}
 
 \item{max_frac}{`numeric(1)` maximum tolerated per-state loss share. Defaults
-to 0.05 (5%), the threshold used by the isochrones production run.}
+to 0.05 (5\%), the threshold used by the isochrones production run.}
 }
 \value{
 Invisibly, a named `numeric` of per-state loss fractions for the

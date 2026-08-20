@@ -26,7 +26,7 @@
 #'   match (typically `is.na(joined_column)`).
 #' @param context `character(1)` prefix for the error message, e.g. `"GO 2023"`.
 #' @param max_frac `numeric(1)` maximum tolerated per-state loss share. Defaults
-#'   to 0.05 (5%), the threshold used by the isochrones production run.
+#'   to 0.05 (5\%), the threshold used by the isochrones production run.
 #' @return Invisibly, a named `numeric` of per-state loss fractions for the
 #'   states that lost at least one row. Called for its fail-closed side effect.
 #' @examples

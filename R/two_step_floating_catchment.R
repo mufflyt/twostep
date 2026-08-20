@@ -129,7 +129,7 @@ E2SFCA_AREA_CRS <- 5070L
 #'
 #' These are the *cumulative-band* weights W_b for the four canonical travel-time
 #' bands. They decay with travel time: a provider reachable within 30 min counts
-#' fully; one only reachable within 180 min counts ~9%. Override to run a
+#' fully; one only reachable within 180 min counts ~9\%. Override to run a
 #' sensitivity analysis.
 #'
 #' @format Named numeric vector keyed by band in minutes ("30","60","120","180").
@@ -556,7 +556,7 @@ compute_provider_supply <- function(year_coord_map, cohort, subspecialty_code,
 #' A tract inside a catchment whose weighted supply works out to zero has a
 #' measured accessibility of zero. A tract no isochrone reaches has none. Before
 #' this distinction existed the second was filled with `0` and became
-#' indistinguishable from the first — 190 of 1,447 Colorado tracts, 13% of the
+#' indistinguishable from the first — 190 of 1,447 Colorado tracts, 13\% of the
 #' state, each reported as a measured zero and shaded in the zero class of any
 #' downstream map.
 #'
@@ -970,7 +970,7 @@ build_e2sfca_grid_geometry <- function(tracts_geom_sf,
 #' Center-based rasterization (assign a cell to whichever tract covers its
 #' centre) DROPS the population of any tract too small to contain a cell centre,
 #' and more generally does not conserve each tract's population locally. At a
-#' 500 m CONUS grid this silently lost ~1% of ACS female population and made the
+#' 500 m CONUS grid this silently lost ~1\% of ACS female population and made the
 #' represented national total *vintage-dependent* (2010 vs 2020 tract sets lose
 #' different amounts), which confounds the seam test: an apparent access shift
 #' can be a pure change in total demand rather than spatial redistribution.
@@ -997,7 +997,7 @@ build_e2sfca_grid_geometry <- function(tracts_geom_sf,
 #' @references Apparicio et al. (2017) doi:10.1186/s12942-017-0105-9 [source 7]
 #'   documents the population-AGGREGATION error that centroid assignment incurs in
 #'   potential-access measures; this area-weighted, mass-conserving allocation is
-#'   the remedy the manuscript adopts (recovers the ~1.06% of the female
+#'   the remedy the manuscript adopts (recovers the ~1.06\% of the female
 #'   population that centroid allocation drops). Frozen facts (allocator sha256,
 #'   500 m EPSG:5070, conservation tolerance) are in
 #'   docs/RUNBOOK_E2SFCA_ACCESSIBILITY.md.

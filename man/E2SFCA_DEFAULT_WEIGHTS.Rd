@@ -12,7 +12,7 @@ E2SFCA_DEFAULT_WEIGHTS
 \description{
 These are the *cumulative-band* weights W_b for the four canonical travel-time
 bands. They decay with travel time: a provider reachable within 30 min counts
-fully; one only reachable within 180 min counts ~9%. Override to run a
+fully; one only reachable within 180 min counts ~9\%. Override to run a
 sensitivity analysis.
 }
 \references{
