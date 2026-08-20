@@ -74,6 +74,18 @@ jobs:
         run: Rscript tools/ci/check_hygiene.R
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
+      - name: Install yaml and rprojroot
+        run: install.packages(c("yaml","rprojroot"))
+        shell: Rscript {0}
+      # Identities on the FROZEN artifacts, not on fixtures: two independent
+      # computations of national access must agree, derived ratios must match
+      # their own columns, nested catchments must be monotone, and the same
+      # quantity must agree across artifacts. Cheap, and catches a corrupted or
+      # stale artifact before it merges.
+      - name: Frozen-artifact scientific invariants
+        run: Rscript tools/ci/check_scientific_invariants.R
+      - name: README agrees with the repository
+        run: Rscript tools/ci/check_readme.R
 
   scientific:
     name: scientific validity

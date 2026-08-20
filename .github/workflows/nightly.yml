@@ -69,6 +69,36 @@ env:
 
 jobs:
   # ---------------------------------------------------------------- tier 1: fast
+  scientific-invariants:
+    name: frozen artifacts satisfy scientific invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with: { use-public-rspm: true }
+      - name: Install rprojroot
+        run: install.packages("rprojroot")
+        shell: Rscript {0}
+      # The test suite proves the ENGINE satisfies its invariants on synthetic
+      # fixtures. This proves the PUBLISHED NUMBERS hold together: the two
+      # independent computations of national access agree, derived ratios match
+      # the columns they come from, nested-catchment monotonicity holds, shares
+      # stay in [0,100], order statistics are ordered, and the same quantity
+      # agrees across independently produced artifacts.
+      #
+      # Every check is an identity or inequality that must hold for ANY valid
+      # run. Nothing here encodes what the answer should be -- only what could
+      # not possibly be right.
+      - name: Scientific invariants on the frozen artifacts
+        run: Rscript tools/ci/check_scientific_invariants.R
+
   readme:
     name: README agrees with the repository
     runs-on: ubuntu-latest
@@ -974,7 +1004,7 @@ jobs:
     needs: [preflight, hygiene, syntax, namespace, checksums, lockfile, docs,
             R-CMD-check, testthat, installed-isolation, minimal-deps, renv-restore,
             scientific-mutants, manuscript, scientific-cross-platform, artifact-provenance, multiverse,
-            readme]
+            readme, scientific-invariants]
     steps:
       - name: Report and gate
         run: |
@@ -999,6 +1029,7 @@ jobs:
             echo "| artifact input provenance | ${{ needs['artifact-provenance'].result }} |"
             echo "| specification curve | ${{ needs.multiverse.result }} |"
             echo "| README consistency | ${{ needs.readme.result }} |"
+            echo "| frozen-artifact invariants | ${{ needs['scientific-invariants'].result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           cat "$GITHUB_STEP_SUMMARY"
           for r in "${{ needs.preflight.result }}" "${{ needs.hygiene.result }}" \
@@ -1013,6 +1044,7 @@ jobs:
                    "${{ needs['artifact-provenance'].result }}" \
                    "${{ needs.multiverse.result }}" \
                    "${{ needs.readme.result }}" \
+                   "${{ needs['scientific-invariants'].result }}" \
                    "${{ needs.manuscript.result }}" \
                    "${{ needs['scientific-cross-platform'].result }}"; do
             if [ "$r" != "success" ]; then
