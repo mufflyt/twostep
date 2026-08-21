@@ -53,7 +53,20 @@ CORE <- c(
   "urps_e2sfca_spar_summary",
   "weighted_mean_all", "zero_access_share", "mc_weighted_ci", "annual_trend",
   "zero_access_audit", "zshare_rast",
-  "rurality_from_ruca", "classify_bivariate"
+  "rurality_from_ruca", "classify_bivariate",
+  # The study-layer corrections ported from isochrones in aaeb247. All three are
+  # scientific-key handling, not convenience: assert_state_join_loss is the
+  # fail-closed guard that catches a whole state vanishing from a join (the
+  # Connecticut vocabulary break dropped ~879 tracts while every NATIONAL match
+  # rate stayed green); partition_unknown_access is the unmeasured-vs-zero
+  # distinction this package refuses to blur; relabel_ct_geoids_safe rewrites
+  # tract GEOIDs across a vocabulary change, which is a join key.
+  #
+  # They arrived UNTIERED and so fell to OTHER, which is non-fatal -- meaning
+  # the gate built to catch untested scientific exports would not have fired if
+  # their tests were removed. They ship with tests today; tiering them CORE is
+  # what keeps that true.
+  "assert_state_join_loss", "partition_unknown_access", "relabel_ct_geoids_safe"
 )
 SUPPORT <- c(
   "CANONICAL_BANDS", "get_canonical_bands", "get_primary_access_band",
@@ -62,7 +75,8 @@ SUPPORT <- c(
   "TOTAL_FEMALE_VAR", "RACE_FEMALE_VARS", "RUCA_NONMETRO_MIN",
   "DENOMINATOR_CATEGORY", "TRACT_REACHED_COVERAGE_PCT",
   "ACCESS_SAFE_LABELS", "ACCESS_FORBIDDEN_TERMS", "assert_access_language",
-  "assert_matching_geography", "acs_year_of", "tract_vintage_of"
+  "assert_matching_geography", "acs_year_of", "tract_vintage_of",
+  "ct_equivalency_table_path"
 )
 tier <- ifelse(exports %in% CORE, "CORE",
         ifelse(exports %in% SUPPORT, "SUPPORT", "OTHER"))
