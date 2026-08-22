@@ -1,0 +1,10 @@
+{
+  "commit": "d34582c8226aa7b8549c5eaf8d1fc9a52310b50b",
+  "ref": "refs/heads/main",
+  "run_id": "32576990565",
+  "run_url": "https://github.com/mufflyt/twostep/actions/runs/32576990565",
+  "built_at": "2026-08-22T13:53:47Z",
+  "r_version": "4.6.1",
+  "pkgdown_version": "2.2.1",
+  "twostep_version": "0.1.0"
+}
