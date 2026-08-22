@@ -13,6 +13,8 @@
 #
 # Three tiers are reported, and only the first is fatal:
 #
+#   UNTIERED  an export in none of the lists below. FATAL: a new export must be
+#             classified deliberately, never absorbed into the harmless tier.
 #   CORE      the scientific calculation itself -- weights, overlap, demand,
 #             ratios, accessibility, allocation, aggregation. An untested export
 #             here is a release blocker.
@@ -78,8 +80,22 @@ SUPPORT <- c(
   "assert_matching_geography", "acs_year_of", "tract_vintage_of",
   "ct_equivalency_table_path"
 )
+# OTHER is an EXPLICIT list, not the residual. That distinction is the whole
+# point: while OTHER was "everything left over", a newly exported function was
+# classified as non-fatal BY DEFAULT. aaeb247 exported four study-layer
+# functions -- including the fail-closed guard that catches an entire state
+# vanishing from a join -- and all four landed here unnoticed. Deleting their
+# tests would have kept CI green.
+#
+# Now an export in none of the three lists is UNTIERED, and that fails.
+# Classifying a new export is a deliberate act, and the failure message says so.
+OTHER <- c(
+  "create_bivariate_palette", "generate_bivariate_choropleth",
+  "run_access_explorer"
+)
 tier <- ifelse(exports %in% CORE, "CORE",
-        ifelse(exports %in% SUPPORT, "SUPPORT", "OTHER"))
+        ifelse(exports %in% SUPPORT, "SUPPORT",
+        ifelse(exports %in% OTHER, "OTHER", "UNTIERED")))
 
 # --- scan the test suite ------------------------------------------------------
 test_files <- list.files("tests/testthat", pattern = "^(test|helper)-.*[.]R$",
@@ -127,11 +143,11 @@ is_fun <- exports %in% defs_fun
 exercised <- ifelse(is_fun, called, referenced)
 res <- data.frame(name = exports, tier = tier, exercised = exercised,
                   asserted = asserted, stringsAsFactors = FALSE)
-res <- res[order(factor(res$tier, levels = c("CORE", "SUPPORT", "OTHER")),
+res <- res[order(factor(res$tier, levels = c("CORE", "SUPPORT", "OTHER", "UNTIERED")),
                  res$exercised, res$name), ]
 
 cat("scientific-core coverage over ", length(test_files), " test files\n\n", sep = "")
-for (tl in c("CORE", "SUPPORT", "OTHER")) {
+for (tl in c("CORE", "SUPPORT", "OTHER", "UNTIERED")) {
   sub <- res[res$tier == tl, ]
   if (!nrow(sub)) next
   cat(sprintf("%-8s %d exports | exercised %d | asserted %d\n",
@@ -140,6 +156,27 @@ for (tl in c("CORE", "SUPPORT", "OTHER")) {
   if (length(miss)) for (m in miss) cat("    NEVER EXERCISED: ", m, "\n", sep = "")
   weak <- sub$name[sub$exercised & !sub$asserted]
   if (length(weak)) for (w in weak) cat("    called, never asserted: ", w, "\n", sep = "")
+}
+
+# Checked BEFORE the coverage verdict: an unclassified export cannot be judged,
+# because no one has said what standard applies to it.
+untiered <- res$name[res$tier == "UNTIERED"]
+if (length(untiered)) {
+  message("FAIL: ", length(untiered), " export(s) are not classified into a tier:")
+  for (u in untiered) message("  - ", u)
+  message("")
+  message("  An unclassified export defaults to nothing and is therefore guarded by")
+  message("  nothing. Add each to exactly one list at the top of this file:")
+  message("")
+  message("    CORE     the scientific calculation itself -- weights, overlap, demand,")
+  message("             ratios, accessibility, allocation, aggregation, and the join")
+  message("             and geography guards that protect them. Untested is FATAL.")
+  message("    SUPPORT  constants, vocabulary, path helpers. Untested WARNS.")
+  message("    OTHER    plotting, Shiny, convenience. Untested is tolerated.")
+  message("")
+  message("  If unsure, choose CORE: over-guarding costs a test, under-guarding")
+  message("  costs a silent scientific defect.")
+  quit(status = 1L, save = "no")
 }
 
 core_missing <- res$name[res$tier == "CORE" & !res$exercised]
