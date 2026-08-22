@@ -22,7 +22,7 @@
      each links to the tool or suite that would fail if the number were wrong. -->
 [![tests: 1653](https://img.shields.io/badge/tests-1653%20assertions-success.svg)](https://github.com/mufflyt/twostep/tree/main/tests/testthat)
 [![mutants killed: 17/17](https://img.shields.io/badge/scientific%20mutants-17%2F17%20killed-success.svg)](https://github.com/mufflyt/twostep/blob/main/tools/ci/mutation_corpus.R)
-[![core coverage: 35/35](https://img.shields.io/badge/scientific%20core-35%2F35%20exercised-success.svg)](https://github.com/mufflyt/twostep/blob/main/tools/ci/scientific_coverage.R)
+[![core coverage: 38/38](https://img.shields.io/badge/scientific%20core-38%2F38%20exercised-success.svg)](https://github.com/mufflyt/twostep/blob/main/tools/ci/scientific_coverage.R)
 [![specification curve](https://img.shields.io/badge/multiverse-7%20prespecified%20specs-informational.svg)](https://github.com/mufflyt/twostep/blob/main/inst/multiverse/specification_manifest.yml)
 <!-- badges: end -->
 
