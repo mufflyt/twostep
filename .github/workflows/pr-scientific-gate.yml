@@ -75,7 +75,7 @@ jobs:
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
       - name: Install yaml and rprojroot
-        run: install.packages(c("yaml", "rprojroot", "jsonlite", "digest"))
+        run: install.packages(c("yaml","rprojroot"))
         shell: Rscript {0}
       # Identities on the FROZEN artifacts, not on fixtures: two independent
       # computations of national access must agree, derived ratios must match
@@ -84,19 +84,7 @@ jobs:
       # stale artifact before it merges.
       - name: Frozen-artifact scientific invariants
         run: Rscript tools/ci/check_scientific_invariants.R
-      # The strongest gate in the repo, and until now nothing ran it. It records
-      # the 47 reported headline numbers plus a hash over the WHOLE reported
-      # series, and fails when any of them moves against a committed baseline --
-      # so a change that alters a reported estimate can never pass silently just
-      # because no test happened to assert on it. It also hashes the engine
-      # source, which forces the question "should the numbers have moved?" to be
-      # answered by a human rather than assumed.
-      #
-      # Note what it does and does not prove: the headline is READ from the
-      # frozen national summary, not recomputed, so this detects drift in the
-      # reported record -- it is not a reproduction check.
-      - name: Reported headline numbers have not moved
-        run: Rscript tools/ci/scientific_diff.R
+
       - name: README agrees with the repository
         run: Rscript tools/ci/check_readme.R
       # Two guards that existed but were never wired -- an unrun guard is worse
@@ -167,6 +155,15 @@ jobs:
       # rather than in the structure job because it resolves each export against
       # the installed namespace to tell a function from a constant; without the
       # package it falls back to a name heuristic and is weaker.
+      # Sources scripts/manuscript_e2sfca_values.R, which needs
+      # dplyr/readr/tidyr/here and mufflyaccess from the DESCRIPTION Remotes
+      # field -- so it must live in a job with setup-r-dependencies, not in a
+      # bare-install gate job. It records the 47 reported headline numbers and a
+      # hash over the whole series, and fails on unexplained movement against
+      # the committed baseline.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
+
       - name: No scientific-core export may be untested
         run: Rscript tools/ci/scientific_coverage.R
 

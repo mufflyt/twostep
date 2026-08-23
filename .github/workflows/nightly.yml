@@ -84,7 +84,7 @@ jobs:
         timeout-minutes: 10
         with: { use-public-rspm: true }
       - name: Install rprojroot
-        run: install.packages(c("rprojroot", "jsonlite", "digest"))
+        run: install.packages("rprojroot")
         shell: Rscript {0}
       # The test suite proves the ENGINE satisfies its invariants on synthetic
       # fixtures. This proves the PUBLISHED NUMBERS hold together: the two
@@ -98,20 +98,6 @@ jobs:
       # not possibly be right.
       - name: Scientific invariants on the frozen artifacts
         run: Rscript tools/ci/check_scientific_invariants.R
-
-      # The strongest gate in the repo, and until now nothing ran it. It records
-      # the 47 reported headline numbers plus a hash over the WHOLE reported
-      # series, and fails when any of them moves against a committed baseline --
-      # so a change that alters a reported estimate can never pass silently just
-      # because no test happened to assert on it. It also hashes the engine
-      # source, which forces the question "should the numbers have moved?" to be
-      # answered by a human rather than assumed.
-      #
-      # Note what it does and does not prove: the headline is READ from the
-      # frozen national summary, not recomputed, so this detects drift in the
-      # reported record -- it is not a reproduction check.
-      - name: Reported headline numbers have not moved
-        run: Rscript tools/ci/scientific_diff.R
 
   readme:
     name: README agrees with the repository
@@ -887,6 +873,7 @@ jobs:
             any::rmarkdown
             any::knitr
             any::kableExtra
+            any::xml2
           needs: check
       # render.R verifies every consumed artifact against SHA256SUMS.txt before
       # rendering, so a swapped or corrupted input fails here rather than
@@ -899,6 +886,24 @@ jobs:
       # checks that the Figure 1 and Table 1 caption years agree.
       - name: Semantic QA
         run: Rscript tools/ci/check_manuscript.R
+      # The strongest gate in the repo, and until now nothing ran it. It records
+      # the 47 reported headline numbers plus a hash over the WHOLE reported
+      # series and fails when any moves against a committed baseline, so a change
+      # that alters a reported estimate cannot pass silently just because no test
+      # asserts on it.
+      #
+      # It lives HERE, and not in a lightweight gate job, because it sources
+      # scripts/manuscript_e2sfca_values.R -- which pulls dplyr/readr/tidyr/here
+      # and hard-requires mufflyaccess from the DESCRIPTION Remotes field. Only a
+      # job with setup-r-dependencies(needs: check) can resolve that. Wiring it
+      # into a job with a bare install.packages() made it fail on CI having never
+      # run, which is the exact defect this gate family exists to prevent.
+      #
+      # What it does and does not prove: the headline is READ from the frozen
+      # national summary, not recomputed, so this detects drift in the reported
+      # record -- it is not a reproduction check.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
 
       # Two more that existed but were wired into nothing. Both printed their
       # findings and exited 0 regardless, so each was documentation of a check
