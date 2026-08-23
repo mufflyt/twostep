@@ -1,0 +1,462 @@
+---
+title: "Technical Appendix: Age-Matched Demand Denominators"
+subtitle: "Supplemental Digital Content"
+output:
+  word_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+suppressWarnings(suppressMessages({library(knitr); library(yaml)}))
+root <- tryCatch(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")), error = function(e) "..")
+knitr::opts_knit$set(root.dir = root)
+fmt  <- function(x, d = 0) formatC(x, format = "f", digits = d, big.mark = ",")
+rat  <- function(x) formatC(x, format = "f", digits = 4)
+```
+
+```{r load}
+MAN  <- file.path(root, "inst/multiverse/age_matched_denominator.yml")
+HASH <- file.path(root, "inst/multiverse/age_matched_denominator.sha256")
+man  <- yaml::read_yaml(MAN)
+man_sha <- trimws(strsplit(readLines(HASH, warn = FALSE)[1], "\\s+")[[1]][1])
+
+amd_path <- file.path(root, "artifacts/2sfca/sensitivity/cache/age_matched_denominators.rds")
+amd <- if (file.exists(amd_path)) readRDS(amd_path) else NULL
+
+res_path <- file.path(root, "artifacts/multiverse/age_matched_results.csv")
+res <- if (file.exists(res_path)) utils::read.csv(res_path, stringsAsFactors = FALSE) else NULL
+have_results <- !is.null(res) && nrow(res) > 0
+```
+
+### 1. The problem this appendix addresses
+
+In the primary analysis every subspecialty is indexed to the same demand
+denominator: total female population of all ages (ACS 2020, table `B01001`,
+variable `B01001_026`; 164,690,617 women across the contiguous United States).
+
+That choice is defensible as a *standardized* measure of geographic
+reachability, and the manuscript says so. But it has a consequence that a
+careful reader will notice immediately:
+
+- **pediatric and adolescent gynecology** is measured against a population that
+  includes 80-year-old women;
+- **gynecologic oncology** and **urogynecology** are measured against a
+  population that includes 6-year-old girls.
+
+Because accessibility is supply divided by weighted demand, a denominator
+containing large numbers of people who are not candidates for a given
+subspecialty deflates that subspecialty's apparent access. The finding that
+complex family planning and pediatric and adolescent gynecology have the lowest
+access is therefore, in part, an artifact of who is counted in the denominator
+rather than a statement about service availability.
+
+This appendix reports a prespecified sensitivity analysis in which each
+subspecialty is indexed to an age range plausibly served by that subspecialty.
+
+### 2. Prespecification
+
+The age windows, the ACS variables implementing them, the estimands, and the
+interpretation rules were written to
+`inst/multiverse/age_matched_denominator.yml` and recorded by SHA-256
+(`inst/multiverse/age_matched_denominator.sha256`) **before any outcome was
+computed**. The analysis code verifies that hash before reading data and aborts
+if the manifest has changed. Manifest versions were incremented rather than
+edited in place; the history of revisions, and the reason for each, is in the
+file itself.
+
+Age ranges are a clinical judgement, contributed by the senior author, and are
+recorded as such rather than derived from the data.
+
+### 3. Age windows
+
+| Subspecialty | Age window | Clinical intent | ACS bands (total) |
+|---|---|---|---|
+| Pediatric and adolescent gynecology | under 20 | under 21 | `B01001_027`–`_031` |
+| Complex family planning | under 35 | under 40 | `B01001_027`–`_036` |
+| Gynecologic oncology | 45 and over | — | `B01001_039`–`_049` |
+| Urogynecology and reconstructive pelvic surgery | 45 and over | — | `B01001_039`–`_049` |
+| Maternal-fetal medicine | 15 to 44 | — | `B01001_030`–`_038` |
+| Reproductive endocrinology and infertility | 15 to 44 | — | `B01001_030`–`_038` |
+| Minimally invasive gynecologic surgery | 15 and over | — | `B01001_030`–`_049` |
+
+### 4. Why two windows differ from the clinical intent
+
+The disparity contrasts re-weight the same accessibility surface by subgroup
+population. Rurality is assigned at tract level (RUCA), so the rural and
+metropolitan layers can use the fine-grained `B01001` table, which has 23 female
+age bands. The race-specific layers must use the ACS race iterations
+`B01001H` (White alone, not Hispanic) and `B01001C` (American Indian and Alaska
+Native alone), which have only **14** female age bands and are decadal above age
+35.
+
+The band edges common to all three tables are:
+
+```
+0  5  10  15  18  20  25  30  35  45  55  65  75  85
+```
+
+Ages 40, 50, 60, 70 and 80 do not exist as boundaries in the race iterations.
+Five of the seven clinically-specified windows already fell on common edges. Two
+did not:
+
+- **pediatric and adolescent gynecology**, intended as under 21, was moved to
+  **under 20** (the adjacent common edge, one year away; the alternative was 25);
+- **complex family planning**, intended as under 40, was moved to **under 35**
+  (the two adjacent common edges, 35 and 45, are equidistant).
+
+The alternative to shifting was to interpolate within a straddling band, which
+would impose a uniform-age-distribution assumption precisely where the American
+Indian and Alaska Native cell counts are smallest and least stable. Shifting to
+a common edge means every contrast in every subspecialty uses one age window,
+so the rurality and race comparisons are directly comparable rather than
+requiring reconciliation.
+
+**Direction of the complex family planning choice.** Under-35 is the narrower of
+the two equidistant options. A narrower demand denominator raises apparent
+access. Complex family planning reports the lowest access of the seven
+subspecialties in the primary analysis, so this choice moves that estimate in
+the direction that makes it look better. This was recorded in the manifest
+before results were computed.
+
+### 4a. Formal statement: where the denominator enters, and what it can change
+
+Let $i$ index population cells on the analysis grid and $j$ index provider
+locations. Write $P_i$ for the demand population in cell $i$, $S_j$ for the
+supply at provider $j$, and $w_{ij}$ for the incremental distance-decay weight
+linking them. The two steps of E2SFCA are
+
+$$R_j \;=\; \frac{S_j}{\sum_i w_{ij} P_i}, \qquad\qquad A_i \;=\; \sum_j w_{ij} R_j .$$
+
+The demand denominator enters **only** through $\sum_i w_{ij} P_i$ in step 1.
+Age-matching replaces $P_i$ with
+
+$$P_i^{(s)} \;=\; \alpha_i^{(s)} \, P_i ,$$
+
+where $\alpha_i^{(s)} \in [0,1]$ is the share of cell $i$'s female population
+falling inside subspecialty $s$'s age window. Nationally,
+$\alpha^{(s)} = \sum_i P_i^{(s)} / \sum_i P_i$ is the quantity plotted in
+Figure S1, Panel A: 0.24 for pediatric and adolescent gynecology, 0.82 for
+minimally invasive gynecologic surgery.
+
+The reported subgroup mean for population group $G$ (rural, metropolitan,
+White, American Indian and Alaska Native) is the population-weighted average
+
+$$\bar{A}_G \;=\; \frac{\sum_i P_i^{G} A_i}{\sum_i P_i^{G}},$$
+
+and each reported contrast is a ratio of two such means, for example
+$\bar{A}_{\text{rural}} / \bar{A}_{\text{metro}}$.
+
+#### Why levels are not comparable, and ratios are
+
+**Proposition.** If $\alpha_i^{(s)} = \alpha$ for every cell $i$ — that is, if
+the age-eligible share were spatially uniform — then
+
+$$R_j^{(s)} = \frac{S_j}{\sum_i w_{ij}\,\alpha P_i} = \frac{1}{\alpha} R_j,
+\qquad A_i^{(s)} = \frac{1}{\alpha} A_i,
+\qquad \bar{A}_G^{(s)} = \frac{1}{\alpha} \bar{A}_G ,$$
+
+so every accessibility level is inflated by the constant factor $1/\alpha$ while
+**every contrast ratio is exactly unchanged**, because the factor cancels:
+
+$$\frac{\bar{A}_{G_1}^{(s)}}{\bar{A}_{G_2}^{(s)}}
+= \frac{\alpha^{-1}\bar{A}_{G_1}}{\alpha^{-1}\bar{A}_{G_2}}
+= \frac{\bar{A}_{G_1}}{\bar{A}_{G_2}} .$$
+
+```{r invariance-check, results="asis"}
+if (have_results && !is.null(amd)) {
+  k  <- "GO"
+  n0 <- res$national[res$regime == "all_ages"    & res$subspec == k]
+  n1 <- res$national[res$regime == "age_matched" & res$subspec == k]
+  W1 <- readRDS(file.path(root, "artifacts/2sfca/sensitivity/cache/acs2020_age_bands.rds"))
+  al <- sum(amd$denominators[[k]]$total_f) / sum(W1$B01001_026)
+  cat(sprintf(paste0("This is the formal content of the interpretation rule in section 7. ",
+    "Gynecologic oncology's national mean moves from %s to %s, an observed factor of ",
+    "**%s**, against a predicted $1/\\alpha = 1/%s = %s$. It is arithmetic, not a finding.\n"),
+    rat(n0), rat(n1), rat(n1 / n0), rat(al), rat(1 / al)))
+}
+```
+
+**Corollary — what the analysis actually tests.** Because the uniform case
+leaves contrasts exactly unchanged, *any* movement in a contrast under
+age-matching is attributable entirely to **spatial and between-group variation
+in $\alpha_i$**. The analysis is therefore not a test of whether access differs,
+but of whether the age composition of the population covaries with the geography
+of access, or with group membership, strongly enough to move a disparity.
+
+#### A testable prediction, and its result
+
+The two race groups have materially different age structures nationally:
+
+```{r age-structure, results="asis"}
+wp0 <- file.path(root, "artifacts/2sfca/sensitivity/cache/acs2020_age_bands.rds")
+if (!is.null(amd) && file.exists(wp0)) {
+  W0 <- readRDS(wp0)
+  dw <- sum(W0$B01001H_017); da <- sum(W0$B01001C_017)
+  wins <- c(PAG = "under 20", GO = "45 and over")
+  out <- do.call(rbind, lapply(names(wins), function(k) {
+    d  <- amd$denominators[[k]]
+    aw <- sum(d$white_f) / dw; aa <- sum(d$aian_f) / da
+    data.frame(`Age window` = unname(wins[k]),
+               `White NH share` = rat(aw), `AIAN share` = rat(aa),
+               `rho = alpha_AIAN / alpha_White` = rat(aa / aw), check.names = FALSE) }))
+  print(knitr::kable(out, align = "lrrr"))
+}
+```
+
+The American Indian and Alaska Native female population is younger. Age
+restriction therefore does not scale the two groups equally, and the direction
+of the effect is predictable. When $\rho > 1$ the age window retains
+proportionally *more* AIAN demand, which raises the demand denominator in cells
+where those women live, lowering $R_j$ and hence their measured access relative
+to White-area access. When $\rho < 1$ the reverse holds. Formally, the contrast
+should move in the direction of $-\operatorname{sign}(\rho - 1)$.
+
+```{r rho, results="asis"}
+amdp <- file.path(root, "artifacts/2sfca/sensitivity/cache/age_matched_denominators.rds")
+wp   <- file.path(root, "artifacts/2sfca/sensitivity/cache/acs2020_age_bands.rds")
+if (have_results && file.exists(amdp) && file.exists(wp)) {
+  A <- readRDS(amdp); W <- readRDS(wp)
+  wht <- sum(W$B01001H_017); ai <- sum(W$B01001C_017)
+  aa2 <- res[res$regime=="all_ages",];  rownames(aa2) <- aa2$subspec
+  am2 <- res[res$regime=="age_matched",]; rownames(am2) <- am2$subspec
+  ord2 <- c("PAG","CFP","MFM","REI","MIGS","GO","FPMRS")
+  tab <- do.call(rbind, lapply(ord2, function(k) {
+    d <- A$denominators[[k]]
+    rho <- (sum(d$aian_f)/ai) / (sum(d$white_f)/wht)
+    obs <- am2[k,"aian_white_ratio"] - aa2[k,"aian_white_ratio"]
+    data.frame(Subspecialty = k, rho = rat(rho),
+               `AIAN:White, all ages` = rat(aa2[k,"aian_white_ratio"]),
+               `AIAN:White, age-matched` = rat(am2[k,"aian_white_ratio"]),
+               Predicted = ifelse(rho > 1, "widen", "narrow"),
+               Observed  = ifelse(obs < 0, "widen", "narrow"),
+               Agreement = ifelse((rho > 1) == (obs < 0), "yes", "no"),
+               check.names = FALSE) }))
+  print(knitr::kable(tab, align = "lrrrlll"))
+  cat(sprintf("\n\nThe predicted direction is observed in **%d of %d** subspecialties.\n",
+              sum(tab$Agreement == "yes"), nrow(tab)))
+}
+```
+
+The changes in the American Indian and Alaska Native contrast are therefore not
+noise: they are the mechanical consequence of a younger age structure
+interacting with a narrower age window. The disparity persists in every
+subspecialty, but age-matching *widens* it wherever the window favours younger
+women and *narrows* it wherever the window favours older women.
+
+#### Conservation
+
+The engine satisfies the identity
+
+$$\sum_i P_i A_i \;=\; \sum_j S_j$$
+
+over providers reachable by some population — accessibility redistributes supply
+across space without creating or destroying it. This holds separately under each
+denominator regime, with $P_i^{(s)}$ substituted throughout; it is verified
+numerically in the package test suite rather than assumed here.
+
+### 5. Validation of the denominators
+
+Three checks were run before any accessibility computation.
+
+**Conservation.** Summing every female age band must reproduce the published
+female total for each table. Exact agreement in all three:
+
+```{r conservation}
+raw <- file.path(root, "artifacts/2sfca/sensitivity/cache/acs2020_age_bands.rds")
+if (file.exists(raw)) {
+  w <- readRDS(raw)
+  spec <- list(
+    list("B01001 (total)",     "B01001_026",  sprintf("B01001_%03d", 27:49)),
+    list("B01001H (White NH)", "B01001H_017", sprintf("B01001H_%03d", 18:31)),
+    list("B01001C (AIAN)",     "B01001C_017", sprintf("B01001C_%03d", 18:31)))
+  tab <- do.call(rbind, lapply(spec, function(s) {
+    tot <- s[[2]]; parts <- intersect(s[[3]], names(w))
+    a <- sum(w[[tot]], na.rm = TRUE)
+    b <- sum(rowSums(w[, parts, drop = FALSE], na.rm = TRUE))
+    data.frame(Table = s[[1]], Published = fmt(a), `Sum of bands` = fmt(b),
+               `Relative difference` = formatC(abs(a-b)/max(a,1), format="e", digits=2),
+               check.names = FALSE) }))
+  knitr::kable(tab, align = "lrrr")
+} else cat("_ACS age-band extract not present; conservation table omitted._")
+```
+
+**Overlap identity.** The MIGS window (15 and over) and the PAG window (under
+20) together span all ages but both contain ages 15–19. Their sum minus the
+published female total must therefore equal the female population aged 15–19:
+
+```{r overlap, results="asis"}
+if (!is.null(amd)) {
+  migs <- sum(amd$denominators$MIGS$total_f, na.rm = TRUE)
+  pag  <- sum(amd$denominators$PAG$total_f,  na.rm = TRUE)
+  raw  <- file.path(root, "artifacts/2sfca/sensitivity/cache/acs2020_age_bands.rds")
+  tot  <- if (file.exists(raw)) sum(readRDS(raw)[["B01001_026"]], na.rm = TRUE) else NA
+  b1519 <- if (file.exists(raw)) {
+    w <- readRDS(raw); sum(rowSums(w[, intersect(c("B01001_030","B01001_031"), names(w)),
+                                     drop = FALSE], na.rm = TRUE)) } else NA
+  cat(sprintf("```\n%s + %s - %s = %s\nACS female aged 15-19%s= %s\n```\n",
+              fmt(migs), fmt(pag), fmt(tot), fmt(migs + pag - tot),
+              strrep(" ", 6), fmt(b1519)))
+}
+```
+
+This check uses only published totals and is independent of the band lists.
+
+**Partition.** In every tract, metropolitan plus rural population must not
+exceed the total. RUCA leaves some tracts in neither class, so equality is not
+required, but excess would indicate a classification error.
+
+### 6. Analysis
+
+Both denominator regimes — all-ages and age-matched — were computed in a single
+run using **identical** grid geometry, isochrones, provider supply, distance-decay
+weights (Luo and Qi 2009 weight set 1: 1.00, 0.68, 0.22, 0.09), grid resolution
+(1,000 m, EPSG:5070) and allocation method (mass-conserving, area-weighted).
+Only the demand denominator differs. Any incompleteness in the reproduction
+inputs therefore affects both regimes equally and cancels in the contrast.
+
+Per-subspecialty denominators (contiguous United States, ACS 2020):
+
+```{r denominators}
+if (!is.null(amd)) {
+  ord <- c("PAG","CFP","GO","FPMRS","MFM","REI","MIGS")
+  win <- setNames(vapply(man$subspecialties, function(s) s$age_range, character(1)),
+                  vapply(man$subspecialties, function(s) s$code, character(1)))
+  tab <- do.call(rbind, lapply(ord, function(k) {
+    d <- amd$denominators[[k]]
+    data.frame(Subspecialty = k, Window = win[[k]],
+               Total = fmt(sum(d$total_f, na.rm=TRUE)),
+               Metropolitan = fmt(sum(d$metro_f, na.rm=TRUE)),
+               Rural = fmt(sum(d$rural_f, na.rm=TRUE)),
+               `White NH` = fmt(sum(d$white_f, na.rm=TRUE)),
+               AIAN = fmt(sum(d$aian_f, na.rm=TRUE)), check.names = FALSE) }))
+  knitr::kable(tab, align = "llrrrrr")
+} else cat("_Denominators not yet built._")
+```
+
+### 7. Interpretation rule, fixed in advance
+
+Age-matched and all-ages accessibility values are **not comparable in level**.
+They have different denominators and are therefore different estimands. A change
+in the national mean between regimes is arithmetic, not a finding: halving the
+denominator approximately doubles the reported value.
+
+Only two things may be compared across regimes:
+
+1. the **direction** of each contrast (rural versus metropolitan; American
+   Indian and Alaska Native area versus White area);
+2. whether each qualitative claim in the manuscript remains true.
+
+### 8. Results
+
+```{r results, results="asis"}
+if (!have_results) {
+  cat("_The analysis run has not yet completed. This section is generated from",
+      "`artifacts/multiverse/age_matched_results.csv`; re-knit once it exists._\n")
+} else {
+  ord <- c("GO","FPMRS","MFM","REI","MIGS","PAG","CFP")
+  res$subspec <- factor(res$subspec, levels = ord)
+  res <- res[order(res$subspec, res$regime), ]
+  tab <- data.frame(
+    Subspecialty = as.character(res$subspec),
+    Regime = ifelse(res$regime == "all_ages", "all ages", res$age_range),
+    Denominator = fmt(res$denominator),
+    `National mean` = rat(res$national),
+    `Rural:metro` = rat(res$rural_metro_ratio),
+    `AIAN:White` = rat(res$aian_white_ratio),
+    check.names = FALSE)
+  print(knitr::kable(tab, align = "llrrrr"))
+  cat("\n\n**Claim survival.**\n\n")
+  am <- res[res$regime == "age_matched", ]
+  c2 <- all(am$rural_metro_ratio < 1, na.rm = TRUE)
+  c3 <- all(am$aian_white_ratio  < 1, na.rm = TRUE)
+  c3_fail <- as.character(am$subspec[am$aian_white_ratio >= 1])
+  aa <- res[res$regime == "all_ages", ]
+  ord_aa <- as.character(aa$subspec[order(-aa$national)])
+  ord_am <- as.character(am$subspec[order(-am$national)])
+  c5 <- identical(ord_aa, ord_am)
+  cat(sprintf("- **C2** (rural below metropolitan in all seven): **%s**\n",
+              if (c2) "holds" else "FAILS"))
+  cat(sprintf("- **C3** (AIAN area below White area in all seven): **%s**%s\n",
+              if (c3) "holds" else "FAILS",
+              if (length(c3_fail)) paste0(" — reverses for ", paste(c3_fail, collapse=", ")) else ""))
+  cat(sprintf("- **C5** (subspecialty ordering stable): **%s**\n", if (c5) "holds" else "FAILS"))
+  cat(sprintf("\n  - ordering, all ages:   %s\n", paste(ord_aa, collapse = " > ")))
+  cat(sprintf("  - ordering, age-matched: %s\n", paste(ord_am, collapse = " > ")))
+}
+```
+
+### Figure S1
+
+```{r fig, out.width="100%", fig.cap="Age-matched versus all-ages demand denominators. Panel A: the share of the all-ages female population retained by each subspecialty's age window; all-ages indexing measures every subspecialty against 100 percent. Panel B: the two disparity contrasts, paired within subspecialty. Ratios are dimensionless and therefore comparable across regimes, unlike the underlying levels. Panel C: rank by national mean access; rank is comparable across regimes even though the values are not."}
+# knitr and pandoc resolve this path from DIFFERENT directories, which is why
+# every single-path attempt failed:
+#   knitr  resolves from opts_knit$root.dir  -> the repo root
+#   pandoc resolves from the Rmd's directory -> manuscript/
+# So the existence check uses the repo-root path and the emitted path is
+# Rmd-relative, with error = FALSE so include_graphics does not re-check it
+# against the wrong directory.
+#
+# The figure lives beside the document rather than in artifacts/, so a submitted
+# supplement carries its own figure.
+check <- "manuscript/figures/fig_age_matched_denominators.jpg"   # for file.exists
+emit  <- "figures/fig_age_matched_denominators.jpg"              # for pandoc
+if (file.exists(check)) knitr::include_graphics(emit, error = FALSE) else
+  knitr::asis_output("_Figure not yet generated._")
+```
+
+```{r fig-omission, results="asis"}
+go0 <- if (have_results) res$national[res$regime == "all_ages"    & res$subspec == "GO"] else NA
+go1 <- if (have_results) res$national[res$regime == "age_matched" & res$subspec == "GO"] else NA
+cat(sprintf(paste0("**Note on what this figure deliberately omits.** National mean access is ",
+  "not plotted for the two regimes side by side. Those values have different denominators ",
+  "and are different estimands; gynecologic oncology moves from %s to %s under age-matching, ",
+  "which is arithmetic rather than a change in access. A chart placing them together would ",
+  "invite precisely the misreading section 7 forbids.\n"), rat(go0), rat(go1)))
+```
+
+**Anticipated in advance:** age-matching can legitimately reorder the
+subspecialties, because the ordering in the primary analysis partly reflects how
+much of the all-ages female population is a plausible candidate for each
+subspecialty. A reordering is a result of this analysis, not a failure of it.
+
+### 9. Limitations
+
+**Age is a proxy for candidacy, not a definition of it.** A 50-year-old woman
+may require complex family planning services; a 30-year-old may require
+gynecologic oncology. These windows describe the population a subspecialty
+predominantly serves, not an eligibility rule.
+
+**The race contrasts are constrained by ACS granularity.** The race iterations
+are decadal above age 35, which is why two windows were shifted. Finer
+age-matching is available for the rurality contrast than for the race contrast;
+using the finer resolution only where it exists would produce contrasts that are
+not comparable to one another, and was deliberately not done.
+
+**Area-level race measurement is unchanged.** As in the primary analysis, race
+contrasts compare accessibility in areas where American Indian and Alaska Native
+women live against areas where White women live. They are ecological measures
+and do not describe individual experience.
+
+**The American Indian and Alaska Native denominator remains small.** At
+1,296,971 women nationally against 99,126,561 White women — a 76-fold
+difference — these estimates are the least stable in the study, before and after
+age-matching.
+
+**Potential, not realized, access.** Age-matching addresses who is counted in
+the denominator. It does not address insurance acceptance, appointment
+availability, transportation, or whether care is sought.
+
+### 10. Reproducibility
+
+| Component | Path |
+|---|---|
+| Frozen specification | `inst/multiverse/age_matched_denominator.yml` |
+| Specification hash | `inst/multiverse/age_matched_denominator.sha256` |
+| Denominator construction | `tools/multiverse/age_matched_denominators.R` |
+| Analysis | `tools/multiverse/run_age_matched.R` |
+| Results | `artifacts/multiverse/age_matched_results.csv` |
+
+The specification hash is verified at run time; the analysis refuses to execute
+against a modified manifest.

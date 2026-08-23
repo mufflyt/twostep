@@ -123,6 +123,16 @@ jobs:
       # exercised" was true the hour it was written.
       - name: README consistency audit
         run: Rscript tools/ci/check_readme.R
+      # Two guards that existed but were never wired -- an unrun guard is worse
+      # than none, because it reads as coverage. The Rd check catches a literal
+      # `%` in documentation prose (it is Rd's comment character, and roxygen
+      # escapes it only inside @examples). The appendix check enforces the
+      # rendering script's stated invariant: analysis numbers must be COMPUTED
+      # from artifacts, never typed, because typed numbers go stale silently.
+      - name: Rd files contain no unescaped percent signs
+        run: Rscript tools/ci/check_rd_percent.R
+      - name: Appendix numbers are computed, not typed
+        run: Rscript tools/ci/check_appendix_literals.R
 
   artifact-provenance:
     name: frozen artifacts record their inputs
