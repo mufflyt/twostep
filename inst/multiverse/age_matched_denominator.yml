@@ -1,0 +1,145 @@
+# =============================================================================
+# Age-matched demand denominators, per subspecialty  (manifest v2, PRESPECIFIED)
+# =============================================================================
+# Written and frozen BEFORE any outcome is computed, for the same reason the
+# specification-curve grid was: once a result is visible, a boundary chosen
+# "because it seemed more clinically sensible" is indistinguishable from one
+# chosen because it produced a tidier answer.
+#
+# WHY THIS MATTERS MORE THAN THE OTHER SPECIFICATIONS
+#
+# The seven executed specifications all vary HOW access is computed. This one
+# varies WHO access is for, and the primary analysis indexes every subspecialty
+# to the same total-female denominator (ACS B01001_026, all ages). That means:
+#
+#   * pediatric and adolescent gynecology is currently measured against a
+#     population including 80-year-old women;
+#   * gynecologic oncology and urogynecology against a population including
+#     6-year-old girls.
+#
+# So the headline that complex family planning and PAG have the worst access is
+# partly an artefact of counting people who are not candidates for that care.
+# The manuscript concedes the point -- "because every subspecialty was indexed
+# to the same total-female denominator" -- but the concession does a lot of
+# work, and this is the analysis that tests it.
+#
+# CONSEQUENCE TO ANTICIPATE: unlike the decay and formulation specifications,
+# this one can REORDER the subspecialties, which is manuscript claim C5.
+#
+# STATUS: specification only. No outcome has been computed. Executing it
+# requires a Census API key and a wider ACS pull; see blocked_by below.
+
+manifest_version: 2
+frozen_on: "2026-08-23"
+supersedes: none            # additive; the v1 specification grid is unchanged
+acs_table: B01001           # sex by age; the female block runs _026 .. _049
+acs_year: 2020
+primary_denominator: B01001_026   # total female, all ages -- what the study uses now
+
+# Age ranges supplied by the investigator (T. Muffly), 2026-08-23. Recorded as
+# a clinical judgement, not derived from data, and attributed so a reader can
+# see whose judgement it was.
+#
+# EVERY boundary below falls exactly on an ACS band edge -- verified against the
+# 2020 ACS 5-year variable list. No interpolation, apportionment or assumption
+# of uniform age distribution within a band is required anywhere. That removes
+# an entire class of objection about how these denominators were built.
+subspecialties:
+  - code: PAG
+    name: pediatric and adolescent gynecology
+    age_range: "under 21"
+    acs_bands: [B01001_027, B01001_028, B01001_029, B01001_030, B01001_031, B01001_032]
+    band_labels: ["Under 5", "5-9", "10-14", "15-17", "18-19", "20"]
+    exact_boundary: true      # 21 is its own band (_033), so "under 21" is exact
+
+  - code: CFP
+    name: complex family planning
+    age_range: "under 40"
+    acs_bands: [B01001_027, B01001_028, B01001_029, B01001_030, B01001_031,
+                B01001_032, B01001_033, B01001_034, B01001_035, B01001_036, B01001_037]
+    band_labels: ["Under 5", "5-9", "10-14", "15-17", "18-19", "20", "21",
+                  "22-24", "25-29", "30-34", "35-39"]
+    exact_boundary: true
+
+  - code: GO
+    name: gynecologic oncology
+    age_range: "45 and over"
+    acs_bands: [B01001_039, B01001_040, B01001_041, B01001_042, B01001_043,
+                B01001_044, B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
+    band_labels: ["45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
+                  "67-69", "70-74", "75-79", "80-84", "85+"]
+    exact_boundary: true
+
+  - code: FPMRS
+    name: urogynecology and reconstructive pelvic surgery
+    age_range: "45 and over"
+    acs_bands: [B01001_039, B01001_040, B01001_041, B01001_042, B01001_043,
+                B01001_044, B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
+    band_labels: ["45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
+                  "67-69", "70-74", "75-79", "80-84", "85+"]
+    exact_boundary: true
+
+  - code: MFM
+    name: maternal-fetal medicine
+    age_range: "15 to 44"
+    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
+                B01001_035, B01001_036, B01001_037, B01001_038]
+    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39", "40-44"]
+    exact_boundary: true
+
+  - code: REI
+    name: reproductive endocrinology and infertility
+    age_range: "15 to 44"
+    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
+                B01001_035, B01001_036, B01001_037, B01001_038]
+    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39", "40-44"]
+    exact_boundary: true
+
+  - code: MIGS
+    name: minimally invasive gynecologic surgery
+    age_range: "15 and over"
+    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
+                B01001_035, B01001_036, B01001_037, B01001_038, B01001_039,
+                B01001_040, B01001_041, B01001_042, B01001_043, B01001_044,
+                B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
+    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39",
+                  "40-44", "45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
+                  "67-69", "70-74", "75-79", "80-84", "85+"]
+    exact_boundary: true
+    # The instruction was phrased "15 to 45 plus", which is ambiguous between
+    # "15 and older" and a closed 15-45 range. Read as 15 and older, and that
+    # reading was CONFIRMED by the investigator on 2026-08-23 before any
+    # outcome was computed. Recorded because MIGS grew most over the study
+    # period, so its denominator affects a headline temporal claim, and a
+    # reader should be able to see that the boundary was settled in advance
+    # rather than after seeing which reading was tidier.
+    interpretation_note: >
+      15 and older. Ambiguity in the original phrasing was resolved by the
+      investigator before execution, not after.
+    interpretation_confirmed: "2026-08-23"
+
+# ---------------------------------------------------------------------------
+estimands: same as manifest v1 (E1 national mean, E2 rural:metro, E3 AIAN:White,
+  E4 subspecialty ordering), recomputed against the age-matched denominator.
+
+claims_at_risk:
+  - id: C5
+    text: "Subspecialty ordering by access is stable (MFM and GO highest, CFP lowest)."
+    why: >
+      Ordering currently reflects, in part, how much of the all-ages female
+      population is a plausible candidate for each subspecialty. Age-matching
+      removes that confound and can therefore legitimately reorder the list.
+      A reordering here is a RESULT, not a failure.
+
+execution_status: not_executed
+blocked_by:
+  - "CENSUS_API_KEY is unset; the cached ACS extract holds only total_f, white_f, aian_f"
+  - "the subgroup rasters (metro/rural/White/AIAN) would each need an age-matched
+     counterpart, or the disparity contrasts are not comparable to the primary run"
+
+interpretation_rule: >
+  Age-matched and all-ages estimates are NOT comparable in level -- they have
+  different denominators and therefore different estimands. Report the
+  DIRECTION of each contrast and whether each manuscript claim survives, never
+  a percentage change in the national mean between them. Comparing the levels
+  would be the "not_comparable_estimand_changed" class from manifest v1.

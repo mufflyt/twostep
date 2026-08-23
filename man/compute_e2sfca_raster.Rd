@@ -44,7 +44,7 @@ no isochrone band. `"error"` (default) fails closed, naming the origins and
 the share of supply they carry; `"drop"` warns and proceeds, declaring the
 loss explicitly. An origin with supply but no catchment contributes nothing
 to the surface, so silently dropping it depresses every downstream mean --
-observed at 0.786% when 5 of 516 origins lacked isochrones.}
+observed at 0.786\% when 5 of 516 origins lacked isochrones.}
 }
 \value{
 list(access, provider_ratios, weights, national). `access` carries
