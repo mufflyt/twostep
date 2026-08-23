@@ -75,7 +75,7 @@ jobs:
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
       - name: Install yaml and rprojroot
-        run: install.packages(c("yaml","rprojroot"))
+        run: install.packages(c("yaml", "rprojroot", "digest"))
         shell: Rscript {0}
       # Identities on the FROZEN artifacts, not on fixtures: two independent
       # computations of national access must agree, derived ratios must match
@@ -84,6 +84,32 @@ jobs:
       # stale artifact before it merges.
       - name: Frozen-artifact scientific invariants
         run: Rscript tools/ci/check_scientific_invariants.R
+
+      # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks
+      # whether the tests notice; this corrupts the STUDY and asks whether the
+      # invariants notice. That matters more here, because the manuscript does
+      # not read the engine -- it reads e2sfca_national_summary.csv.
+      #
+      # The hash gate is deliberately held out as a detector: sha256 answers
+      # "was the artifact edited?", which kills every mutant trivially. The
+      # question that threatens the paper is different -- when the artifact is
+      # legitimately REGENERATED, does anything notice the numbers are
+      # impossible? Only the invariants can answer that.
+      #
+      # Self-guarding: the control must pass first, every mutation must actually
+      # change the file (a no-op reads exactly like a detector gap), and the
+      # artifact must be restored byte-identically.
+      - name: Data-adversarial corpus on the frozen study
+        run: Rscript tools/ci/data_adversarial_corpus.R
+      - name: Fail if the corpus left the study corrupted
+        if: always()
+        run: |
+          if ! git diff --quiet -- artifacts/; then
+            echo "::error::the data corpus left a frozen artifact modified"
+            git --no-pager diff --stat -- artifacts/
+            exit 1
+          fi
+          echo "frozen artifacts unmodified
 
       - name: README agrees with the repository
         run: Rscript tools/ci/check_readme.R
