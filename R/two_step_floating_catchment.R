@@ -1288,6 +1288,12 @@ e2sfca_cell_summaries <- function(surface, pop_rast,
 #' @param return_surface Logical. `FALSE` (default) returns summaries only;
 #'   `TRUE` additionally returns the full accessibility `SpatRaster`, which is
 #'   large -- request it only when the surface itself is needed.
+#' @param unmatched_supply_policy What to do when a `supply` origin appears in
+#'   no isochrone band. `"error"` (default) fails closed, naming the origins and
+#'   the share of supply they carry; `"drop"` warns and proceeds, declaring the
+#'   loss explicitly. An origin with supply but no catchment contributes nothing
+#'   to the surface, so silently dropping it depresses every downstream mean --
+#'   observed at 0.786% when 5 of 516 origins lacked isochrones.
 #' @return list(access, provider_ratios, weights, national). `access` carries
 #'   BOTH `access_mean_area` (area-weighted, secondary) and
 #'   `access_mean_population` (population-weighted, the authoritative tract
@@ -1318,7 +1324,9 @@ compute_e2sfca_raster <- function(grid, iso, supply,
                                   step2_power = 1,
                                   per_capita_scale = 1e5,
                                   thresholds = E2SFCA_DEFAULT_THRESHOLDS,
-                                  return_surface = FALSE) {
+                                  return_surface = FALSE,
+                                  unmatched_supply_policy = c("error", "drop")) {
+  unmatched_supply_policy <- match.arg(unmatched_supply_policy)
   checkmate::assert_list(grid)
   checkmate::assert_subset(c("coord_id", "supply"), names(supply))
   checkmate::assert_number(step2_power, lower = 1)
@@ -1345,6 +1353,46 @@ compute_e2sfca_raster <- function(grid, iso, supply,
              else iso
   bands <- sort(intersect(as.integer(names(iso_ctx$bands)), as.integer(names(inc))))
   active <- as.character(supply$coord_id)
+
+  # SCIENTIFIC JOIN DOCTRINE: a provider with SUPPLY but no CATCHMENT.
+  #
+  # Every band below subsets the isochrones to `active`. An origin carrying
+  # supply that appears in NO band is therefore filtered out at every step: it
+  # contributes no demand, receives no ratio, and reaches no cell. Its supply
+  # simply evaporates, and the national mean comes out low with nothing said.
+  #
+  # This is not hypothetical. Reproducing the frozen run from its own recorded
+  # supply table gave a national mean 0.786% BELOW the published value. The
+  # cause was exactly this: 5 of 516 origins carried 7 of 890 supply units
+  # (0.787%) and had no isochrone in the local artifacts. The arithmetic matched
+  # to three decimals. The engine reported success, and it took a separate
+  # quantification step to notice -- which is the whole failure mode this
+  # doctrine exists to prevent.
+  #
+  # An origin legitimately excluded upstream should not be in `supply` at all.
+  # Reaching here means the supply table and the isochrone set disagree about
+  # which providers exist, and that is a data defect, not a modelling choice.
+  .iso_ids <- unique(unlist(lapply(iso_ctx$bands, function(b) as.character(b$coord_id))))
+  .no_catchment <- setdiff(active, .iso_ids)
+  if (length(.no_catchment)) {
+    .lost <- sum(supply$supply[match(.no_catchment, .sup_ids)], na.rm = TRUE)
+    .tot  <- sum(supply$supply, na.rm = TRUE)
+    if (identical(unmatched_supply_policy, "error")) {
+      stop(sprintf("compute_e2sfca_raster: %s",
+                   .sci_join_msg("supply", "isochrone bands", "coord_id", .no_catchment,
+                     sprintf(paste0(" These origins carry %g of %g supply (%.3f%%), which would ",
+                                    "silently vanish from the surface and depress every ",
+                                    "downstream mean. Either supply them a catchment or exclude ",
+                                    "them upstream; pass unmatched_supply_policy = \"drop\" to ",
+                                    "declare the loss explicitly."),
+                             .lost, .tot, if (.tot > 0) 100 * .lost / .tot else 0))),
+           call. = FALSE)
+    }
+    warning(sprintf(paste0("compute_e2sfca_raster: %d supply origin(s) have no isochrone and ",
+                           "are dropped, carrying %g of %g supply (%.3f%%)."),
+                    length(.no_catchment), .lost, .tot,
+                    if (.tot > 0) 100 * .lost / .tot else 0), call. = FALSE)
+  }
 
   # ---- Step 1: CumPop per (origin, band) -> R_j ----------------------------
   demand_parts <- list()

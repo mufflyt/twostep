@@ -168,9 +168,33 @@ PROD_ALLOC_MODE       <- "area"
 # certifies that the module is byte-identical in behaviour to e162507c, which is
 # a strictly weaker and fully verified statement. The seam-test caveat recorded
 # above for e162507c still stands unchanged and is NOT discharged by this.
+# Re-pinned again 2026-08-22, 88c561f0 -> 0736d4d7. Unlike the previous re-pin
+# this one is NOT documentation-only: compute_e2sfca_raster gained a
+# precondition check. Stated plainly rather than buried:
+#
+#   CHANGED:   compute_e2sfca_raster            (the guard added below)
+#   IDENTICAL: allocate_pop_areaweighted  a1b1110b5380   <- the gated allocator
+#              and the other 12 functions in the module
+#   added: none.  removed: none.
+#
+# The protocol's condition for a re-pin -- the allocator BODY unchanged -- is
+# met, and compute_e2sfca_raster is already recorded above as a function where
+# this repo is deliberately ahead of isochrones.
+#
+# WHAT THE CHANGE DOES, and why it carries no numerical claim: it adds a
+# fail-closed check for supply origins that appear in no isochrone band. On
+# inputs that PASS the check the arithmetic is untouched -- the guard runs
+# before any geometry work and either stops or warns. So this cannot move a
+# valid surface; it can only refuse an invalid one.
+#
+# WHY IT EXISTS: reproducing the frozen run from its own recorded supply table
+# gave a national mean 0.786% BELOW the published value. Five of 516 origins
+# carried 7 of 890 supply units (0.787%) and had no isochrone locally. Their
+# supply evaporated and the engine reported success. The seam caveat recorded
+# above still stands and is not discharged here.
 SEAM_ALLOCATOR_SHA256 <- Sys.getenv(
   "E2SFCA_SEAM_ALLOCATOR_SHA256",
-  "88c561f0d501179abcda9d9724557d7c39fc8a33ba964752e3fe10ea9446b60d")
+  "0736d4d7202b4881dd5a65a5a61c2522529bb9c65d41985fa2f43d5ac45f7546")
 .module_path <- file.path(ROOT, "R", "two_step_floating_catchment.R")
 .module_sha  <- digest::digest(file = .module_path, algo = "sha256")
 log_msg("ALLOCATOR IDENTITY: fn=%s()  mode=%s  module=%s", PROD_ALLOCATOR,
