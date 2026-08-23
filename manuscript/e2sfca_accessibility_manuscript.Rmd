@@ -600,8 +600,19 @@ We therefore estimated potential spatial accessibility to each of the seven spec
 groups across the contiguous United States from `r first_year` to `r last_year`,
 using an enhanced two-step floating catchment area model on drive-time isochrones
 routed over the road network, so that reachability is expressed in the currency a
-patient actually spends, minutes behind the wheel, rather than in geodesic miles. We
-characterized national accessibility levels and temporal trends by subspecialty and quantified disparities by rurality and by race and ethnicity, with
+patient actually spends, minutes behind the wheel, rather than in geodesic miles.
+
+Throughout, the primary outcome is a *standardized workforce reachability index*: it
+measures how reachable the certified subspecialty workforce is from where women live,
+under a single common denominator. It is not a measure of clinical adequacy, and not
+a measure of realized care. Because every subspecialty is indexed to the same total
+female population, differences *between* subspecialties reflect workforce size and
+clinical scope as much as access, and the low indices for complex family planning and
+pediatric and adolescent gynecology are in part a consequence of that shared
+denominator rather than a statement about access among the patients those fields
+actually serve. We quantify that contribution directly.
+
+We characterized national accessibility levels and temporal trends by subspecialty and quantified disparities by rurality and by race and ethnicity, with
 gynecologic oncology designated a priori as the detailed exemplar, both because timely
 oncologic access is prognostically important and to permit comparison with existing
 distance-based estimates [@Desjardins2023].
@@ -955,6 +966,64 @@ The share of women outside any modeled catchment ("access deserts") varied widel
 
 ---
 
+### Age-matched demand denominators
+
+Because the primary index holds the denominator constant, we re-ran the entire
+pipeline with each subspecialty indexed instead to the age range it plausibly serves,
+changing nothing else. The age windows, the ACS variables implementing them, and the
+estimands were prespecified and hash-frozen before any outcome was computed
+(eMethods).
+
+```{r age-matched-main, results="asis"}
+# here::here(), not a relative path: knitr resolves chunk paths from the Rmd's
+# directory, so "artifacts/..." looks for manuscript/artifacts/ and the chunk
+# silently emits nothing. Every other artifact read in this file uses here::here().
+.amp <- here::here("artifacts", "multiverse", "age_matched_results.csv")
+if (!file.exists(.amp))
+  stop("age-matched results missing: ", .amp,
+       "\n  This section cannot be rendered without them; refusing to emit a ",
+       "Results subsection with its table silently absent.")
+{
+  .r  <- utils::read.csv(.amp, stringsAsFactors = FALSE)
+  .aa <- .r[.r$regime == "all_ages", ];    rownames(.aa) <- .aa$subspec
+  .am <- .r[.r$regime == "age_matched", ]; rownames(.am) <- .am$subspec
+  .o  <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
+  .o  <- .o[.o %in% rownames(.aa) & .o %in% rownames(.am)]
+  .al <- .am[.o, "denominator"] / .aa[.o, "denominator"]
+  .tab <- data.frame(
+    Subspecialty = unname(full_name[.o]),
+    `Age window` = .am[.o, "age_range"],
+    `Eligible share of denominator` = paste0(pp1(100 * .al), "%"),
+    `Rural:metro, all ages` = acc2(.aa[.o, "rural_metro_ratio"]),
+    `Rural:metro, age-matched` = acc2(.am[.o, "rural_metro_ratio"]),
+    check.names = FALSE)
+  print(knitr::kable(.tab, align = "llrrr"))
+  cat(sprintf(paste0("\n\nThe age-eligible share ranged from %s%% (%s) to %s%% (%s). ",
+    "Every rural-to-metropolitan ratio remained below 1 under age matching ",
+    "(maximum %s), as did every ratio for areas where American Indian or Alaska ",
+    "Native women live (maximum %s): the rural and racial disparities are not ",
+    "artifacts of the shared denominator. The *ordering* of subspecialties did not ",
+    "survive, however -- %s and %s exchanged rank once each was indexed to the ",
+    "population it serves.\n"),
+    pp1(100 * min(.al)), full_name[[.o[which.min(.al)]]],
+    pp1(100 * max(.al)), full_name[[.o[which.max(.al)]]],
+    acc2(max(.am[.o, "rural_metro_ratio"])), acc2(max(.am[.o, "aian_white_ratio"])),
+    full_name[["GO"]], full_name[["REI"]]))
+}
+```
+
+Levels are not comparable across the two regimes and are not presented side by side.
+An age-restricted denominator mechanically inflates every index by approximately the
+reciprocal of the retained share, so gynecologic oncology's national mean rises about
+2.3-fold without any change in access. What *is* comparable is the contrasts, because
+a denominator applied uniformly cancels from a ratio. Any movement in a disparity
+under age matching is therefore attributable to spatial and between-group variation in
+age composition rather than to the reweighting itself. The formal invariance result,
+the group-specific age structures, and a direction test of that prediction are in
+Supplemental Digital Content.
+
+---
+
 ### Change in accessibility by subspecialty
 
 Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine alone declined; the per-subspecialty change is in eResults S8.
@@ -1065,6 +1134,21 @@ and education [@Greenberg2023], a geographic difference becomes an inequity when
 patterned by unequally distributed social factors [@Hod2014]. Modeled proximity is
 thus necessary but insufficient for equitable care.
 
+One inference this surface invites is specifically unsafe. Black, Hispanic, and Asian
+women are disproportionately concentrated in metropolitan areas, which is also where
+subspecialists concentrate, so a model of potential spatial accessibility will assign
+those populations comparatively *high* indices almost by construction. That result is
+a statement about where clinicians and patients are located relative to one another,
+and about nothing else. It is not evidence that these women face few barriers to
+subspecialty care, and it should not be read as reassurance: a physician five minutes
+away may be functionally unavailable to a patient whose insurance the practice does
+not accept, whose working hours do not overlap the clinic's, who cannot arrange
+childcare or transportation for a weekday appointment, who is not offered an
+appointment within a clinically useful interval, or who has reason not to expect
+respectful care. Our design can see none of that. A high accessibility index in a
+metropolitan area should therefore be read as the absence of one specific barrier,
+not the absence of barriers.
+
 Strengths include a near-census of board-certified subspecialists rather than a
 sample; a mass-conserving demand allocation representing the full female population
 [@Apparicio2017]; year-specific cohorts reflecting workforce entry, exit, and
@@ -1092,7 +1176,9 @@ overnight travel in a way a mileage ring does not. The trade-off is that drive t
 inherits modeling assumptions a geodesic measure does not make (eDiscussion S9); the
 full argument is in eMethods S4.
 
-Several limitations temper interpretation. The common total-female-population denominator makes across-subspecialty comparisons reflect workforce size and clinical scope as well as access, so these standardized indices should not be read as direct measures of clinical adequacy; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error; the zero-access metric is tract-level; race-alone and Hispanic-origin groups are not mutually exclusive; the race/ethnicity contrasts are ecological descriptions of the areas where groups live, not individual-level causal effects; and Alaska's exclusion limits generalizability to Alaska Native communities with distinct transportation barriers. These points, with international-border edge effects, the uniform-within-tract density assumption, and directions for patient-flow calibration, are detailed in eDiscussion S9.
+Several limitations temper interpretation. The common total-female-population denominator makes across-subspecialty comparisons reflect workforce size and clinical scope as well as access, so these standardized indices should not be read as direct measures of clinical adequacy; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error; the zero-access metric is tract-level; race-alone and Hispanic-origin groups are not mutually exclusive; the race/ethnicity contrasts are ecological descriptions of the areas where groups live, not individual-level causal effects; and Alaska's exclusion limits generalizability to Alaska Native communities with distinct transportation barriers. Routing also assumes typical conditions: isochrones were built on modeled free-flow-to-typical travel speeds and do not represent peak-hour congestion, winter storms or seasonal mountain-pass closures, ferry schedules and cancellations, unpaved or seasonally impassable roads, vehicle access, or dependence on public transit, all of which are time-dependent and unevenly distributed. Modeled drive times therefore describe relatively favorable travel conditions, and for some women in some seasons the real travel burden may be greater than estimated; we do not claim that every disparity reported here is therefore conservative, since the direction and size of that gap depend on local geography and climate and were not measured. These points, with international-border edge effects, the uniform-within-tract density assumption, and directions for patient-flow calibration, are detailed in eDiscussion S9.
+
+The natural next step is to move from where subspecialists are located toward who can actually reach and obtain care. Layering insurance and Medicaid acceptance, appointment availability and time-to-appointment, practice capacity, cost-sharing, and transportation and vehicle access onto this accessibility surface would convert a measure of potential spatial access into something closer to a measure of realized access, and would allow the geographic and non-geographic barriers to be weighed against each other rather than assumed to coincide.
 
 ## Conclusion
 

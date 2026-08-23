@@ -78,8 +78,12 @@ check_cross_references <- function(file_path) {
     return(unique(parsed_items))
   }
   
-  fig_refs <- extract_refs("(?i)Figures?\\s+[0-9S]+(?:-[0-9S]+)?", text, "\\*\\*Figures?")
-  tab_refs <- extract_refs("(?i)Tables?\\s+[0-9S]+(?:-[0-9S]+)?", text, "Table [0-9S]+\\.")
+  # A reference token must contain a DIGIT. The old class [0-9S]+ matched a bare
+  # "S", so ordinary prose like "its table silently absent" parsed as a reference
+  # to a table named "s" and failed the gate. The definition regexes above were
+  # already tightened to S?[0-9]+; these were missed.
+  fig_refs <- extract_refs("(?i)Figures?\\s+S?[0-9]+(?:-S?[0-9]+)?", text, "\\*\\*Figures?")
+  tab_refs <- extract_refs("(?i)Tables?\\s+S?[0-9]+(?:-S?[0-9]+)?", text, "Table S?[0-9]+\\.")
   
   # ----------------------------------------------------------------------------
   # 3. Compare and Report
