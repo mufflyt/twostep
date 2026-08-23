@@ -240,6 +240,18 @@ migs_c <- spec_chg("MIGS"); go_c <- spec_chg("GO"); mfm_c <- spec_chg("MFM")
 first_year <- 2013L; last_year <- 2023L
 figdir <- here::here("manuscript", "figures")
 
+# ---- GO zero-access, AIAN vs White (Desjardins head-to-head) ----------------
+# The Discussion compares our 2020 GO zero-access share for areas where American
+# Indian or Alaska Native women live against Desjardins' 100-mile figure. The
+# RATIO to the non-Hispanic White share is the scale-free quantity that survives
+# the threshold/unit differences between the two designs, so it is derived here
+# (same table, same estimator as both shares) rather than typed into the prose.
+aian_white_zero_ratio <- unname(gci("zero_aian")["point"] / gci("zero_white_nh")["point"])
+# Desjardins' published AIAN share beyond 100 miles (2016-2020), named ONCE here so
+# the fold-difference in eDiscussion S10 is derived rather than typed twice.
+desjardins_aian_100mi <- 23.7
+desjardins_fold <- desjardins_aian_100mi / unname(gci("zero_aian")["point"])
+
 # 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
 # retirements) and reported as a provisional most-recent observation (#3).
 primary_last <- 2022L
@@ -389,6 +401,13 @@ knitr::knit_hooks$set(document = function(x) {
   out[[length(out) + 1L]] <- list(
     ok = isTRUE(abs(zratio - 6) <= 0.5),
     msg = sprintf("Abstract 'about six times as likely': rural:metro zero-access ratio is %.3f (%.4f%% vs %.4f%%), which does not round to six", zratio, rz, mz))
+  # Discussion, Desjardins head-to-head: "nearly eight times" the White share.
+  # Strictly below 8 (or the word is "more than"), and near enough to earn the
+  # word at all -- the same >=7.5 rounding rule the phrase implies in English.
+  awz <- aian_white_zero_ratio
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(awz >= 7.5 && awz < 8),
+    msg = sprintf("Discussion 'nearly eight times' (AIAN:White GO zero-access): ratio is %.3f, which is not in [7.5, 8)", awz))
   attr(out, "summary") <- sprintf("metro:rural %.2fx, zero-access %.2fx", mrr, zratio)
   out
 })
@@ -437,7 +456,7 @@ O&G limit 25.)*
 text, approximately @@MAIN_WC@@ words, above the *Obstetrics &
 Gynecology* Original Research target of roughly 2,500 to 3,000 words. Method and
 result detail has been moved to the Supplemental Digital Content (about
-@@SUPP_WC@@ words across nine appendices); the residual excess is
+@@SUPP_WC@@ words across ten appendices); the residual excess is
 concentrated in the Discussion and can be trimmed further at the editor's request.
 
 **Data source.** Validated production run `r manifest_json$run_id`
@@ -527,8 +546,11 @@ reproductive-aged women lived in areas with limited or no nearby access to assis
 reproductive technology services [@Harris2017]; and a national study of Indian Health
 Service locations found a median drive time of 214 minutes to the nearest
 obstetric-gynecologic subspecialist [@Akapo2023]. No previous study, however, has
-compared potential travel-time accessibility across all seven fields using a common
-national framework.
+compared potential accessibility across all seven fields on a common national
+framework, and none has done so in modeled drive time resolved to a fine grid: the
+existing national estimates are built on county or ZIP-code presence, or on a
+straight-line radius, units at which a single number can stand for women living
+hundreds of miles apart.
 
 Although geographic proximity is only one of the five dimensions of health care
 access [@Penchansky1981; @McLaughlin2002], travel burden influences whether and
@@ -941,9 +963,39 @@ Our findings extend prior single-subspecialty and county-level work. For gynecol
 oncology, our results refine the county-level model of Desjardins and colleagues, who
 found 95.2% of counties (roughly 54.7 million at-risk women) with no gynecologic
 oncologist and no improvement over two decades for American Indian or Alaska Native
-women beyond 100 miles (25.6% to 23.7%; P=.866) [@Desjardins2023]. Our smaller
-board-certified cohort makes counts not directly comparable, but our travel-time,
-tract-level surface corroborates the same inequities across all seven groups. A
+women beyond 100 miles (25.6% to `r pp1(desjardins_aian_100mi)`%; P=.866)
+[@Desjardins2023].
+
+That `r pp1(desjardins_aian_100mi)`% invites direct comparison with our
+`r pp1(gci("zero_aian")["point"])`% of the population of areas where American Indian
+or Alaska Native women live falling outside every gynecologic oncology catchment at
+180 minutes, a `r acc2(desjardins_fold)`-fold difference. The comparison is
+instructive precisely because the two figures cannot be reconciled at face value:
+they are different estimands, and three of the four design differences catalogued in
+eDiscussion S10 move them apart in knowable directions. The thresholds are not
+equivalent, and ours is the more permissive; 180 minutes of driving covers on the
+order of 150 to 200 road miles at rural highway speeds, which even after deflating
+road miles to straight-line miles reaches beyond a 100-mile radius, so a lower share
+should fall outside it. The spatial units differ by orders of magnitude, county
+against census tract allocated to a 500-m grid; where a Western county exceeds the
+area of some states, one county-level distance speaks for women living hundreds of
+miles apart, whereas resolving demand finely places each woman on the side of the
+threshold she actually occupies. And our cohort is the smaller one, board-certified
+subspecialists rather than a broader physician registry (`r spec_wk("GO")` in 2020),
+which lowers our supply and should push our deprivation estimate *up*, not down. The
+first two differences are therefore doing more work than the raw gap suggests.
+
+What survives the translation is not the level but the structure, and it is the
+structure that replicates: in both designs American Indian or Alaska Native women are
+the worst-served group, and the gap is not marginal. In ours their zero-access share
+is nearly eight times that of areas where non-Hispanic White women live
+(`r pp1(gci("zero_aian")["point"])`% vs `r pp1(gci("zero_white_nh")["point"])`%),
+a ratio that is scale-free and therefore portable across studies in a way that a raw
+percentage tied to one threshold and one spatial unit is not. The practical lesson is
+that a bare "X% lack access" is uninterpretable without its threshold, its spatial
+unit, and its impedance, and that cross-study comparison should run on ratios and
+patterns rather than on levels (eDiscussion S10). That same travel-time, tract-level
+surface corroborates the identical pattern across all seven groups. A
 state-level E2SFCA analysis similarly found 18.4% of Georgia tracts with zero access
 [@Graham2019], the logic behind our stratified synthesis (Figure 4).
 
@@ -1762,6 +1814,83 @@ observed for areas where American Indian or Alaska Native women live is, if anyt
 conservative with respect to the full national population. The exclusion of Hawaii is equally relevant to the
 Native Hawaiian or Other Pacific Islander results, which should likewise be read as
 pertaining only to the contiguous-U.S. members of that group.
+
+## eDiscussion S10: Comparison with distance-based estimates {-}
+
+Because the gynecologic oncology literature is largely distance-based and this study
+is travel-time-based, the two are easy to place side by side and easy to misread. The
+worked comparison below is intended as a template for that translation rather than as
+a reconciliation, since the quantities are not the same quantity.
+
+Desjardins and colleagues reported that `r pp1(desjardins_aian_100mi)`% of American
+Indian or Alaska Native women were beyond 100 miles of a gynecologic oncologist in
+2016-2020, essentially unchanged from the 25.6% at the start of their 2001-2020
+series (P=.866) [@Desjardins2023] *[whether that 100 miles is straight-line or road
+distance to be confirmed by the authors against the source article; the argument
+below holds either way, as noted]*. Our 2020 surface puts
+`r pp1(gci("zero_aian")["point"])`% (95% CI `r pp1(gci("zero_aian")["lo"])`-`r pp1(gci("zero_aian")["hi"])`)
+of the population of areas where American Indian or Alaska Native women live outside
+every gynecologic oncology catchment at 180 minutes. The difference is
+`r acc2(desjardins_fold)`-fold, and four design differences account for it, three of
+which have a knowable sign.
+
+*Threshold.* A 180-minute drive is a materially larger catchment than a 100-mile
+radius. At the sustained speeds available on rural interstates and US highways,
+180 minutes corresponds to roughly 150 to 200 road miles. Road distance exceeds
+straight-line distance, by about a third in the rural cohort of Ludrosky and
+colleagues [@Ludrosky2023], so the equivalent straight-line reach is smaller than
+that; but on any plausible deflation it remains beyond 100 miles, and because covered
+area grows with the square of the radius, a moderately longer radius is a
+substantially larger catchment. This step does not depend on how Desjardins measured
+their 100 miles: 180 minutes of rural driving exceeds 100 miles read as road distance
+as well as read as straight-line distance, so the direction is the same under either
+reading. **Sign: this difference alone predicts a lower share outside for our
+estimate, and it is likely the largest single contributor.** It is worth stating
+plainly that this cuts against a naive reading in which the drive-time estimate must
+be the more conservative one; at these two particular thresholds, it is not.
+
+*Spatial unit.* Physicians and populations aggregated to counties give one answer per
+county. In the interior West, where much of the American Indian or Alaska Native
+population lives, counties routinely exceed the area of small states, so a
+county-level distance can assign the same access status to women living hundreds of
+miles apart, and assigns it from a representative point that may sit far from any
+settlement. Resolving demand at the census-tract level allocated to a 500-m grid
+places each woman near where she actually lives, which moves populations near a
+county's edge across the threshold in whichever direction is correct for them.
+**Sign: indeterminate in general, but the error it removes is largest exactly where
+the counties are largest and least populated**, that is, in the areas driving this
+contrast; a coarse unit is not a neutral approximation there.
+
+*Cohort.* Our supply is the board-certified, active subspecialty cohort
+(`r spec_wk("GO")` gynecologic oncologists in 2020) rather than a broader physician
+registry. **Sign: a smaller supply makes access look worse, so this difference pushes
+our zero-access estimate up.** Because our estimate is nonetheless the lower of the two, the
+threshold and unit differences must be more than offsetting it, and the gap
+attributable to them is wider than the raw comparison shows.
+
+*Estimand and period.* Desjardins measures distance to the nearest physician over a
+pooled 2016-2020 window; ours is the share of a 2020 cross-section receiving zero
+accessibility from a demand-weighted floating catchment, which is a
+supply-and-competition-adjusted quantity rather than a nearest-provider distance.
+**Sign: not determinable without recomputation.**
+
+Two conclusions follow. First, a bare "X% lack access" figure is not interpretable,
+and not comparable across studies, without its threshold, its spatial unit, its
+impedance, and its cohort attached; the apparent disagreement between
+`r pp1(desjardins_aian_100mi)`% and `r pp1(gci("zero_aian")["point"])`% is an
+artifact of comparing levels across four
+design choices rather than a substantive contradiction. Second, what does translate is
+relational structure. Both designs identify American Indian or Alaska Native women as
+the worst-served group, and in our surface the zero-access share for the areas where
+they live is `r acc2(aian_white_zero_ratio)` times that of areas where non-Hispanic
+White women live (`r pp1(gci("zero_aian")["point"])`% vs
+`r pp1(gci("zero_white_nh")["point"])`%). A within-study ratio of this kind is
+scale-free: it is far less sensitive to where the threshold is set than either share
+is on its own, and it is the quantity we would encourage future work to report
+alongside absolute shares so that studies using different impedances remain
+comparable. We did not recompute our surfaces at a 100-mile radius, so the
+decomposition above assigns directions rather than magnitudes; doing so would convert
+this argument into a measurement and is a natural extension.
 
 ## Reproducibility record (supplement, not part of the typeset manuscript) {-}
 
