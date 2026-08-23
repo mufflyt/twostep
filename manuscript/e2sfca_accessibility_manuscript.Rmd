@@ -468,9 +468,9 @@ subspecialties across the contiguous United States, `r first_year` to `r last_ye
 and its disparities by rurality and by race and ethnicity.
 
 **Methods.** We located every board-certified subspecialist active in each year and
-used modeled road-network travel times (30 to 180 minutes) to measure reachability
-for the 2020 female population (`r intc(pop_2020)` women;
-American Community Survey). Potential accessibility was estimated with an
+measured reachability with modeled road-network drive times (30 to 180 minutes)
+rather than straight-line distance for the 2020 female population
+(`r intc(pop_2020)` women; American Community Survey). Potential accessibility was estimated with an
 enhanced two-step floating catchment area model, which rewards shorter drives and
 accounts for competing demand. We compared access by urban versus rural location and by race
 and ethnicity, and described change from `r first_year` to `r primary_last`
@@ -551,16 +551,24 @@ codes contain a urogynecologist, with the greatest burden reported in places whe
 American Indian or Alaska Native women live [@Schmidt2024]. These studies characterize access as county-level
 presence, a single travel-time threshold, or nearest-provider distance for one
 service at a time, none accounting for the population competing for a given
-subspecialist's time. Less is known about how potential accessibility compares across
+subspecialist's time. The distance metric itself also matters. A geodesic
+(straight-line) radius credits a woman with reaching a subspecialist she cannot
+actually reach, because it ignores the road network, mountains, rivers, and coastlines
+that lengthen the real trip; in a rural cohort, straight-line distance underestimated
+true road distance by roughly a third on average and by as much as 83 miles in
+individual cases [@Ludrosky2023], and the error is systematic rather than random,
+concentrating in exactly the sparse-network rural areas where access is most in
+question [@Apparicio2008]. Less is known about how potential accessibility compares across
 the full set of OB/GYN subspecialties, how it has changed as the workforce entered,
 retired, and relocated, and how it is distributed by rurality and by race and
 ethnicity at a fine geographic scale.
 
 We therefore estimated potential spatial accessibility to each of the seven specialty
 groups across the contiguous United States from `r first_year` to `r last_year`,
-using an enhanced two-step floating catchment area model on road-network travel-time
-isochrones. We characterized national accessibility levels and temporal trends by
-subspecialty and quantified disparities by rurality and by race and ethnicity, with
+using an enhanced two-step floating catchment area model on drive-time isochrones
+routed over the road network, so that reachability is expressed in the currency a
+patient actually spends, minutes behind the wheel, rather than in geodesic miles. We
+characterized national accessibility levels and temporal trends by subspecialty and quantified disparities by rurality and by race and ethnicity, with
 gynecologic oncology designated a priori as the detailed exemplar, both because timely
 oncologic access is prognostically important and to permit comparison with existing
 distance-based estimates [@Desjardins2023].
@@ -650,6 +658,18 @@ physician location with the Valhalla routing engine on OpenStreetMap road networ
 OpenStreetMap snapshot; *[extract date to be confirmed by the authors]*), so
 year-to-year change in the accessible footprint reflects only the change in the
 active cohort, not the road extract.
+
+Reachability was defined by drive time rather than by geodesic (straight-line)
+distance, a substantive rather than technical choice. A straight-line buffer is a
+circle; the set of places from which a physician can actually be reached in a fixed
+time is not, because roads bend around mountains, water, and roadless land, and
+because a mile of two-lane surface road is not a mile of interstate
+[@Apparicio2008; @Ebinger2022]. The divergence is largest where the network is
+sparse, so a geodesic measure credits rural women with access they do not have and
+biases the very rural-urban contrast this study estimates [@Ludrosky2023]. Drive time
+is also the impedance in which the model's distance-decay weights were originally
+estimated, and the one in which referral and travel decisions are actually made
+(eMethods S4).
 
 ### Enhanced two-step floating catchment area accessibility
 
@@ -975,13 +995,31 @@ patterned by unequally distributed social factors [@Hod2014]. Modeled proximity 
 thus necessary but insufficient for equitable care.
 
 Strengths include a near-census of board-certified subspecialists rather than a
-sample; road-network rather than straight-line travel times; a mass-conserving demand
-allocation representing the full female population [@Apparicio2017]; year-specific
-cohorts reflecting workforce entry, exit, and relocation; and fully reproducible,
-canonical-source computation. Unlike nearest-provider travel time or provider ratios,
-the floating-catchment design jointly incorporates provider availability, competing
-demand, and travel impedance, flagging low-access areas those simpler measures miss
-[@Drake2021].
+sample; a mass-conserving demand allocation representing the full female population
+[@Apparicio2017]; year-specific cohorts reflecting workforce entry, exit, and
+relocation; and fully reproducible, canonical-source computation. Unlike
+nearest-provider travel time or provider ratios, the floating-catchment design jointly
+incorporates provider availability, competing demand, and travel impedance, flagging
+low-access areas those simpler measures miss [@Drake2021].
+
+Measuring impedance as drive time rather than geodesic distance is a particular
+strength here. The literature this study extends is largely geodesic or areal, a
+100-mile radius [@Desjardins2023], provider presence in a county [@Ackroyd2021;
+@Chen2026] or ZIP code [@Schmidt2024], or straight-line differential distance
+[@Herb2021], each treating a mile of interstate and a mile of switchback mountain
+road as the same barrier. Straight-line distance understated true road distance by
+about a third in a rural cohort [@Ludrosky2023], and because that error is
+directionally consistent it does not merely add noise to a rural-urban comparison but
+should compress it, so the disparities reported here are likely conservative relative
+to a geodesic measure. A nationwide comparison found the two metrics nearly
+interchangeable for non-emergency trips to community hospitals [@Boscoe2012], but
+that describes short trips to a dense, ubiquitous facility type; the gap between
+geodesic and road distance widens with trip length and network sparsity, which is the
+regime a subspecialty analysis occupies. Drive time also makes the catchment bands
+operationally meaningful: 30 to 180 minutes maps onto referral, day-trip, and
+overnight travel in a way a mileage ring does not. The trade-off is that drive time
+inherits modeling assumptions a geodesic measure does not make (eDiscussion S9); the
+full argument is in eMethods S4.
 
 Several limitations temper interpretation. The common total-female-population denominator makes across-subspecialty comparisons reflect workforce size and clinical scope as well as access, so these standardized indices should not be read as direct measures of clinical adequacy; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error; the zero-access metric is tract-level; race-alone and Hispanic-origin groups are not mutually exclusive; the race/ethnicity contrasts are ecological descriptions of the areas where groups live, not individual-level causal effects; and Alaska's exclusion limits generalizability to Alaska Native communities with distinct transportation barriers. These points, with international-border edge effects, the uniform-within-tract density assumption, and directions for patient-flow calibration, are detailed in eDiscussion S9.
 
@@ -1307,9 +1345,70 @@ demand and capture a distinct dimension of access that binary distance or
 travel-time thresholds undercount [@Nakamura2017; @SanchezCardenas2024;
 @McCrum2022], and travel time along the road network was used
 rather than straight-line distance, which overstates reachability where terrain or
-road structure lengthens the true trip [@Ebinger2022]. Demand within each catchment
-was weighted
-by empirically selected distance-decay weights across the four travel-time bands (weights
+road structure lengthens the true trip [@Ebinger2022].
+
+The impedance choice is developed here because it conditions every estimate in the
+paper. Three properties distinguish road-network drive time from a geodesic
+(Euclidean or great-circle) radius. First, *validity of the catchment boundary*: a
+geodesic buffer is a circle, and the set of places from which a physician can actually
+be reached within a fixed time is not a circle. It is elongated along highways and
+truncated at mountain ranges, large water bodies, roadless federal and tribal land,
+and international borders, so a circle simultaneously includes places that cannot
+reach the physician in time and excludes places that can. Comparisons of distance
+types in accessibility research show that the resulting misclassification is not
+symmetric and does not average out across a study area [@Apparicio2008]. Second,
+*direction and location of the bias*: straight-line distance systematically
+understates the trip, and it understates it most where the road network is sparse and
+indirect. In a rural patient cohort, straight-line distance underestimated true road
+distance by a mean of 31.9%, with individual discrepancies as large as 83.4 miles
+[@Ludrosky2023]. Because the shortfall is concentrated in rural and mountainous
+areas, a geodesic surface would be expected to inflate modeled rural access relative
+to metropolitan access, and so to *compress* the rural-metropolitan ratios and
+*understate* the zero-access shares that are this study's primary spatial outcomes.
+The same argument applies to the American Indian or Alaska Native contrast, since
+tribal lands are disproportionately served by low-speed and unpaved roads. We did not
+recompute the surfaces under a Euclidean impedance, so this is a directional argument
+from the metric's documented bias rather than a measured quantity; on that argument,
+the disparities reported here are conservative with respect to the choice of metric.
+Third, *consistency with the model's own parameters*: the enhanced two-step floating
+catchment area method was formulated with travel-time zones and time-indexed
+distance-decay weights [@luoqi2009], and the weights adopted here (and the published
+values they match) are calibrated in minutes. Substituting mileage bands would break
+the correspondence between the weights and the impedance they were estimated for,
+which is a specification change rather than a robustness check, and it is for this
+reason that the sensitivity analysis in Table S2 varies the decay function, the band
+structure, the maldistribution penalty, and the grid resolution but retains drive
+time as the impedance throughout.
+
+The evidence base is not unanimous, and the boundary condition is worth stating
+precisely. A nationwide U.S. comparison of driving distance, drive time, and
+straight-line distance to community hospitals from more than 66,000 sampled locations
+concluded that, for non-emergency hospital travel, the added precision from routing is
+largely inconsequential [@Boscoe2012]. That conclusion is credible for the setting it
+studied and does not transfer to this one. Community hospitals are numerous and
+widely distributed, so the modal trip is short, and over short trips in a dense
+network the ratio of road distance to straight-line distance approaches one and the
+choice of metric barely moves the estimate. Obstetric-gynecology subspecialists are
+neither numerous nor widely distributed: the relevant trips in this study extend to
+60, 120, and 180 minutes, and for a large share of the rural population the nearest
+subspecialist is reachable, if at all, over long distances on a sparse network. That
+is precisely the regime in which routing and geodesic measures separate, and it is
+consistent with the specialized-service and long-trip settings in which routed travel
+time has been adopted in preference to distance [@Ebinger2022; @Weiss2020]. Taken
+together, the geodesic approximation degrades as trip length rises and network density
+falls, and this study sits at the unfavorable end of both.
+
+Two consequences follow for interpretation. Drive-time estimates are not numerically
+comparable with the distance-based accessibility literature, which is why the
+gynecologic oncology comparison with county-level and 100-mile-radius estimates
+[@Desjardins2023] is framed as a corroboration of pattern rather than of magnitude.
+And drive time buys its validity at the cost of assumptions a geodesic measure does not
+make, chiefly modeled rather than observed travel speeds, a single road-network
+snapshot, and an assumption of private-vehicle travel; these are set out in eDiscussion S9 and are the
+reason travel-time modeling is listed there among the sources of uncertainty the
+reported intervals do not capture.
+
+Demand within each catchment was weighted by empirically selected distance-decay weights across the four travel-time bands (weights
 `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`,
 `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for the
 30-, 60-, 120-, and 180-minute zones); these band weights follow the
@@ -1563,7 +1662,27 @@ practice capacity, appointment availability, insurance acceptance, or patient
 travel behavior; in particular, because higher-socioeconomic-status patients more
 readily overcome distance by traveling to distant centers, a spatially uniform
 potential-access measure may understate realized disadvantage for lower-income and
-rural populations [@Yilma2023]. Third, the reported ACS intervals quantify only ACS sampling
+rural populations [@Yilma2023]. Relatedly, drive time is a better impedance than
+geodesic distance (eMethods S4) but is itself modeled, and it carries assumptions a
+straight-line measure does not make. Travel times are modeled rather than observed:
+absent an applied historical traffic profile *[the routing engine's speed
+configuration to be confirmed by the authors]*, the isochrones represent typical
+rather than time-specific conditions and do not vary with time of day, day of week,
+weather, seasonal road closure, or ferry and mountain-pass schedule, so they will
+understate travel burden in congested metropolitan corridors and in winter conditions
+at high elevation and latitude. To the extent that unrepresented congestion is the
+larger of these, it favors metropolitan areas, and the reported rural-metropolitan gap
+is conservative on that axis. A single OpenStreetMap snapshot was applied to all study years, a
+deliberate choice that isolates cohort change from road-extract change (Methods) but
+that consequently attributes no accessibility gain to roads actually built during the
+study period. The model also assumes private-vehicle travel and therefore does not
+represent women without reliable access to a car or those who depend on public
+transit, paratransit, or informal rides, for whom the effective catchment is smaller
+than the modeled one; multimodal floating-catchment formulations that route separately
+by car and by transit address this directly and are a natural extension
+[@Langford2016]. Isochrones were also built to the physician's practice-location
+coordinate, so travel is measured to a point rather than to a clinic entrance,
+parking, and check-in. Third, the reported ACS intervals quantify only ACS sampling
 uncertainty and are not comprehensive confidence intervals. We added a deterministic
 model-specification envelope for the 2020 rural:metro and AIAN:White ratios
 (Appendix Table S2b), so the sensitivity to catchment bands, distance decay,
