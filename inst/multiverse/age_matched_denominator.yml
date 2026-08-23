@@ -29,11 +29,18 @@
 # STATUS: specification only. No outcome has been computed. Executing it
 # requires a Census API key and a wider ACS pull; see blocked_by below.
 
-manifest_version: 3
+manifest_version: 4
 frozen_on: "2026-08-23"
-supersedes_version: 2   # v2 used PAG under 21 / CFP under 40, which exist only
-                        # in the fine-grained total table. Re-versioned rather
-                        # than edited, per the freeze discipline.
+supersedes_version: 3
+# v4 REGENERATES every band list programmatically from the ACS variable list
+# instead of transcribing them. v3 was hand-written and had two defects that
+# a reader could not have spotted:
+#   * five of seven subspecialties had NO race bands at all, so their White
+#     and AIAN denominators came back as zero;
+#   * CFP was missing B01001H_025 / B01001C_025 (ages 30-34), silently
+#     UNDERCOUNTING both race denominators for that subspecialty.
+# Both were caught by building the denominators and reading the totals, not
+# by re-reading the file. Generated lists remove the class of error.
 supersedes: none            # additive; the v1 specification grid is unchanged
 acs_table: B01001           # sex by age; the female block runs _026 .. _049
 race_iterations: [B01001H, B01001C]   # White NH, AIAN alone -- 14 female bands, not 23
@@ -59,102 +66,359 @@ primary_denominator: B01001_026   # total female, all ages -- what the study use
 # of uniform age distribution within a band is required anywhere. That removes
 # an entire class of objection about how these denominators were built.
 subspecialties:
-  - code: PAG
-    name: pediatric and adolescent gynecology
-    age_range: "under 20"
-    clinical_intent: "under 21"
-    acs_bands_total: [B01001_027, B01001_028, B01001_029, B01001_030, B01001_031]
-    acs_bands_white: [B01001H_018, B01001H_019, B01001H_020, B01001H_021, B01001H_022]
-    acs_bands_aian:  [B01001C_018, B01001C_019, B01001C_020, B01001C_021, B01001C_022]
-    band_labels: ["Under 5", "5-9", "10-14", "15-17", "18-19"]
-    exact_boundary: true
-    shifted_from: >
-      Clinical intent was under 21. The age 21 edge exists ONLY in the
-      fine-grained total table (B01001); the race iterations jump 20-24, so a
-      race contrast at 21 would require interpolating inside a band. Shifted
-      one year to 20, which is a common edge in all three tables, so the
-      rurality and race contrasts use an IDENTICAL age window.
-
-  - code: CFP
-    name: complex family planning
-    age_range: "under 35"
-    clinical_intent: "under 40"
-    acs_bands_total: [B01001_027, B01001_028, B01001_029, B01001_030, B01001_031,
-                      B01001_032, B01001_033, B01001_034, B01001_035, B01001_036]
-    acs_bands_white: [B01001H_018, B01001H_019, B01001H_020, B01001H_021,
-                      B01001H_022, B01001H_023, B01001H_024]
-    acs_bands_aian:  [B01001C_018, B01001C_019, B01001C_020, B01001C_021,
-                      B01001C_022, B01001C_023, B01001C_024]
-    band_labels: ["Under 5", "5-9", "10-14", "15-17", "18-19", "20", "21",
-                  "22-24", "25-29", "30-34"]
-    exact_boundary: true
-    shifted_from: >
-      Clinical intent was under 40. The age 40 edge exists ONLY in the total
-      table; the race iterations jump 35-44. Shifted to 35, a common edge, so
-      rurality and race use an identical window. NOTE THE DIRECTION: 35 is the
-      NARROWER option of the two equidistant edges (35 or 45), and a narrower
-      demand denominator RAISES apparent access, because access is supply over
-      weighted demand. CFP currently reports the lowest access of the seven
-      subspecialties, so this choice moves that estimate in the direction that
-      makes CFP look better. Chosen by the investigator with that consequence
-      stated in advance, not discovered afterwards.
-
-  - code: GO
-    name: gynecologic oncology
-    age_range: "45 and over"
-    acs_bands: [B01001_039, B01001_040, B01001_041, B01001_042, B01001_043,
-                B01001_044, B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
-    band_labels: ["45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
-                  "67-69", "70-74", "75-79", "80-84", "85+"]
-    exact_boundary: true
-
-  - code: FPMRS
-    name: urogynecology and reconstructive pelvic surgery
-    age_range: "45 and over"
-    acs_bands: [B01001_039, B01001_040, B01001_041, B01001_042, B01001_043,
-                B01001_044, B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
-    band_labels: ["45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
-                  "67-69", "70-74", "75-79", "80-84", "85+"]
-    exact_boundary: true
-
-  - code: MFM
-    name: maternal-fetal medicine
-    age_range: "15 to 44"
-    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
-                B01001_035, B01001_036, B01001_037, B01001_038]
-    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39", "40-44"]
-    exact_boundary: true
-
-  - code: REI
-    name: reproductive endocrinology and infertility
-    age_range: "15 to 44"
-    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
-                B01001_035, B01001_036, B01001_037, B01001_038]
-    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39", "40-44"]
-    exact_boundary: true
-
-  - code: MIGS
-    name: minimally invasive gynecologic surgery
-    age_range: "15 and over"
-    acs_bands: [B01001_030, B01001_031, B01001_032, B01001_033, B01001_034,
-                B01001_035, B01001_036, B01001_037, B01001_038, B01001_039,
-                B01001_040, B01001_041, B01001_042, B01001_043, B01001_044,
-                B01001_045, B01001_046, B01001_047, B01001_048, B01001_049]
-    band_labels: ["15-17", "18-19", "20", "21", "22-24", "25-29", "30-34", "35-39",
-                  "40-44", "45-49", "50-54", "55-59", "60-61", "62-64", "65-66",
-                  "67-69", "70-74", "75-79", "80-84", "85+"]
-    exact_boundary: true
-    # The instruction was phrased "15 to 45 plus", which is ambiguous between
-    # "15 and older" and a closed 15-45 range. Read as 15 and older, and that
-    # reading was CONFIRMED by the investigator on 2026-08-23 before any
-    # outcome was computed. Recorded because MIGS grew most over the study
-    # period, so its denominator affects a headline temporal claim, and a
-    # reader should be able to see that the boundary was settled in advance
-    # rather than after seeing which reading was tidier.
-    interpretation_note: >
-      15 and older. Ambiguity in the original phrasing was resolved by the
-      investigator before execution, not after.
-    interpretation_confirmed: "2026-08-23"
+- code: PAG
+  name: pediatric and adolescent gynecology
+  age_range: under 20
+  acs_bands_total:
+  - B01001_027
+  - B01001_028
+  - B01001_029
+  - B01001_030
+  - B01001_031
+  acs_bands_white:
+  - B01001H_018
+  - B01001H_019
+  - B01001H_020
+  - B01001H_021
+  - B01001H_022
+  acs_bands_aian:
+  - B01001C_018
+  - B01001C_019
+  - B01001C_020
+  - B01001C_021
+  - B01001C_022
+  band_labels_total:
+  - Under 5 years
+  - 5 to 9 years
+  - 10 to 14 years
+  - 15 to 17 years
+  - 18 and 19 years
+  band_labels_race:
+  - Under 5 years
+  - 5 to 9 years
+  - 10 to 14 years
+  - 15 to 17 years
+  - 18 and 19 years
+  exact_boundary: true
+  clinical_intent: under 21
+- code: CFP
+  name: complex family planning
+  age_range: under 35
+  acs_bands_total:
+  - B01001_027
+  - B01001_028
+  - B01001_029
+  - B01001_030
+  - B01001_031
+  - B01001_032
+  - B01001_033
+  - B01001_034
+  - B01001_035
+  - B01001_036
+  acs_bands_white:
+  - B01001H_018
+  - B01001H_019
+  - B01001H_020
+  - B01001H_021
+  - B01001H_022
+  - B01001H_023
+  - B01001H_024
+  - B01001H_025
+  acs_bands_aian:
+  - B01001C_018
+  - B01001C_019
+  - B01001C_020
+  - B01001C_021
+  - B01001C_022
+  - B01001C_023
+  - B01001C_024
+  - B01001C_025
+  band_labels_total:
+  - Under 5 years
+  - 5 to 9 years
+  - 10 to 14 years
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 years
+  - 21 years
+  - 22 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  band_labels_race:
+  - Under 5 years
+  - 5 to 9 years
+  - 10 to 14 years
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  exact_boundary: true
+  clinical_intent: under 40
+- code: GO
+  name: gynecologic oncology
+  age_range: 45 and over
+  acs_bands_total:
+  - B01001_039
+  - B01001_040
+  - B01001_041
+  - B01001_042
+  - B01001_043
+  - B01001_044
+  - B01001_045
+  - B01001_046
+  - B01001_047
+  - B01001_048
+  - B01001_049
+  acs_bands_white:
+  - B01001H_027
+  - B01001H_028
+  - B01001H_029
+  - B01001H_030
+  - B01001H_031
+  acs_bands_aian:
+  - B01001C_027
+  - B01001C_028
+  - B01001C_029
+  - B01001C_030
+  - B01001C_031
+  band_labels_total:
+  - 45 to 49 years
+  - 50 to 54 years
+  - 55 to 59 years
+  - 60 and 61 years
+  - 62 to 64 years
+  - 65 and 66 years
+  - 67 to 69 years
+  - 70 to 74 years
+  - 75 to 79 years
+  - 80 to 84 years
+  - 85 years and over
+  band_labels_race:
+  - 45 to 54 years
+  - 55 to 64 years
+  - 65 to 74 years
+  - 75 to 84 years
+  - 85 years and over
+  exact_boundary: true
+- code: FPMRS
+  name: urogynecology and reconstructive pelvic surgery
+  age_range: 45 and over
+  acs_bands_total:
+  - B01001_039
+  - B01001_040
+  - B01001_041
+  - B01001_042
+  - B01001_043
+  - B01001_044
+  - B01001_045
+  - B01001_046
+  - B01001_047
+  - B01001_048
+  - B01001_049
+  acs_bands_white:
+  - B01001H_027
+  - B01001H_028
+  - B01001H_029
+  - B01001H_030
+  - B01001H_031
+  acs_bands_aian:
+  - B01001C_027
+  - B01001C_028
+  - B01001C_029
+  - B01001C_030
+  - B01001C_031
+  band_labels_total:
+  - 45 to 49 years
+  - 50 to 54 years
+  - 55 to 59 years
+  - 60 and 61 years
+  - 62 to 64 years
+  - 65 and 66 years
+  - 67 to 69 years
+  - 70 to 74 years
+  - 75 to 79 years
+  - 80 to 84 years
+  - 85 years and over
+  band_labels_race:
+  - 45 to 54 years
+  - 55 to 64 years
+  - 65 to 74 years
+  - 75 to 84 years
+  - 85 years and over
+  exact_boundary: true
+- code: MFM
+  name: maternal-fetal medicine
+  age_range: 15 to 44
+  acs_bands_total:
+  - B01001_030
+  - B01001_031
+  - B01001_032
+  - B01001_033
+  - B01001_034
+  - B01001_035
+  - B01001_036
+  - B01001_037
+  - B01001_038
+  acs_bands_white:
+  - B01001H_021
+  - B01001H_022
+  - B01001H_023
+  - B01001H_024
+  - B01001H_025
+  - B01001H_026
+  acs_bands_aian:
+  - B01001C_021
+  - B01001C_022
+  - B01001C_023
+  - B01001C_024
+  - B01001C_025
+  - B01001C_026
+  band_labels_total:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 years
+  - 21 years
+  - 22 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 39 years
+  - 40 to 44 years
+  band_labels_race:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 44 years
+  exact_boundary: true
+- code: REI
+  name: reproductive endocrinology and infertility
+  age_range: 15 to 44
+  acs_bands_total:
+  - B01001_030
+  - B01001_031
+  - B01001_032
+  - B01001_033
+  - B01001_034
+  - B01001_035
+  - B01001_036
+  - B01001_037
+  - B01001_038
+  acs_bands_white:
+  - B01001H_021
+  - B01001H_022
+  - B01001H_023
+  - B01001H_024
+  - B01001H_025
+  - B01001H_026
+  acs_bands_aian:
+  - B01001C_021
+  - B01001C_022
+  - B01001C_023
+  - B01001C_024
+  - B01001C_025
+  - B01001C_026
+  band_labels_total:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 years
+  - 21 years
+  - 22 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 39 years
+  - 40 to 44 years
+  band_labels_race:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 44 years
+  exact_boundary: true
+- code: MIGS
+  name: minimally invasive gynecologic surgery
+  age_range: 15 and over
+  acs_bands_total:
+  - B01001_030
+  - B01001_031
+  - B01001_032
+  - B01001_033
+  - B01001_034
+  - B01001_035
+  - B01001_036
+  - B01001_037
+  - B01001_038
+  - B01001_039
+  - B01001_040
+  - B01001_041
+  - B01001_042
+  - B01001_043
+  - B01001_044
+  - B01001_045
+  - B01001_046
+  - B01001_047
+  - B01001_048
+  - B01001_049
+  acs_bands_white:
+  - B01001H_021
+  - B01001H_022
+  - B01001H_023
+  - B01001H_024
+  - B01001H_025
+  - B01001H_026
+  - B01001H_027
+  - B01001H_028
+  - B01001H_029
+  - B01001H_030
+  - B01001H_031
+  acs_bands_aian:
+  - B01001C_021
+  - B01001C_022
+  - B01001C_023
+  - B01001C_024
+  - B01001C_025
+  - B01001C_026
+  - B01001C_027
+  - B01001C_028
+  - B01001C_029
+  - B01001C_030
+  - B01001C_031
+  band_labels_total:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 years
+  - 21 years
+  - 22 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 39 years
+  - 40 to 44 years
+  - 45 to 49 years
+  - 50 to 54 years
+  - 55 to 59 years
+  - 60 and 61 years
+  - 62 to 64 years
+  - 65 and 66 years
+  - 67 to 69 years
+  - 70 to 74 years
+  - 75 to 79 years
+  - 80 to 84 years
+  - 85 years and over
+  band_labels_race:
+  - 15 to 17 years
+  - 18 and 19 years
+  - 20 to 24 years
+  - 25 to 29 years
+  - 30 to 34 years
+  - 35 to 44 years
+  - 45 to 54 years
+  - 55 to 64 years
+  - 65 to 74 years
+  - 75 to 84 years
+  - 85 years and over
+  exact_boundary: true
 
 # ---------------------------------------------------------------------------
 estimands: same as manifest v1 (E1 national mean, E2 rural:metro, E3 AIAN:White,
