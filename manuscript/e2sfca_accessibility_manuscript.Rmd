@@ -256,6 +256,38 @@ desjardins_fold <- desjardins_aian_100mi / unname(gci("zero_aian")["point"])
 # deficit, i.e. it is not rurality relabeled.
 aian_rural_zero_ratio <- unname(gci("zero_aian")["point"] / gci("rural_zero")["point"])
 
+# ---- eDiscussion S10: does the AIAN deficit merely lead, or does it stand apart? ----
+# The AIAN zero-access share against the NEXT-HIGHEST group, not against White.
+# "Highest" is a rank claim and would hold at a one-point margin; this is what
+# licenses the stronger reading that the group is an outlier in the distribution.
+.zero_other_groups <- vapply(
+  c("zero_white_nh", "zero_black", "zero_hispanic", "zero_asian", "zero_nhpi"),
+  function(m) unname(gci(m)["point"]), numeric(1))
+s10_aian_next_ratio <- unname(gci("zero_aian")["point"]) / max(.zero_other_groups)
+s10_next_group_pct  <- max(.zero_other_groups)
+
+# ---- eDiscussion S10: what survives respecification, levels or ratios? -------
+# S10 argues that levels do not port across study designs but ratios do. That is
+# an empirical claim about THIS surface and is measured here rather than asserted:
+# spread = max/min across the seven sensitivity specifications, for gynecologic
+# oncology. M2SFCA rescales the whole surface, so the no-M2SFCA variants are
+# reported alongside to separate "the level moved" from "the level was rescaled".
+.go_sens <- dplyr::filter(sens_tbl, subspec == "GO")
+.go_nom  <- dplyr::filter(.go_sens, variant != "m2sfca")
+.spread  <- function(x) max(x) / min(x)
+s10_level_spread     <- .spread(.go_sens$aian)
+s10_race_spread      <- .spread(.go_sens$aian_white_ratio)
+s10_rural_spread     <- .spread(.go_sens$rural_metro_ratio)
+s10_level_spread_nom <- .spread(.go_nom$aian)
+s10_race_spread_nom  <- .spread(.go_nom$aian_white_ratio)
+s10_rural_spread_nom <- .spread(.go_nom$rural_metro_ratio)
+# The M2SFCA case on its own: the specification that moves levels most, against
+# which the ratio holds -- the single sharpest demonstration in the table.
+.go_base <- dplyr::filter(.go_sens, variant == "base")
+.go_m2   <- dplyr::filter(.go_sens, variant == "m2sfca")
+s10_m2_level_drop <- 1 - (.go_m2$aian / .go_base$aian)
+s10_m2_ratio_move <- (.go_m2$aian_white_ratio / .go_base$aian_white_ratio) - 1
+
 # 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
 # retirements) and reported as a provisional most-recent observation (#3).
 primary_last <- 2022L
@@ -419,6 +451,24 @@ knitr::knit_hooks$set(document = function(x) {
   out[[length(out) + 1L]] <- list(
     ok = isTRUE(arz > 2),
     msg = sprintf("Discussion 'more than twice' (AIAN:rural GO zero-access): ratio is %.3f, not more than twice", arz))
+  # eDiscussion S10 rests on an ORDERING, not on any one spread: across the
+  # sensitivity specifications the race ratio must move less than the level it is
+  # built from AND less than the rurality ratio. If a re-freeze reversed either
+  # comparison the appendix would be arguing the opposite of what its own table
+  # showed, so both are asserted here rather than left to the reader to check.
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(s10_race_spread < s10_level_spread),
+    msg = sprintf("eDiscussion S10 'the ratio travels better than the level': race-ratio spread %.3f is not below the level spread %.3f",
+                  s10_race_spread, s10_level_spread))
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(s10_race_spread < s10_rural_spread),
+    msg = sprintf("eDiscussion S10 'portability is stronger for the race contrast': race-ratio spread %.3f is not below the rurality-ratio spread %.3f",
+                  s10_race_spread, s10_rural_spread))
+  # The outlier reading of the AIAN share is stronger than "highest" and must earn it.
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(s10_aian_next_ratio > 2),
+    msg = sprintf("eDiscussion S10 'stands apart from the distribution': AIAN zero-access is %.2fx the next-highest group, not more than twice",
+                  s10_aian_next_ratio))
   attr(out, "summary") <- sprintf("metro:rural %.2fx, zero-access %.2fx", mrr, zratio)
   out
 })
@@ -1893,6 +1943,112 @@ accessibility from a demand-weighted floating catchment, which is a
 supply-and-competition-adjusted quantity rather than a nearest-provider distance.
 **Sign: not determinable without recomputation.**
 
+### The full zero-access distribution, not just its maximum {-}
+
+Reporting that American Indian or Alaska Native women are the worst-served group
+understates what the surface shows, because "worst-served" is a rank and would be
+true at a margin of a tenth of a point. Table S4 gives the whole 2020 gynecologic
+oncology distribution. The American Indian or Alaska Native share is
+`r acc2(s10_aian_next_ratio)` times the next-highest group
+(`r pp1(s10_next_group_pct)`%), so it does not lead the distribution so much as sit
+outside it, and the four remaining groups fall within roughly two points of one
+another. The rurality strata are shown on the same axis for comparison: the American
+Indian or Alaska Native share exceeds even the rural share, which is the arithmetic
+behind the Discussion's claim that this is not rurality relabeled.
+
+```{r tableS4}
+.s10_groups <- tibble::tribble(
+  ~metric,            ~Group,
+  "zero_aian",        "American Indian or Alaska Native",
+  "zero_hispanic",    "Hispanic",
+  "zero_white_nh",    "White, non-Hispanic",
+  "zero_nhpi",        "Native Hawaiian or Other Pacific Islander",
+  "zero_asian",       "Asian",
+  "zero_black",       "Black",
+  "rural_zero",       "Rural (all groups)",
+  "metro_zero",       "Metropolitan (all groups)")
+tblS4 <- .s10_groups |>
+  dplyr::mutate(
+    `Zero-access share, % (ACS interval)` = vapply(metric, function(m) {
+      v <- gci(m); sprintf("%s (%s-%s)", pp1(v["point"]), pp1(v["lo"]), pp1(v["hi"]))
+    }, character(1)),
+    `Ratio to White, non-Hispanic` = vapply(metric, function(m)
+      acc2(unname(gci(m)["point"] / gci("zero_white_nh")["point"])), character(1))) |>
+  dplyr::select(-metric)
+knitr::kable(tblS4, align = c("l", "r", "r"),
+  caption = paste0("Appendix Table S4. Gynecologic Oncology Zero-Access Share by ",
+    "Group and by Rurality, 2020")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Share of each group's population living in census tracts with zero modeled ",
+    "gynecologic oncology accessibility, that is, outside every subspecialist's ",
+    "180-minute catchment. Race-alone and Hispanic-origin groups are not mutually ",
+    "exclusive, and the rurality rows are computed over all groups, so the two ",
+    "blocks partition the population differently and are shown on a common axis for ",
+    "comparison rather than as a single decomposition. Intervals are ACS sampling ",
+    "intervals only (eMethods S1). ", abbr_note))
+```
+
+### What travels under respecification: levels or ratios {-}
+
+The claim that ratios port across study designs while levels do not is an empirical
+claim about this surface, so it is measured here rather than asserted. Table S5
+recomputes the gynecologic oncology surface under each of the seven specifications of
+Table S2 and reports, side by side, the American Indian or Alaska Native mean level
+and the ratio built from it.
+
+The ratio is the more durable quantity, and the margin is not small. Across all seven
+specifications the level spans a `r acc2(s10_level_spread)`-fold range while the
+American Indian or Alaska Native to White ratio spans
+`r acc2(s10_race_spread)`-fold. The sharpest single case is the maldistribution-
+penalized specification (M2SFCA), which is designed to rescale the surface: it lowers
+the American Indian or Alaska Native level by
+`r pp1(100 * s10_m2_level_drop)`% relative to the reference while moving the ratio by
+`r pp1(100 * abs(s10_m2_ratio_move))`%. Set M2SFCA aside and the remaining six
+specifications move the level by only `r acc2(s10_level_spread_nom)`-fold and the
+ratio by `r acc2(s10_race_spread_nom)`-fold, so the ratio is the more stable quantity
+whether or not the rescaling variant is included.
+
+One qualification matters and cuts against a blanket reading. The same durability does
+*not* extend equally to the rurality contrast: the rural-to-metropolitan ratio spans
+`r acc2(s10_rural_spread)`-fold across all seven specifications and
+`r acc2(s10_rural_spread_nom)`-fold excluding M2SFCA, making it the least stable of
+the three quantities and materially less portable than the area-level race contrast.
+Its *direction* never reverses (Table S2), but its magnitude depends on the
+distance-decay and catchment choices in a way the race contrast does not, plausibly
+because the rurality strata differ most in the outer bands where the decay weights
+carry the least agreement. A study reporting a rural-to-metropolitan accessibility
+ratio should therefore report the decay specification alongside it; a study reporting
+an area-level race ratio is on firmer ground comparing across designs.
+
+```{r tableS5}
+tblS5 <- .go_sens |>
+  dplyr::mutate(.ord = match(variant, names(sens_lab))) |>
+  dplyr::arrange(.ord) |>
+  dplyr::transmute(Specification = sens_lab[variant],
+    `AIAN mean access` = acc3(aian),
+    `White mean access` = acc3(white),
+    `AIAN:White ratio` = acc3(aian_white_ratio),
+    `Rural:metro ratio` = acc3(rural_metro_ratio))
+knitr::kable(tblS5, align = c("l", "r", "r", "r", "r"),
+  caption = paste0("Appendix Table S5. Gynecologic Oncology Levels and Contrast ",
+    "Ratios Under Each Modeling Specification, 2020")) |>
+  kableExtra::kable_styling(bootstrap_options = c("striped", "condensed"),
+                            font_size = 11, full_width = TRUE) |>
+  kableExtra::footnote(general_title = "", threeparttable = TRUE, general = paste0(
+    "Gynecologic oncology only; the seven specifications are those of Appendix ",
+    "Table S2, which reports the median across all seven specialty groups. Mean ",
+    "access is the population-weighted mean of the accessibility index for the ",
+    "stratum. Both ratio columns are stratum-over-reference, so a value below 1 ",
+    "means the stratum had lower accessibility than its reference; note that the ",
+    "rural:metro column is therefore the reciprocal of the metro:rural ratio quoted ",
+    "in the Results. Across these rows the level spans ",
+    acc2(s10_level_spread), "-fold and the AIAN:White ratio ",
+    acc2(s10_race_spread), "-fold, which is the basis for reporting contrast ratios ",
+    "alongside absolute shares. ", abbr_note))
+```
+
 Two conclusions follow. First, a bare "X% lack access" figure is not interpretable,
 and not comparable across studies, without its threshold, its spatial unit, its
 impedance, and its cohort attached; the apparent disagreement between
@@ -1904,10 +2060,12 @@ the worst-served group, and in our surface the zero-access share for the areas w
 they live is `r acc2(aian_white_zero_ratio)` times that of areas where non-Hispanic
 White women live (`r pp1(gci("zero_aian")["point"])`% vs
 `r pp1(gci("zero_white_nh")["point"])`%). A within-study ratio of this kind is
-scale-free: it is far less sensitive to where the threshold is set than either share
-is on its own, and it is the quantity we would encourage future work to report
-alongside absolute shares so that studies using different impedances remain
-comparable. We did not recompute our surfaces at a 100-mile straight-line radius, so the
+substantially scale-free, and Table S5 measures how much so: under respecification of
+the model the level moves `r acc2(s10_level_spread)`-fold while this ratio moves
+`r acc2(s10_race_spread)`-fold. It is therefore the quantity we would encourage future
+work to report alongside absolute shares, so that studies using different impedances
+remain comparable, with the qualification recorded above that the rurality contrast
+does not travel as well as the race contrast does. We did not recompute our surfaces at a 100-mile straight-line radius, so the
 decomposition above assigns directions rather than magnitudes; doing so would convert
 this argument into a measurement and is a natural extension.
 
