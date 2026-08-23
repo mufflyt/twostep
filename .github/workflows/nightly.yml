@@ -84,7 +84,7 @@ jobs:
         timeout-minutes: 10
         with: { use-public-rspm: true }
       - name: Install rprojroot
-        run: install.packages("rprojroot")
+        run: install.packages(c("rprojroot", "jsonlite", "digest"))
         shell: Rscript {0}
       # The test suite proves the ENGINE satisfies its invariants on synthetic
       # fixtures. This proves the PUBLISHED NUMBERS hold together: the two

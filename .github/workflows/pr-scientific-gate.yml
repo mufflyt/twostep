@@ -75,7 +75,7 @@ jobs:
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
       - name: Install yaml and rprojroot
-        run: install.packages(c("yaml","rprojroot"))
+        run: install.packages(c("yaml", "rprojroot", "jsonlite", "digest"))
         shell: Rscript {0}
       # Identities on the FROZEN artifacts, not on fixtures: two independent
       # computations of national access must agree, derived ratios must match
