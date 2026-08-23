@@ -497,37 +497,37 @@ if (file.exists(.dd_f)) {
 subspecialties across the contiguous United States, `r first_year` to `r last_year`,
 and its disparities by rurality and by race and ethnicity.
 
-**Methods.** We located every board-certified subspecialist active in each year and
-measured reachability with modeled road-network drive times (30 to 180 minutes)
+**Methods.** We located every board-certified subspecialist in each year and
+measured reachability with modeled road-network drive times (30–180 minutes)
 rather than straight-line distance for the 2020 female population
 (`r intc(pop_2020)` women; American Community Survey). Potential accessibility was estimated with an
-enhanced two-step floating catchment area model, which rewards shorter drives and
-accounts for competing demand. We compared access by urban versus rural location and by race
+enhanced two-step floating catchment area model, rewarding shorter drives and
+accounting for competing demand. We compared access by rurality and by race
 and ethnicity, and described change from `r first_year` to `r primary_last`
 (`r last_year` provisional).
 
-**Results.** In 2020, geographic access was highly uneven. About one in five women lived more than a 60-minute drive from the nearest gynecologic oncology
+**Results.** In 2020, geographic access was highly uneven. About one in five women lived over a 60-minute drive from the nearest gynecologic oncology
 (`r pp1(sp("GO","pct_outside_60"))`%) or maternal-fetal medicine
 (`r pp1(sp("MFM","pct_outside_60"))`%) subspecialist, rising to
-`r pp1(sp("CFP","pct_outside_60"))`% for complex family planning; even within a
-three-hour drive, `r pp1(sp("CFP","pct_outside_180"))`% remained outside any
+`r pp1(sp("CFP","pct_outside_60"))`% for complex family planning; even within
+three hours, `r pp1(sp("CFP","pct_outside_180"))`% remained outside any
 complex-family-planning catchment.
 Metropolitan women had more than twice the access of rural women (gynecologic
 oncology, `r acc2(gci("metro_rural_ratio")["point"])` times as much), and rural women
-were about six times as likely to live where no subspecialist was located within the modeled catchment
+were about six times as likely to live where no subspecialist was within the modeled catchment
 (`r pp1(gci("rural_zero")["point"])`% vs `r pp1(gci("metro_zero")["point"])`%).
 Areas where American Indian or Alaska Native women lived had the highest zero-access share
 (`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
-points higher than areas where non-Hispanic White women lived. From `r first_year` to
+points higher than non-Hispanic White areas. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
 (`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine alone declined
 (`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
 specifications.
 
 **Conclusion.** Access to obstetrics-gynecology subspecialists shows large,
-persistent rural and area-level racial disparities that narrowed little over the
+persistent rural and area-level racial disparities narrowing little over the
 decade. Across-subspecialty differences identify standardized geographic
-reachability, not clinical adequacy, because every subspecialty was indexed to the
+reachability, not clinical adequacy, because all were indexed to the
 same total-female denominator.
 
 ```{r abstract-wordcount, results="asis"}
