@@ -109,10 +109,17 @@ jobs:
             git --no-pager diff --stat -- artifacts/
             exit 1
           fi
-          echo "frozen artifacts unmodified
+          echo "frozen artifacts unmodified"
 
       - name: README agrees with the repository
         run: Rscript tools/ci/check_readme.R
+      # YAML validity does not imply the shell inside it is valid. A stray quote
+      # in a run: block ships cleanly and then kills the job on the runner with
+      # a bare "exit code 2" -- which is exactly how the previous nightly failed,
+      # AFTER the work the step was verifying had already succeeded.
+      - name: Every bash workflow step parses
+        run: Rscript tools/ci/check_workflow_syntax.R
+
       # Two guards that existed but were never wired -- an unrun guard is worse
       # than none, because it reads as coverage. The Rd check catches a literal
       # `%` in documentation prose (it is Rd's comment character, and roxygen
