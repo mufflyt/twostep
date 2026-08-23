@@ -240,6 +240,22 @@ migs_c <- spec_chg("MIGS"); go_c <- spec_chg("GO"); mfm_c <- spec_chg("MFM")
 first_year <- 2013L; last_year <- 2023L
 figdir <- here::here("manuscript", "figures")
 
+# ---- GO zero-access, AIAN vs White (Desjardins head-to-head) ----------------
+# The Discussion compares our 2020 GO zero-access share for areas where American
+# Indian or Alaska Native women live against Desjardins' 100-mile figure. The
+# RATIO to the non-Hispanic White share is the scale-free quantity that survives
+# the threshold/unit differences between the two designs, so it is derived here
+# (same table, same estimator as both shares) rather than typed into the prose.
+aian_white_zero_ratio <- unname(gci("zero_aian")["point"] / gci("zero_white_nh")["point"])
+# Desjardins' published AIAN share beyond 100 miles (2016-2020), named ONCE here so
+# the fold-difference in eDiscussion S10 is derived rather than typed twice.
+desjardins_aian_100mi <- 23.7
+desjardins_fold <- desjardins_aian_100mi / unname(gci("zero_aian")["point"])
+# The race and rurality axes joined: the AIAN zero-access share against the RURAL
+# share (same table, same estimator). >1 means the AIAN deficit exceeds the rural
+# deficit, i.e. it is not rurality relabeled.
+aian_rural_zero_ratio <- unname(gci("zero_aian")["point"] / gci("rural_zero")["point"])
+
 # 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
 # retirements) and reported as a provisional most-recent observation (#3).
 primary_last <- 2022L
@@ -389,6 +405,20 @@ knitr::knit_hooks$set(document = function(x) {
   out[[length(out) + 1L]] <- list(
     ok = isTRUE(abs(zratio - 6) <= 0.5),
     msg = sprintf("Abstract 'about six times as likely': rural:metro zero-access ratio is %.3f (%.4f%% vs %.4f%%), which does not round to six", zratio, rz, mz))
+  # Discussion, Desjardins head-to-head: "nearly eight times" the White share.
+  # Strictly below 8 (or the word is "more than"), and near enough to earn the
+  # word at all -- the same >=7.5 rounding rule the phrase implies in English.
+  awz <- aian_white_zero_ratio
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(awz >= 7.5 && awz < 8),
+    msg = sprintf("Discussion 'nearly eight times' (AIAN:White GO zero-access): ratio is %.3f, which is not in [7.5, 8)", awz))
+  # Discussion, race-by-rurality sentence: "more than twice" the RURAL share is a
+  # strict inequality, and the whole point of the sentence is that the AIAN deficit
+  # exceeds the rural one -- if this ever fell below 1 the claim would invert.
+  arz <- aian_rural_zero_ratio
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(arz > 2),
+    msg = sprintf("Discussion 'more than twice' (AIAN:rural GO zero-access): ratio is %.3f, not more than twice", arz))
   attr(out, "summary") <- sprintf("metro:rural %.2fx, zero-access %.2fx", mrr, zratio)
   out
 })
@@ -437,7 +467,7 @@ O&G limit 25.)*
 text, approximately @@MAIN_WC@@ words, above the *Obstetrics &
 Gynecology* Original Research target of roughly 2,500 to 3,000 words. Method and
 result detail has been moved to the Supplemental Digital Content (about
-@@SUPP_WC@@ words across nine appendices); the residual excess is
+@@SUPP_WC@@ words across ten appendices); the residual excess is
 concentrated in the Discussion and can be trimmed further at the editor's request.
 
 **Data source.** Validated production run `r manifest_json$run_id`
@@ -468,9 +498,9 @@ subspecialties across the contiguous United States, `r first_year` to `r last_ye
 and its disparities by rurality and by race and ethnicity.
 
 **Methods.** We located every board-certified subspecialist active in each year and
-used modeled road-network travel times (30 to 180 minutes) to measure reachability
-for the 2020 female population (`r intc(pop_2020)` women;
-American Community Survey). Potential accessibility was estimated with an
+measured reachability with modeled road-network drive times (30 to 180 minutes)
+rather than straight-line distance for the 2020 female population
+(`r intc(pop_2020)` women; American Community Survey). Potential accessibility was estimated with an
 enhanced two-step floating catchment area model, which rewards shorter drives and
 accounts for competing demand. We compared access by urban versus rural location and by race
 and ethnicity, and described change from `r first_year` to `r primary_last`
@@ -527,8 +557,11 @@ reproductive-aged women lived in areas with limited or no nearby access to assis
 reproductive technology services [@Harris2017]; and a national study of Indian Health
 Service locations found a median drive time of 214 minutes to the nearest
 obstetric-gynecologic subspecialist [@Akapo2023]. No previous study, however, has
-compared potential travel-time accessibility across all seven fields using a common
-national framework.
+compared potential accessibility across all seven fields on a common national
+framework, and none has done so in modeled drive time resolved to a fine grid: the
+existing national estimates are built on county or ZIP-code presence, or on a
+straight-line radius, units at which a single number can stand for women living
+hundreds of miles apart.
 
 Although geographic proximity is only one of the five dimensions of health care
 access [@Penchansky1981; @McLaughlin2002], travel burden influences whether and
@@ -551,16 +584,24 @@ codes contain a urogynecologist, with the greatest burden reported in places whe
 American Indian or Alaska Native women live [@Schmidt2024]. These studies characterize access as county-level
 presence, a single travel-time threshold, or nearest-provider distance for one
 service at a time, none accounting for the population competing for a given
-subspecialist's time. Less is known about how potential accessibility compares across
+subspecialist's time. The distance metric itself also matters. A geodesic
+(straight-line) radius credits a woman with reaching a subspecialist she cannot
+actually reach, because it ignores the road network, mountains, rivers, and coastlines
+that lengthen the real trip; in a rural cohort, straight-line distance underestimated
+true road distance by roughly a third on average and by as much as 83 miles in
+individual cases [@Ludrosky2023], and the error is systematic rather than random,
+concentrating in exactly the sparse-network rural areas where access is most in
+question [@Apparicio2008]. Less is known about how potential accessibility compares across
 the full set of OB/GYN subspecialties, how it has changed as the workforce entered,
 retired, and relocated, and how it is distributed by rurality and by race and
 ethnicity at a fine geographic scale.
 
 We therefore estimated potential spatial accessibility to each of the seven specialty
 groups across the contiguous United States from `r first_year` to `r last_year`,
-using an enhanced two-step floating catchment area model on road-network travel-time
-isochrones. We characterized national accessibility levels and temporal trends by
-subspecialty and quantified disparities by rurality and by race and ethnicity, with
+using an enhanced two-step floating catchment area model on drive-time isochrones
+routed over the road network, so that reachability is expressed in the currency a
+patient actually spends, minutes behind the wheel, rather than in geodesic miles. We
+characterized national accessibility levels and temporal trends by subspecialty and quantified disparities by rurality and by race and ethnicity, with
 gynecologic oncology designated a priori as the detailed exemplar, both because timely
 oncologic access is prognostically important and to permit comparison with existing
 distance-based estimates [@Desjardins2023].
@@ -650,6 +691,18 @@ physician location with the Valhalla routing engine on OpenStreetMap road networ
 OpenStreetMap snapshot; *[extract date to be confirmed by the authors]*), so
 year-to-year change in the accessible footprint reflects only the change in the
 active cohort, not the road extract.
+
+Reachability was defined by drive time rather than by geodesic (straight-line)
+distance, a substantive rather than technical choice. A straight-line buffer is a
+circle; the set of places from which a physician can actually be reached in a fixed
+time is not, because roads bend around mountains, water, and roadless land, and
+because a mile of two-lane surface road is not a mile of interstate
+[@Apparicio2008; @Ebinger2022]. The divergence is largest where the network is
+sparse, so a geodesic measure credits rural women with access they do not have and
+biases the very rural-urban contrast this study estimates [@Ludrosky2023]. Drive time
+is also the impedance in which the model's distance-decay weights were originally
+estimated, and the one in which referral and travel decisions are actually made
+(eMethods S4).
 
 ### Enhanced two-step floating catchment area accessibility
 
@@ -921,9 +974,47 @@ Our findings extend prior single-subspecialty and county-level work. For gynecol
 oncology, our results refine the county-level model of Desjardins and colleagues, who
 found 95.2% of counties (roughly 54.7 million at-risk women) with no gynecologic
 oncologist and no improvement over two decades for American Indian or Alaska Native
-women beyond 100 miles (25.6% to 23.7%; P=.866) [@Desjardins2023]. Our smaller
-board-certified cohort makes counts not directly comparable, but our travel-time,
-tract-level surface corroborates the same inequities across all seven groups. A
+women beyond a 100-mile straight-line radius (25.6% to
+`r pp1(desjardins_aian_100mi)`%; P=.866)
+[@Desjardins2023].
+
+That `r pp1(desjardins_aian_100mi)`% invites direct comparison with our
+`r pp1(gci("zero_aian")["point"])`% of the population of areas where American Indian
+or Alaska Native women live falling outside every gynecologic oncology catchment at
+180 minutes, a `r acc2(desjardins_fold)`-fold difference. The comparison is
+instructive precisely because the two figures cannot be reconciled at face value:
+they are different estimands, and three of the four design differences catalogued in
+eDiscussion S10 move them apart in knowable directions. The thresholds are not
+equivalent, and ours is the more permissive; 180 minutes of driving covers on the
+order of 150 to 200 road miles at rural highway speeds, which even after deflating
+road miles to straight-line miles reaches beyond their 100-mile radius, so a lower share
+should fall outside it. The spatial units differ by orders of magnitude, county
+against census tract allocated to a 500-m grid; where a Western county exceeds the
+area of some states, one county-level distance speaks for women living hundreds of
+miles apart, whereas resolving demand finely places each woman on the side of the
+threshold she actually occupies. And our cohort is the smaller one, board-certified
+subspecialists rather than a broader physician registry (`r spec_wk("GO")` in 2020),
+which lowers our supply and should push our deprivation estimate *up*, not down. The
+first two differences are therefore doing more work than the raw gap suggests.
+
+What survives the translation is not the level but the structure, and it is the
+structure that replicates: in both designs American Indian or Alaska Native women are
+the worst-served group, and the gap is not marginal. The rurality and race axes are
+also not independent here, and in gynecologic oncology they compound rather than
+substitute: American Indian and Alaska Native people are disproportionately rural
+[@USDA_ERS_AIAN_Rural], yet the `r pp1(gci("zero_aian")["point"])`% of the population
+of areas where American Indian or Alaska Native women live falling outside every
+180-minute catchment is more than twice the `r pp1(gci("rural_zero")["point"])`% for
+rural areas as a whole, so what these areas carry is rural disadvantage plus a further
+increment of remoteness, not rurality relabeled. Against the race reference the same
+share is nearly eight times that of areas where non-Hispanic White women live
+(`r pp1(gci("zero_white_nh")["point"])`%),
+a ratio that is scale-free and therefore portable across studies in a way that a raw
+percentage tied to one threshold and one spatial unit is not. The practical lesson is
+that a bare "X% lack access" is uninterpretable without its threshold, its spatial
+unit, and its impedance, and that cross-study comparison should run on ratios and
+patterns rather than on levels (eDiscussion S10). That same travel-time, tract-level
+surface corroborates the identical pattern across all seven groups. A
 state-level E2SFCA analysis similarly found 18.4% of Georgia tracts with zero access
 [@Graham2019], the logic behind our stratified synthesis (Figure 4).
 
@@ -975,13 +1066,31 @@ patterned by unequally distributed social factors [@Hod2014]. Modeled proximity 
 thus necessary but insufficient for equitable care.
 
 Strengths include a near-census of board-certified subspecialists rather than a
-sample; road-network rather than straight-line travel times; a mass-conserving demand
-allocation representing the full female population [@Apparicio2017]; year-specific
-cohorts reflecting workforce entry, exit, and relocation; and fully reproducible,
-canonical-source computation. Unlike nearest-provider travel time or provider ratios,
-the floating-catchment design jointly incorporates provider availability, competing
-demand, and travel impedance, flagging low-access areas those simpler measures miss
-[@Drake2021].
+sample; a mass-conserving demand allocation representing the full female population
+[@Apparicio2017]; year-specific cohorts reflecting workforce entry, exit, and
+relocation; and fully reproducible, canonical-source computation. Unlike
+nearest-provider travel time or provider ratios, the floating-catchment design jointly
+incorporates provider availability, competing demand, and travel impedance, flagging
+low-access areas those simpler measures miss [@Drake2021].
+
+Measuring impedance as drive time rather than geodesic distance is a particular
+strength here. The literature this study extends is largely geodesic or areal, a
+100-mile straight-line radius [@Desjardins2023], provider presence in a county [@Ackroyd2021;
+@Chen2026] or ZIP code [@Schmidt2024], or straight-line differential distance
+[@Herb2021], each treating a mile of interstate and a mile of switchback mountain
+road as the same barrier. Straight-line distance understated true road distance by
+about a third in a rural cohort [@Ludrosky2023], and because that error is
+directionally consistent it does not merely add noise to a rural-urban comparison but
+should compress it, so the disparities reported here are likely conservative relative
+to a geodesic measure. A nationwide comparison found the two metrics nearly
+interchangeable for non-emergency trips to community hospitals [@Boscoe2012], but
+that describes short trips to a dense, ubiquitous facility type; the gap between
+geodesic and road distance widens with trip length and network sparsity, which is the
+regime a subspecialty analysis occupies. Drive time also makes the catchment bands
+operationally meaningful: 30 to 180 minutes maps onto referral, day-trip, and
+overnight travel in a way a mileage ring does not. The trade-off is that drive time
+inherits modeling assumptions a geodesic measure does not make (eDiscussion S9); the
+full argument is in eMethods S4.
 
 Several limitations temper interpretation. The common total-female-population denominator makes across-subspecialty comparisons reflect workforce size and clinical scope as well as access, so these standardized indices should not be read as direct measures of clinical adequacy; the index measures potential rather than realized access and omits practice capacity, appointment availability, insurance, and patient travel behavior; the reported intervals capture only ACS sampling error; the zero-access metric is tract-level; race-alone and Hispanic-origin groups are not mutually exclusive; the race/ethnicity contrasts are ecological descriptions of the areas where groups live, not individual-level causal effects; and Alaska's exclusion limits generalizability to Alaska Native communities with distinct transportation barriers. These points, with international-border edge effects, the uniform-within-tract density assumption, and directions for patient-flow calibration, are detailed in eDiscussion S9.
 
@@ -1307,9 +1416,70 @@ demand and capture a distinct dimension of access that binary distance or
 travel-time thresholds undercount [@Nakamura2017; @SanchezCardenas2024;
 @McCrum2022], and travel time along the road network was used
 rather than straight-line distance, which overstates reachability where terrain or
-road structure lengthens the true trip [@Ebinger2022]. Demand within each catchment
-was weighted
-by empirically selected distance-decay weights across the four travel-time bands (weights
+road structure lengthens the true trip [@Ebinger2022].
+
+The impedance choice is developed here because it conditions every estimate in the
+paper. Three properties distinguish road-network drive time from a geodesic
+(Euclidean or great-circle) radius. First, *validity of the catchment boundary*: a
+geodesic buffer is a circle, and the set of places from which a physician can actually
+be reached within a fixed time is not a circle. It is elongated along highways and
+truncated at mountain ranges, large water bodies, roadless federal and tribal land,
+and international borders, so a circle simultaneously includes places that cannot
+reach the physician in time and excludes places that can. Comparisons of distance
+types in accessibility research show that the resulting misclassification is not
+symmetric and does not average out across a study area [@Apparicio2008]. Second,
+*direction and location of the bias*: straight-line distance systematically
+understates the trip, and it understates it most where the road network is sparse and
+indirect. In a rural patient cohort, straight-line distance underestimated true road
+distance by a mean of 31.9%, with individual discrepancies as large as 83.4 miles
+[@Ludrosky2023]. Because the shortfall is concentrated in rural and mountainous
+areas, a geodesic surface would be expected to inflate modeled rural access relative
+to metropolitan access, and so to *compress* the rural-metropolitan ratios and
+*understate* the zero-access shares that are this study's primary spatial outcomes.
+The same argument applies to the American Indian or Alaska Native contrast, since
+tribal lands are disproportionately served by low-speed and unpaved roads. We did not
+recompute the surfaces under a Euclidean impedance, so this is a directional argument
+from the metric's documented bias rather than a measured quantity; on that argument,
+the disparities reported here are conservative with respect to the choice of metric.
+Third, *consistency with the model's own parameters*: the enhanced two-step floating
+catchment area method was formulated with travel-time zones and time-indexed
+distance-decay weights [@luoqi2009], and the weights adopted here (and the published
+values they match) are calibrated in minutes. Substituting mileage bands would break
+the correspondence between the weights and the impedance they were estimated for,
+which is a specification change rather than a robustness check, and it is for this
+reason that the sensitivity analysis in Table S2 varies the decay function, the band
+structure, the maldistribution penalty, and the grid resolution but retains drive
+time as the impedance throughout.
+
+The evidence base is not unanimous, and the boundary condition is worth stating
+precisely. A nationwide U.S. comparison of driving distance, drive time, and
+straight-line distance to community hospitals from more than 66,000 sampled locations
+concluded that, for non-emergency hospital travel, the added precision from routing is
+largely inconsequential [@Boscoe2012]. That conclusion is credible for the setting it
+studied and does not transfer to this one. Community hospitals are numerous and
+widely distributed, so the modal trip is short, and over short trips in a dense
+network the ratio of road distance to straight-line distance approaches one and the
+choice of metric barely moves the estimate. Obstetric-gynecology subspecialists are
+neither numerous nor widely distributed: the relevant trips in this study extend to
+60, 120, and 180 minutes, and for a large share of the rural population the nearest
+subspecialist is reachable, if at all, over long distances on a sparse network. That
+is precisely the regime in which routing and geodesic measures separate, and it is
+consistent with the specialized-service and long-trip settings in which routed travel
+time has been adopted in preference to distance [@Ebinger2022; @Weiss2020]. Taken
+together, the geodesic approximation degrades as trip length rises and network density
+falls, and this study sits at the unfavorable end of both.
+
+Two consequences follow for interpretation. Drive-time estimates are not numerically
+comparable with the distance-based accessibility literature, which is why the
+gynecologic oncology comparison with county-level and 100-mile straight-line
+estimates [@Desjardins2023] is framed as a corroboration of pattern rather than of magnitude.
+And drive time buys its validity at the cost of assumptions a geodesic measure does not
+make, chiefly modeled rather than observed travel speeds, a single road-network
+snapshot, and an assumption of private-vehicle travel; these are set out in eDiscussion S9 and are the
+reason travel-time modeling is listed there among the sources of uncertainty the
+reported intervals do not capture.
+
+Demand within each catchment was weighted by empirically selected distance-decay weights across the four travel-time bands (weights
 `r manifest_json$weights[["30"]]`, `r manifest_json$weights[["60"]]`,
 `r manifest_json$weights[["120"]]`, and `r manifest_json$weights[["180"]]` for the
 30-, 60-, 120-, and 180-minute zones); these band weights follow the
@@ -1563,7 +1733,27 @@ practice capacity, appointment availability, insurance acceptance, or patient
 travel behavior; in particular, because higher-socioeconomic-status patients more
 readily overcome distance by traveling to distant centers, a spatially uniform
 potential-access measure may understate realized disadvantage for lower-income and
-rural populations [@Yilma2023]. Third, the reported ACS intervals quantify only ACS sampling
+rural populations [@Yilma2023]. Relatedly, drive time is a better impedance than
+geodesic distance (eMethods S4) but is itself modeled, and it carries assumptions a
+straight-line measure does not make. Travel times are modeled rather than observed:
+absent an applied historical traffic profile *[the routing engine's speed
+configuration to be confirmed by the authors]*, the isochrones represent typical
+rather than time-specific conditions and do not vary with time of day, day of week,
+weather, seasonal road closure, or ferry and mountain-pass schedule, so they will
+understate travel burden in congested metropolitan corridors and in winter conditions
+at high elevation and latitude. To the extent that unrepresented congestion is the
+larger of these, it favors metropolitan areas, and the reported rural-metropolitan gap
+is conservative on that axis. A single OpenStreetMap snapshot was applied to all study years, a
+deliberate choice that isolates cohort change from road-extract change (Methods) but
+that consequently attributes no accessibility gain to roads actually built during the
+study period. The model also assumes private-vehicle travel and therefore does not
+represent women without reliable access to a car or those who depend on public
+transit, paratransit, or informal rides, for whom the effective catchment is smaller
+than the modeled one; multimodal floating-catchment formulations that route separately
+by car and by transit address this directly and are a natural extension
+[@Langford2016]. Isochrones were also built to the physician's practice-location
+coordinate, so travel is measured to a point rather than to a clinic entrance,
+parking, and check-in. Third, the reported ACS intervals quantify only ACS sampling
 uncertainty and are not comprehensive confidence intervals. We added a deterministic
 model-specification envelope for the 2020 rural:metro and AIAN:White ratios
 (Appendix Table S2b), so the sensitivity to catchment bands, distance decay,
@@ -1643,6 +1833,83 @@ observed for areas where American Indian or Alaska Native women live is, if anyt
 conservative with respect to the full national population. The exclusion of Hawaii is equally relevant to the
 Native Hawaiian or Other Pacific Islander results, which should likewise be read as
 pertaining only to the contiguous-U.S. members of that group.
+
+## eDiscussion S10: Comparison with distance-based estimates {-}
+
+Because the gynecologic oncology literature is largely distance-based and this study
+is travel-time-based, the two are easy to place side by side and easy to misread. The
+worked comparison below is intended as a template for that translation rather than as
+a reconciliation, since the quantities are not the same quantity.
+
+Desjardins and colleagues reported that `r pp1(desjardins_aian_100mi)`% of American
+Indian or Alaska Native women were beyond a 100-mile straight-line radius of a
+gynecologic oncologist in
+2016-2020, essentially unchanged from the 25.6% at the start of their 2001-2020
+series (P=.866) [@Desjardins2023]. That 100 miles is straight-line distance, so the
+two studies differ in impedance as well as in threshold. Our 2020 surface puts
+`r pp1(gci("zero_aian")["point"])`% (95% CI `r pp1(gci("zero_aian")["lo"])`-`r pp1(gci("zero_aian")["hi"])`)
+of the population of areas where American Indian or Alaska Native women live outside
+every gynecologic oncology catchment at 180 minutes. The difference is
+`r acc2(desjardins_fold)`-fold, and four design differences account for it, three of
+which have a knowable sign.
+
+*Threshold.* A 180-minute drive is a materially larger catchment than a 100-mile
+straight-line radius. At the sustained speeds available on rural interstates and US highways,
+180 minutes corresponds to roughly 150 to 200 road miles. Road distance exceeds
+straight-line distance, by about a third in the rural cohort of Ludrosky and
+colleagues [@Ludrosky2023], so the equivalent straight-line reach is smaller than
+that; but on any plausible deflation it remains beyond 100 miles, and because covered
+area grows with the square of the radius, a moderately longer radius is a
+substantially larger catchment. Because the 100 miles is measured straight-line, the
+comparison is doubly unequal: our catchment is both longer in reach and measured
+along a path that a straight line understates. **Sign: this difference alone predicts
+a lower share outside for our estimate, and it is likely the largest single
+contributor.** It is worth stating
+plainly that this cuts against a naive reading in which the drive-time estimate must
+be the more conservative one; at these two particular thresholds, it is not.
+
+*Spatial unit.* Physicians and populations aggregated to counties give one answer per
+county. In the interior West, where much of the American Indian or Alaska Native
+population lives, counties routinely exceed the area of small states, so a
+county-level distance can assign the same access status to women living hundreds of
+miles apart, and assigns it from a representative point that may sit far from any
+settlement. Resolving demand at the census-tract level allocated to a 500-m grid
+places each woman near where she actually lives, which moves populations near a
+county's edge across the threshold in whichever direction is correct for them.
+**Sign: indeterminate in general, but the error it removes is largest exactly where
+the counties are largest and least populated**, that is, in the areas driving this
+contrast; a coarse unit is not a neutral approximation there.
+
+*Cohort.* Our supply is the board-certified, active subspecialty cohort
+(`r spec_wk("GO")` gynecologic oncologists in 2020) rather than a broader physician
+registry. **Sign: a smaller supply makes access look worse, so this difference pushes
+our zero-access estimate up.** Because our estimate is nonetheless the lower of the two, the
+threshold and unit differences must be more than offsetting it, and the gap
+attributable to them is wider than the raw comparison shows.
+
+*Estimand and period.* Desjardins measures distance to the nearest physician over a
+pooled 2016-2020 window; ours is the share of a 2020 cross-section receiving zero
+accessibility from a demand-weighted floating catchment, which is a
+supply-and-competition-adjusted quantity rather than a nearest-provider distance.
+**Sign: not determinable without recomputation.**
+
+Two conclusions follow. First, a bare "X% lack access" figure is not interpretable,
+and not comparable across studies, without its threshold, its spatial unit, its
+impedance, and its cohort attached; the apparent disagreement between
+`r pp1(desjardins_aian_100mi)`% and `r pp1(gci("zero_aian")["point"])`% is an
+artifact of comparing levels across four
+design choices rather than a substantive contradiction. Second, what does translate is
+relational structure. Both designs identify American Indian or Alaska Native women as
+the worst-served group, and in our surface the zero-access share for the areas where
+they live is `r acc2(aian_white_zero_ratio)` times that of areas where non-Hispanic
+White women live (`r pp1(gci("zero_aian")["point"])`% vs
+`r pp1(gci("zero_white_nh")["point"])`%). A within-study ratio of this kind is
+scale-free: it is far less sensitive to where the threshold is set than either share
+is on its own, and it is the quantity we would encourage future work to report
+alongside absolute shares so that studies using different impedances remain
+comparable. We did not recompute our surfaces at a 100-mile straight-line radius, so the
+decomposition above assigns directions rather than magnitudes; doing so would convert
+this argument into a measurement and is a natural extension.
 
 ## Reproducibility record (supplement, not part of the typeset manuscript) {-}
 
