@@ -859,7 +859,19 @@ jobs:
       # matching fails too -- a corpus that silently mutates nothing is worse
       # than no corpus. The engine is restored and byte-compared afterwards.
       - name: Every scientific mutant must be killed
-        run: Rscript tools/ci/mutation_corpus.R --quick
+        # NOT --quick. That flag drops the Monte Carlo null-and-signal-recovery
+        # suite, which is the right trade for the PR gate but leaves nightly
+        # running the SAME reduced tier as a PR -- so that suite participated in
+        # mutation testing only in the weekly deep run.
+        #
+        # Measured cost: +30s. The mutant loop really is free -- the corpus stops
+        # at the first suite that kills a mutant, the simulation suite is last,
+        # and none of the 17 current mutants is killed by it. The 30s is the
+        # CONTROL, which runs every suite once by design. (An earlier version of
+        # this comment claimed "close to free" and had overlooked the control.)
+        # It costs mutant-loop time only for a mutant no earlier suite catches --
+        # which is exactly the mutant worth paying for.
+        run: Rscript tools/ci/mutation_corpus.R
       - name: Fail if the engine was left mutated
         run: |
           if ! git diff --quiet R/two_step_floating_catchment.R; then

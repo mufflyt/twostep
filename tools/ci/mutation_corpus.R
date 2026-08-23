@@ -296,7 +296,14 @@ for (s in CONTROL_SUITES) {
   }
 }
 if (length(ctl_bad)) {
+  # The sentinel is written before this point, so aborting here without
+  # clearing it leaves a stale sentinel that blocks the NEXT invocation
+  # entirely -- it refuses, correctly, to restore sources from another commit.
+  # Nothing has been mutated yet (the control runs before the mutant loop), so
+  # this sentinel is stale-but-clean and must not outlive the run. Found by
+  # negative-testing the control and then being unable to run the corpus again.
   restore()
+  unlink(SENTINEL)
   message("\nFAIL: the unmutated engine does not pass its own suites, so every ",
           "mutant\nwould look killed for the wrong reason:")
   for (b in ctl_bad) message("  - ", b)
