@@ -118,4 +118,32 @@ if (length(fails)) {
   for (f in fails) message("  - ", f)
   quit(status = 1L, save = "no")
 }
+# ---- the DOCX must not lag the HTML -----------------------------------------
+# They are two renderings of ONE paper. When they disagree, the reader who
+# opened Word gets a different manuscript from the reader who opened the
+# browser -- and has no way to know. Observed: the DOCX sat six days behind
+# while the abstract was corrected, so it still asserted "Disparities held
+# across all sensitivity specifications", a claim the specification curve had
+# falsified.
+#
+# Compared by mtime rather than content because the two formats legitimately
+# differ byte-for-byte; what must hold is that the DOCX was produced from the
+# CURRENT HTML.
+.docx <- sub("[.]html$", ".docx", html_path)
+if (file.exists(.docx)) {
+  .lag <- as.numeric(difftime(file.mtime(html_path), file.mtime(.docx), units = "secs"))
+  cat("\ndocx freshness:\n")
+  cat("  html:", format(file.mtime(html_path), "%Y-%m-%d %H:%M:%S"), "\n")
+  cat("  docx:", format(file.mtime(.docx), "%Y-%m-%d %H:%M:%S"), "\n")
+  if (.lag > 1) {
+    message("FAIL: the DOCX is ", round(.lag / 3600, 1), " hours older than the HTML.")
+    message("  Two renderings of one paper that disagree is a reader-facing defect.")
+    message("  Fix: Rscript render.R  (which now produces both).")
+    quit(status = 1L, save = "no")
+  }
+  cat("  docx is current with the html\n")
+} else {
+  cat("\ndocx freshness: no DOCX present (skipped)\n")
+}
+
 cat("\nmanuscript semantic QA passed\n")

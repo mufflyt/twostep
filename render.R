@@ -53,3 +53,24 @@ h <- gsub("—", "-", h)   # em-dash (safety; source has none)
 writeLines(h, out)
 
 cat("\nRendered:", out, "\n")
+
+# ---- DOCX, chained rather than left to a separate invocation ----------------
+# The two outputs used to be produced by two scripts, and only the release
+# workflow ran both. Anyone rendering locally got HTML only, so the DOCX went
+# stale silently -- it sat six days behind the HTML while the abstract was
+# corrected, meaning the Word copy still asserted a claim the specification
+# curve had falsified. Two artifacts of the same paper disagreeing about what
+# the paper says is exactly the drift this project gates against everywhere
+# else.
+#
+# The conversion reads the HTML written above, so it cannot be out of date with
+# respect to it. Set E2SFCA_SKIP_DOCX=1 to render HTML alone.
+if (!nzchar(Sys.getenv("E2SFCA_SKIP_DOCX"))) {
+  docx <- here::here("manuscript", "e2sfca_accessibility_manuscript.docx")
+  rmarkdown::pandoc_convert(out, to = "docx", output = docx)
+  cat("Rendered:", docx, "\n")
+  # Belt and braces: assert the DOCX is not older than the HTML it came from.
+  if (file.mtime(docx) < file.mtime(out))
+    stop("render.R: the DOCX is older than the HTML it was just converted from.",
+         call. = FALSE)
+}
