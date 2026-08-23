@@ -251,6 +251,10 @@ aian_white_zero_ratio <- unname(gci("zero_aian")["point"] / gci("zero_white_nh")
 # the fold-difference in eDiscussion S10 is derived rather than typed twice.
 desjardins_aian_100mi <- 23.7
 desjardins_fold <- desjardins_aian_100mi / unname(gci("zero_aian")["point"])
+# The race and rurality axes joined: the AIAN zero-access share against the RURAL
+# share (same table, same estimator). >1 means the AIAN deficit exceeds the rural
+# deficit, i.e. it is not rurality relabeled.
+aian_rural_zero_ratio <- unname(gci("zero_aian")["point"] / gci("rural_zero")["point"])
 
 # 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
 # retirements) and reported as a provisional most-recent observation (#3).
@@ -408,6 +412,13 @@ knitr::knit_hooks$set(document = function(x) {
   out[[length(out) + 1L]] <- list(
     ok = isTRUE(awz >= 7.5 && awz < 8),
     msg = sprintf("Discussion 'nearly eight times' (AIAN:White GO zero-access): ratio is %.3f, which is not in [7.5, 8)", awz))
+  # Discussion, race-by-rurality sentence: "more than twice" the RURAL share is a
+  # strict inequality, and the whole point of the sentence is that the AIAN deficit
+  # exceeds the rural one -- if this ever fell below 1 the claim would invert.
+  arz <- aian_rural_zero_ratio
+  out[[length(out) + 1L]] <- list(
+    ok = isTRUE(arz > 2),
+    msg = sprintf("Discussion 'more than twice' (AIAN:rural GO zero-access): ratio is %.3f, not more than twice", arz))
   attr(out, "summary") <- sprintf("metro:rural %.2fx, zero-access %.2fx", mrr, zratio)
   out
 })
@@ -963,7 +974,8 @@ Our findings extend prior single-subspecialty and county-level work. For gynecol
 oncology, our results refine the county-level model of Desjardins and colleagues, who
 found 95.2% of counties (roughly 54.7 million at-risk women) with no gynecologic
 oncologist and no improvement over two decades for American Indian or Alaska Native
-women beyond 100 miles (25.6% to `r pp1(desjardins_aian_100mi)`%; P=.866)
+women beyond a 100-mile straight-line radius (25.6% to
+`r pp1(desjardins_aian_100mi)`%; P=.866)
 [@Desjardins2023].
 
 That `r pp1(desjardins_aian_100mi)`% invites direct comparison with our
@@ -975,7 +987,7 @@ they are different estimands, and three of the four design differences catalogue
 eDiscussion S10 move them apart in knowable directions. The thresholds are not
 equivalent, and ours is the more permissive; 180 minutes of driving covers on the
 order of 150 to 200 road miles at rural highway speeds, which even after deflating
-road miles to straight-line miles reaches beyond a 100-mile radius, so a lower share
+road miles to straight-line miles reaches beyond their 100-mile radius, so a lower share
 should fall outside it. The spatial units differ by orders of magnitude, county
 against census tract allocated to a 500-m grid; where a Western county exceeds the
 area of some states, one county-level distance speaks for women living hundreds of
@@ -987,9 +999,16 @@ first two differences are therefore doing more work than the raw gap suggests.
 
 What survives the translation is not the level but the structure, and it is the
 structure that replicates: in both designs American Indian or Alaska Native women are
-the worst-served group, and the gap is not marginal. In ours their zero-access share
-is nearly eight times that of areas where non-Hispanic White women live
-(`r pp1(gci("zero_aian")["point"])`% vs `r pp1(gci("zero_white_nh")["point"])`%),
+the worst-served group, and the gap is not marginal. The rurality and race axes are
+also not independent here, and in gynecologic oncology they compound rather than
+substitute: American Indian and Alaska Native people are disproportionately rural
+[@USDA_ERS_AIAN_Rural], yet the `r pp1(gci("zero_aian")["point"])`% of the population
+of areas where American Indian or Alaska Native women live falling outside every
+180-minute catchment is more than twice the `r pp1(gci("rural_zero")["point"])`% for
+rural areas as a whole, so what these areas carry is rural disadvantage plus a further
+increment of remoteness, not rurality relabeled. Against the race reference the same
+share is nearly eight times that of areas where non-Hispanic White women live
+(`r pp1(gci("zero_white_nh")["point"])`%),
 a ratio that is scale-free and therefore portable across studies in a way that a raw
 percentage tied to one threshold and one spatial unit is not. The practical lesson is
 that a bare "X% lack access" is uninterpretable without its threshold, its spatial
@@ -1056,7 +1075,7 @@ low-access areas those simpler measures miss [@Drake2021].
 
 Measuring impedance as drive time rather than geodesic distance is a particular
 strength here. The literature this study extends is largely geodesic or areal, a
-100-mile radius [@Desjardins2023], provider presence in a county [@Ackroyd2021;
+100-mile straight-line radius [@Desjardins2023], provider presence in a county [@Ackroyd2021;
 @Chen2026] or ZIP code [@Schmidt2024], or straight-line differential distance
 [@Herb2021], each treating a mile of interstate and a mile of switchback mountain
 road as the same barrier. Straight-line distance understated true road distance by
@@ -1452,8 +1471,8 @@ falls, and this study sits at the unfavorable end of both.
 
 Two consequences follow for interpretation. Drive-time estimates are not numerically
 comparable with the distance-based accessibility literature, which is why the
-gynecologic oncology comparison with county-level and 100-mile-radius estimates
-[@Desjardins2023] is framed as a corroboration of pattern rather than of magnitude.
+gynecologic oncology comparison with county-level and 100-mile straight-line
+estimates [@Desjardins2023] is framed as a corroboration of pattern rather than of magnitude.
 And drive time buys its validity at the cost of assumptions a geodesic measure does not
 make, chiefly modeled rather than observed travel speeds, a single road-network
 snapshot, and an assumption of private-vehicle travel; these are set out in eDiscussion S9 and are the
@@ -1823,11 +1842,11 @@ worked comparison below is intended as a template for that translation rather th
 a reconciliation, since the quantities are not the same quantity.
 
 Desjardins and colleagues reported that `r pp1(desjardins_aian_100mi)`% of American
-Indian or Alaska Native women were beyond 100 miles of a gynecologic oncologist in
+Indian or Alaska Native women were beyond a 100-mile straight-line radius of a
+gynecologic oncologist in
 2016-2020, essentially unchanged from the 25.6% at the start of their 2001-2020
-series (P=.866) [@Desjardins2023] *[whether that 100 miles is straight-line or road
-distance to be confirmed by the authors against the source article; the argument
-below holds either way, as noted]*. Our 2020 surface puts
+series (P=.866) [@Desjardins2023]. That 100 miles is straight-line distance, so the
+two studies differ in impedance as well as in threshold. Our 2020 surface puts
 `r pp1(gci("zero_aian")["point"])`% (95% CI `r pp1(gci("zero_aian")["lo"])`-`r pp1(gci("zero_aian")["hi"])`)
 of the population of areas where American Indian or Alaska Native women live outside
 every gynecologic oncology catchment at 180 minutes. The difference is
@@ -1835,17 +1854,17 @@ every gynecologic oncology catchment at 180 minutes. The difference is
 which have a knowable sign.
 
 *Threshold.* A 180-minute drive is a materially larger catchment than a 100-mile
-radius. At the sustained speeds available on rural interstates and US highways,
+straight-line radius. At the sustained speeds available on rural interstates and US highways,
 180 minutes corresponds to roughly 150 to 200 road miles. Road distance exceeds
 straight-line distance, by about a third in the rural cohort of Ludrosky and
 colleagues [@Ludrosky2023], so the equivalent straight-line reach is smaller than
 that; but on any plausible deflation it remains beyond 100 miles, and because covered
 area grows with the square of the radius, a moderately longer radius is a
-substantially larger catchment. This step does not depend on how Desjardins measured
-their 100 miles: 180 minutes of rural driving exceeds 100 miles read as road distance
-as well as read as straight-line distance, so the direction is the same under either
-reading. **Sign: this difference alone predicts a lower share outside for our
-estimate, and it is likely the largest single contributor.** It is worth stating
+substantially larger catchment. Because the 100 miles is measured straight-line, the
+comparison is doubly unequal: our catchment is both longer in reach and measured
+along a path that a straight line understates. **Sign: this difference alone predicts
+a lower share outside for our estimate, and it is likely the largest single
+contributor.** It is worth stating
 plainly that this cuts against a naive reading in which the drive-time estimate must
 be the more conservative one; at these two particular thresholds, it is not.
 
@@ -1888,7 +1907,7 @@ White women live (`r pp1(gci("zero_aian")["point"])`% vs
 scale-free: it is far less sensitive to where the threshold is set than either share
 is on its own, and it is the quantity we would encourage future work to report
 alongside absolute shares so that studies using different impedances remain
-comparable. We did not recompute our surfaces at a 100-mile radius, so the
+comparable. We did not recompute our surfaces at a 100-mile straight-line radius, so the
 decomposition above assigns directions rather than magnitudes; doing so would convert
 this argument into a measurement and is a natural extension.
 
