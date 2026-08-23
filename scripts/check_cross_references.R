@@ -1,4 +1,4 @@
-#!/usr/env/bin Rscript
+#!/usr/bin/env Rscript
 # ==============================================================================
 # check_cross_references.R
 # ------------------------------------------------------------------------------
@@ -18,8 +18,14 @@ check_cross_references <- function(file_path) {
   # 1. Find Definitions (The actual figures and tables in the document)
   # ----------------------------------------------------------------------------
   # Matches "**Figure 1.**", "**Figure S1.**", "**Figures S1-S7.**"
-  fig_defs_raw <- regmatches(text, gregexpr("\\*\\*Figures? ([0-9A-Za-zS-]+)\\.\\*\\*", text))[[1]]
-  fig_defs_str <- unique(gsub("\\*\\*Figures? |\\.\\*\\*", "", fig_defs_raw))
+  # A definition is a bold caption "**Figure 3.**" / "**Figures S1-S7.**" OR a
+  # heading "### Figure S1". The token must be a number or S-number: the old
+  # pattern accepted any word, so "**Figure provenance.**" was parsed as a
+  # figure called "provenance" and reported as defined-but-never-referenced.
+  fig_defs_raw <- c(
+    regmatches(text, gregexpr("\\*\\*Figures? (S?[0-9]+(?:-S?[0-9]+)?)\\.\\*\\*", text))[[1]],
+    regmatches(text, gregexpr("(?m)^#+ +Figures? (S?[0-9]+(?:-S?[0-9]+)?)\\.?[ \t]*$", text, perl = TRUE))[[1]])
+  fig_defs_str <- unique(trimws(gsub("^#+ +|\\*\\*|Figures? |\\.$|\\.\\*\\*", "", fig_defs_raw)))
   
   fig_defs <- character()
   for (def in fig_defs_str) {
@@ -42,7 +48,7 @@ check_cross_references <- function(file_path) {
   }
   
   # Matches "Table 1. ", "Table S2. " usually inside a caption string
-  tab_defs_raw <- regmatches(text, gregexpr("Table ([0-9S]+)\\.", text))[[1]]
+  tab_defs_raw <- regmatches(text, gregexpr("Table (S?[0-9]+)\\.", text))[[1]]
   tab_defs <- unique(gsub("Table |\\.", "", tab_defs_raw))
   
   # ----------------------------------------------------------------------------
@@ -103,14 +109,35 @@ check_cross_references <- function(file_path) {
       }
       cat("\n")
     }
+    length(missing_defs)
   }
   
-  report_discrepancies("Figure", fig_defs, fig_refs)
-  report_discrepancies("Table", tab_defs, tab_refs)
+  n <- report_discrepancies("Figure", fig_defs, fig_refs) +
+       report_discrepancies("Table", tab_defs, tab_refs)
   cat("======================================================================\n")
+  invisible(n)
 }
 
+# The entry point used to run only when given an argument, so invoking it with
+# none silently did nothing and exited 0 -- and the report itself only ever
+# cat()ed, so even a dangling reference could not fail CI. Default to the
+# manuscript and return a status.
+#
+# A reference with no definition is FATAL: a reviewer clicking "Figure 4" and
+# finding nothing is a defect in the submission. A definition with no reference
+# is a WARNING only -- it is a style question, and failing on it would make the
+# gate argue about editorial choices.
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) > 0) {
-  check_cross_references(args[1])
+targets <- if (length(args) > 0) args else
+  Sys.glob(file.path("manuscript", "*.Rmd"))
+if (length(targets) == 0) {
+  cat("no manuscript sources found; nothing to check\n"); quit(status = 0)
 }
+dangling <- 0L
+for (t in targets) dangling <- dangling + check_cross_references(t)
+if (dangling > 0L) {
+  cat(sprintf("FAIL: %d dangling cross-reference(s) across %d file(s)\n",
+              dangling, length(targets)))
+  quit(status = 1)
+}
+cat(sprintf("cross-references resolve in all %d file(s)\n", length(targets)))

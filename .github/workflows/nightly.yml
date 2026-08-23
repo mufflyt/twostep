@@ -99,6 +99,20 @@ jobs:
       - name: Scientific invariants on the frozen artifacts
         run: Rscript tools/ci/check_scientific_invariants.R
 
+      # The strongest gate in the repo, and until now nothing ran it. It records
+      # the 47 reported headline numbers plus a hash over the WHOLE reported
+      # series, and fails when any of them moves against a committed baseline --
+      # so a change that alters a reported estimate can never pass silently just
+      # because no test happened to assert on it. It also hashes the engine
+      # source, which forces the question "should the numbers have moved?" to be
+      # answered by a human rather than assumed.
+      #
+      # Note what it does and does not prove: the headline is READ from the
+      # frozen national summary, not recomputed, so this detects drift in the
+      # reported record -- it is not a reproduction check.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
+
   readme:
     name: README agrees with the repository
     runs-on: ubuntu-latest
@@ -885,6 +899,21 @@ jobs:
       # checks that the Figure 1 and Table 1 caption years agree.
       - name: Semantic QA
         run: Rscript tools/ci/check_manuscript.R
+
+      # Two more that existed but were wired into nothing. Both printed their
+      # findings and exited 0 regardless, so each was documentation of a check
+      # rather than a check. Both now return a status.
+      #
+      # Word count enforces only the abstract's 300-word Obstetrics &
+      # Gynecology cap -- the one limit this repository has established. The
+      # main-text count is reported, not gated.
+      - name: Abstract is within the journal word limit
+        run: Rscript scripts/check_wordcount.R
+      # Fatal only when a Figure/Table is referenced but never defined. The
+      # reverse (defined, never referenced) stays a warning: that is an
+      # editorial choice, not a defect a reviewer would hit.
+      - name: Figure and table cross-references resolve
+        run: Rscript scripts/check_cross_references.R
       - name: Upload the rendered manuscript
         if: always()
         uses: actions/upload-artifact@v7

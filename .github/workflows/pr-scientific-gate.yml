@@ -84,6 +84,19 @@ jobs:
       # stale artifact before it merges.
       - name: Frozen-artifact scientific invariants
         run: Rscript tools/ci/check_scientific_invariants.R
+      # The strongest gate in the repo, and until now nothing ran it. It records
+      # the 47 reported headline numbers plus a hash over the WHOLE reported
+      # series, and fails when any of them moves against a committed baseline --
+      # so a change that alters a reported estimate can never pass silently just
+      # because no test happened to assert on it. It also hashes the engine
+      # source, which forces the question "should the numbers have moved?" to be
+      # answered by a human rather than assumed.
+      #
+      # Note what it does and does not prove: the headline is READ from the
+      # frozen national summary, not recomputed, so this detects drift in the
+      # reported record -- it is not a reproduction check.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
       - name: README agrees with the repository
         run: Rscript tools/ci/check_readme.R
       # Two guards that existed but were never wired -- an unrun guard is worse
