@@ -268,9 +268,26 @@ This is enforced rather than assumed because the failure mode is silent: supply
 with no catchment contributes to no one's accessibility, so it deflates every
 downstream mean while each individual value still looks plausible. An earlier
 version of this analysis dropped unmatched origins by configuration and landed
-0.786% below the frozen reference for gynecologic oncology, with the loss visible
-only in a column that nothing compared. All results reported here come from runs
-in which supply is fully conserved.
+below the frozen reference, with the loss visible only in a column that nothing
+compared.
+
+```{r supply-loss, results="asis"}
+.sp <- file.path(root, "artifacts/2sfca/sensitivity/sensitivity_2020.csv")
+.am <- file.path(root, "artifacts/multiverse/age_matched_results.csv")
+if (file.exists(.sp) && file.exists(.am)) {
+  .s <- utils::read.csv(.sp, stringsAsFactors = FALSE)
+  .a <- utils::read.csv(.am, stringsAsFactors = FALSE)
+  .ref <- .s$national[.s$variant == "base" & .s$subspec == "GO"]
+  .got <- .a$national[.a$regime == "all_ages" & .a$subspec == "GO"]
+  .lost <- .a$n_supply_origins[.a$subspec == "GO"][1] - .a$n_iso_origins[.a$subspec == "GO"][1]
+  .tot  <- .a$n_supply_origins[.a$subspec == "GO"][1]
+  cat(sprintf(paste0("For gynecologic oncology that shortfall was **%s%%** ",
+    "relative to the frozen reference, from %d of %d provider origins having no ",
+    "catchment. All results reported here come from runs in which supply is ",
+    "fully conserved.\n"),
+    formatC(100 * (.got - .ref) / .ref, format = "f", digits = 3), .lost, .tot))
+}
+```
 
 ### 5. Validation of the denominators
 
