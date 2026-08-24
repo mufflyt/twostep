@@ -218,14 +218,23 @@ log "isochrones byte-identical to the primary analysis"
 # what killed the previous run, and the error sat in a log that never got
 # uploaded. Install ONLY what is missing, and record it.
 Rscript -e '
-need <- c("devtools","pkgload","dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
+# The system library is not writable by ec2-user, so install into a user
+# library and put it first on the path. The previous run failed here because
+# the system library /usr/local/lib64/R/library is not writable by ec2-user.
+ul <- path.expand("~/Rlib"); dir.create(ul, showWarnings=FALSE, recursive=TRUE)
+.libPaths(c(ul, .libPaths()))
+# pkgload, not devtools: load_all() lives in pkgload, and devtools would drag
+# ~80 packages into an environment whose value is that it is pinned.
+need <- c("pkgload","dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
 miss <- need[!vapply(need, requireNamespace, logical(1), quietly=TRUE)]
 cat("missing:", if (length(miss)) paste(miss, collapse=",") else "none", "\n")
 if (length(miss)) {
-  install.packages(miss, repos="https://packagemanager.posit.co/cran/__linux__/amazonlinux2023/latest")
+  install.packages(miss, lib=ul,
+    repos="https://packagemanager.posit.co/cran/__linux__/amazonlinux2023/latest")
   still <- miss[!vapply(miss, requireNamespace, logical(1), quietly=TRUE)]
   if (length(still)) { cat("STILL MISSING:", paste(still, collapse=","), "\n"); quit(status=1) }
 }
+cat("libPaths:", paste(.libPaths(), collapse=" | "), "\n")
 cat("packages ok\n")' > /home/ec2-user/pkgs.log 2>&1
 PKG=\$?
 tail -3 /home/ec2-user/pkgs.log
@@ -250,6 +259,7 @@ for pair in "\${E[0]}:\$EXP_R" "\${E[1]}:\$EXP_SF" "\${E[2]}:\$EXP_TERRA" "\${E[
 done
 log "environment matches the seam-validated stack"
 
+export R_LIBS_USER=/home/ec2-user/Rlib
 export S=artifacts/2sfca/agematched_panel
 export E2SFCA_ISO_DIR=/home/ec2-user/proj/iso
 run_year(){

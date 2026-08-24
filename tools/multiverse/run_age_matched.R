@@ -21,7 +21,17 @@
 suppressWarnings(suppressMessages({
   library(sf); library(terra); library(dplyr); library(yaml)
 }))
-suppressMessages(devtools::load_all(".", quiet = TRUE))
+# devtools::load_all() is a thin wrapper over pkgload::load_all(); prefer the
+# latter so this does not require a full dev toolchain. The frozen-run AMI
+# carries sf/terra/exactextractr/dplyr/tidyr/yaml/digest but neither devtools
+# nor pkgload, and installing devtools would pull ~80 packages into an
+# environment whose whole value is being pinned and verified.
+suppressMessages(
+  if (requireNamespace("pkgload", quietly = TRUE)) {
+    pkgload::load_all(".", quiet = TRUE)
+  } else {
+    devtools::load_all(".", quiet = TRUE)
+  })
 S <- Sys.getenv("S"); stopifnot(nzchar(S))
 say <- function(...) cat(sprintf("[s11] %s\n", sprintf(...)))
 
