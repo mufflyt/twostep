@@ -74,8 +74,14 @@ jobs:
         run: Rscript tools/ci/check_hygiene.R
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
-      - name: Install yaml and rprojroot
-        run: install.packages(c("yaml","rprojroot"))
+      # jsonlite and digest are here for scientific_diff.R below; without them it
+      # stops at its own requireNamespace check and the gate fails for every PR
+      # rather than for any scientific reason. Both are small, dependency-free
+      # binaries from RSPM, so this job still reports in well under a minute --
+      # which is the property that makes it worth running before the geospatial
+      # install. The job name predates yaml/rprojroot and is already inexact.
+      - name: Install yaml, rprojroot, jsonlite and digest
+        run: install.packages(c("yaml","rprojroot","jsonlite","digest"))
         shell: Rscript {0}
       # Identities on the FROZEN artifacts, not on fixtures: two independent
       # computations of national access must agree, derived ratios must match
