@@ -178,7 +178,13 @@ for (sp in SUBS) {
     pc <- pop_cache[[dkey]]; grid <- pc$grid; wr <- pc$wr
     r <- suppressWarnings(compute_e2sfca_raster(
       grid, iso, sup, weights = W, per_capita_scale = 1e5, return_surface = TRUE,
-      unmatched_supply_policy = "drop"))
+      # FAIL CLOSED. This was "drop", and it is what produced the 0.786%
+      # shortfall: five of 516 GO origins had no catchment, their supply
+      # evaporated, and the run reported success. The engine's "error" path
+      # already names the offending coord_ids and quantifies the supply share
+      # they carry, so a year whose isochrones do not cover its providers now
+      # stops loudly instead of returning a plausible number.
+      unmatched_supply_policy = "error"))
     surf <- r$surface * 1e5
     m <- vapply(c("total","metro_f","rural_f","white_f","aian_f"),
                 function(k) wmean(surf, wr[[k]]), numeric(1))
