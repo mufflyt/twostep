@@ -21,16 +21,28 @@
 suppressWarnings(suppressMessages({
   library(sf); library(terra); library(dplyr); library(yaml)
 }))
-# devtools::load_all() is a thin wrapper over pkgload::load_all(); prefer the
-# latter so this does not require a full dev toolchain. The frozen-run AMI
-# carries sf/terra/exactextractr/dplyr/tidyr/yaml/digest but neither devtools
-# nor pkgload, and installing devtools would pull ~80 packages into an
-# environment whose whole value is being pinned and verified.
+# Load the package's functions WITHOUT requiring any package that the frozen
+# analysis environment does not already have.
+#
+# The frozen-run AMI carries sf/terra/exactextractr/dplyr/tidyr/yaml/digest but
+# neither devtools nor pkgload, and pkgload cannot be installed there -- its
+# dependency `fs` needs a compiler that is not present. Installing a toolchain to
+# get a package LOADER would mutate an environment whose entire scientific value
+# is that it is pinned to the primary analysis.
+#
+# So: use load_all() when it is available (local development), and otherwise
+# source R/ directly. The two are equivalent for this script, which only calls
+# exported functions and already attaches its own libraries above -- and the
+# 2020 reproduction gate proves that equivalence numerically rather than
+# assuming it.
 suppressMessages(
   if (requireNamespace("pkgload", quietly = TRUE)) {
     pkgload::load_all(".", quiet = TRUE)
-  } else {
+  } else if (requireNamespace("devtools", quietly = TRUE)) {
     devtools::load_all(".", quiet = TRUE)
+  } else {
+    for (.f in list.files("R", pattern = "[.][Rr]$", full.names = TRUE, recursive = TRUE))
+      sys.source(.f, envir = globalenv())
   })
 S <- Sys.getenv("S"); stopifnot(nzchar(S))
 say <- function(...) cat(sprintf("[s11] %s\n", sprintf(...)))

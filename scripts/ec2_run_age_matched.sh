@@ -213,35 +213,32 @@ for b in 30 60 120 180; do
 done
 log "isochrones byte-identical to the primary analysis"
 
-# The AMI was built for run_2sfca.R. The age-matched runner additionally needs
-# devtools (for load_all) and tidyr, which may not be present -- that is exactly
-# what killed the previous run, and the error sat in a log that never got
-# uploaded. Install ONLY what is missing, and record it.
+# NOTHING IS INSTALLED AT RUNTIME. An earlier version installed pkgload into a
+# user library; that is now unnecessary (the runner sources R/ directly when no
+# loader is present) and it was undesirable -- any runtime install weakens the
+# claim that the spatial computation ran in the same environment as the frozen
+# primary analysis. Verify what is here, install nothing.
 Rscript -e '
-# The system library is not writable by ec2-user, so install into a user
-# library and put it first on the path. The previous run failed here because
-# the system library /usr/local/lib64/R/library is not writable by ec2-user.
-ul <- path.expand("~/Rlib"); dir.create(ul, showWarnings=FALSE, recursive=TRUE)
-.libPaths(c(ul, .libPaths()))
-# pkgload, not devtools: load_all() lives in pkgload, and devtools would drag
-# ~80 packages into an environment whose value is that it is pinned.
-need <- c("pkgload","dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
+need <- c("dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
 miss <- need[!vapply(need, requireNamespace, logical(1), quietly=TRUE)]
-cat("missing:", if (length(miss)) paste(miss, collapse=",") else "none", "\n")
-if (length(miss)) {
-  install.packages(miss, lib=ul,
-    repos="https://packagemanager.posit.co/cran/__linux__/amazonlinux2023/latest")
-  still <- miss[!vapply(miss, requireNamespace, logical(1), quietly=TRUE)]
-  if (length(still)) { cat("STILL MISSING:", paste(still, collapse=","), "\n"); quit(status=1) }
+if (length(miss)) { cat("MISSING:", paste(miss, collapse=","), "\n"); quit(status=1) }
+# HARD GATE: every package that determines the arithmetic must resolve from the
+# frozen system library, never from a user library. A future bootstrap that
+# shadowed the pinned spatial stack would otherwise pass silently.
+spatial <- c("sf","terra","exactextractr")
+loc <- vapply(spatial, function(p) dirname(find.package(p)), character(1))
+bad <- loc[grepl("^/home/|Rlib|[.]local", loc)]
+if (length(bad)) {
+  cat("SHADOWED:", paste(names(bad), unname(bad), sep="=", collapse=" "), "\n"); quit(status=2)
 }
-cat("libPaths:", paste(.libPaths(), collapse=" | "), "\n")
-cat("packages ok\n")' > /home/ec2-user/pkgs.log 2>&1
+writeLines(c(paste("libPaths:", paste(.libPaths(), collapse=" | ")),
+             paste(spatial, unname(loc), vapply(spatial, function(p) as.character(utils::packageVersion(p)), character(1)),
+                   sep="@", collapse="; "),
+             "runtime_installs: none"), "/home/ec2-user/pkgs.log")
+cat("packages verified, none installed, spatial stack from the frozen library\n")'
 PKG=\$?
-tail -3 /home/ec2-user/pkgs.log
-[ \$PKG -eq 0 ] || fail "required R packages could not be installed"
-# Only non-numeric tooling is installed here. Everything that determines the
-# arithmetic -- sf, terra, exactextractr, GEOS, GDAL, PROJ -- is pinned and
-# verified by the gate below, so this cannot move a result.
+cat /home/ec2-user/pkgs.log 2>/dev/null
+[ \$PKG -eq 0 ] || fail "package verification failed (status \$PKG: 1=missing, 2=spatial stack shadowed by a user library)"
 
 # Environment gate: a different geospatial stack produces different overlap
 # fractions, so refuse before computing anything.
@@ -259,7 +256,6 @@ for pair in "\${E[0]}:\$EXP_R" "\${E[1]}:\$EXP_SF" "\${E[2]}:\$EXP_TERRA" "\${E[
 done
 log "environment matches the seam-validated stack"
 
-export R_LIBS_USER=/home/ec2-user/Rlib
 export S=artifacts/2sfca/agematched_panel
 export E2SFCA_ISO_DIR=/home/ec2-user/proj/iso
 run_year(){
@@ -368,6 +364,7 @@ json.dump({
       ["r","sf","terra","exactextractr","geos","gdal","proj"],
       open("/tmp/env.txt").read().split())),
   "isochrone_checksums": open("/home/ec2-user/iso.sums").read().strip().splitlines(),
+  "package_provenance": open("/home/ec2-user/pkgs.log").read().strip().splitlines(),
   "denominator_manifest_sha256": sh("sha256sum /home/ec2-user/proj/inst/multiverse/age_matched_denominator.yml | cut -d\" \" -f1"),
   "outputs": open("/home/ec2-user/out/outputs.sums").read().strip().splitlines(),
 }, open(1,"w"), indent=2)
