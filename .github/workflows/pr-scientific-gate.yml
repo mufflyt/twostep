@@ -75,7 +75,7 @@ jobs:
       - name: Export-tag drift
         run: Rscript tools/sync_namespace.R --check
       - name: Install yaml and rprojroot
-        run: install.packages(c("yaml","rprojroot"))
+        run: install.packages(c("yaml", "rprojroot", "digest"))
         shell: Rscript {0}
       # Identities on the FROZEN artifacts, not on fixtures: two independent
       # computations of national access must agree, derived ratios must match
@@ -84,8 +84,56 @@ jobs:
       # stale artifact before it merges.
       - name: Frozen-artifact scientific invariants
         run: Rscript tools/ci/check_scientific_invariants.R
+      # Supply conservation. Every origin entering E2SFCA must have a catchment.
+      # A local age-matched run dropped supply in 12 of 14 cells -- FPMRS lost 15
+      # of 580 origins -- which deflated every affected mean while reporting
+      # success. This is expected to FAIL until the panel is regenerated from a
+      # fail-closed run; that is the point.
+      - name: No supply may enter E2SFCA without a catchment
+        run: Rscript tools/ci/check_supply_conservation.R
+
+
+      # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks
+      # whether the tests notice; this corrupts the STUDY and asks whether the
+      # invariants notice. That matters more here, because the manuscript does
+      # not read the engine -- it reads e2sfca_national_summary.csv.
+      #
+      # The hash gate is deliberately held out as a detector: sha256 answers
+      # "was the artifact edited?", which kills every mutant trivially. The
+      # question that threatens the paper is different -- when the artifact is
+      # legitimately REGENERATED, does anything notice the numbers are
+      # impossible? Only the invariants can answer that.
+      #
+      # Self-guarding: the control must pass first, every mutation must actually
+      # change the file (a no-op reads exactly like a detector gap), and the
+      # artifact must be restored byte-identically.
+      - name: Data-adversarial corpus on the frozen study
+        run: Rscript tools/ci/data_adversarial_corpus.R
+      - name: Fail if the corpus left the study corrupted
+        if: always()
+        run: |
+          if ! git diff --quiet -- artifacts/; then
+            echo "::error::the data corpus left a frozen artifact modified"
+            git --no-pager diff --stat -- artifacts/
+            exit 1
+          fi
+          echo "frozen artifacts unmodified"
+
       - name: README agrees with the repository
         run: Rscript tools/ci/check_readme.R
+      # YAML validity does not imply the shell inside it is valid. A stray quote
+      # in a run: block ships cleanly and then kills the job on the runner with
+      # a bare "exit code 2" -- which is exactly how the previous nightly failed,
+      # AFTER the work the step was verifying had already succeeded.
+      - name: Every bash workflow step parses
+        run: Rscript tools/ci/check_workflow_syntax.R
+      # bash -n does not expand heredocs, so an R accessor like ref$variant
+      # inside an UNQUOTED heredoc is eaten by the shell and only fails at
+      # runtime -- after an instance has been provisioned. This catches it here.
+      - name: Unquoted heredocs expand only defined variables
+        run: Rscript tools/ci/check_launcher_heredoc.R
+
+
       # Two guards that existed but were never wired -- an unrun guard is worse
       # than none, because it reads as coverage. The Rd check catches a literal
       # `%` in documentation prose (it is Rd's comment character, and roxygen
@@ -154,6 +202,15 @@ jobs:
       # rather than in the structure job because it resolves each export against
       # the installed namespace to tell a function from a constant; without the
       # package it falls back to a name heuristic and is weaker.
+      # Sources scripts/manuscript_e2sfca_values.R, which needs
+      # dplyr/readr/tidyr/here and mufflyaccess from the DESCRIPTION Remotes
+      # field -- so it must live in a job with setup-r-dependencies, not in a
+      # bare-install gate job. It records the 47 reported headline numbers and a
+      # hash over the whole series, and fails on unexplained movement against
+      # the committed baseline.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
+
       - name: No scientific-core export may be untested
         run: Rscript tools/ci/scientific_coverage.R
 

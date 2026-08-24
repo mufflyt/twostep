@@ -1,0 +1,7 @@
+# Copies staged for Gemini NotebookLM. The originals are tracked elsewhere in
+# the repo; duplicating them here would just be two copies to keep in sync.
+# The two write-ups in this folder ARE original and are tracked.
+*.docx
+*.Rmd
+connecticut_geoid_break.md
+frozen_run_provenance.md

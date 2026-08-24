@@ -63,3 +63,29 @@ cat(sprintf("MAIN TEXT (Intro->Conclusion): %s words\n", format(main_w, big.mark
 cat(sprintf("Supplement (all appendices):   %s words\n",
             format(wc(bucket[["Supplemental Digital Content"]]), big.mark = ",")))
 cat("Excluded: title page, tables, figure captions, code, references.\n")
+
+# --- gate ---------------------------------------------------------------------
+# This script printed its counts and always exited 0, so it could report an
+# over-limit abstract and CI would still be green. It was also referenced only
+# from README prose, never from a workflow -- documented as QA, run by nobody.
+#
+# Only the abstract limit is ENFORCED, because it is the one limit this
+# repository has actually established: the abstract was trimmed to 297 words
+# against the Obstetrics & Gynecology 300-word cap. The main-text limit is not
+# recorded anywhere here, so it is reported and not gated -- inventing a number
+# and failing on it would be worse than not checking.
+ABSTRACT_LIMIT <- 300L
+abs_w <- wc(bucket[["Abstract"]])
+if (abs_w == 0L) {
+  cat("\nFAIL: no abstract was found in the rendered HTML.\n")
+  cat("The section heading must start with 'Abstract' for the count to work.\n")
+  quit(status = 1)
+}
+if (abs_w > ABSTRACT_LIMIT) {
+  cat(sprintf("\nFAIL: abstract is %d words, over the %d-word limit by %d.\n",
+              abs_w, ABSTRACT_LIMIT, abs_w - ABSTRACT_LIMIT))
+  quit(status = 1)
+}
+cat(sprintf("\nabstract within limit: %d / %d words (%d to spare)\n",
+            abs_w, ABSTRACT_LIMIT, ABSTRACT_LIMIT - abs_w))
+

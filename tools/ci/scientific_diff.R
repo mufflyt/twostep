@@ -31,11 +31,34 @@ printo <- "--print"  %in% args
 for (p in c("jsonlite", "digest")) if (!requireNamespace(p, quietly = TRUE))
   stop("scientific_diff.R needs the '", p, "' package", call. = FALSE)
 
-BASELINE <- file.path("tests", "fixtures", "scientific_baseline.json")
+# --- which scientific record are we diffing? ---------------------------------
+# Default `e2sfca` behaves exactly as before: same baseline, same inputs, same
+# headline derivation. The second spec covers the age-matched 11-year panel,
+# which is a different artifact with a different column vocabulary.
+#
+# Parameterised rather than forked into a sibling script: the walk/compare,
+# --update and --print logic below is the valuable part, and a copy of it would
+# drift from this one silently -- the failure this repository keeps rediscovering.
+SPEC <- local({
+  i <- grep("^--spec=", args)
+  if (length(i)) sub("^--spec=", "", args[i[1]]) else "e2sfca"
+})
+SPECS <- c("e2sfca", "agematched_panel")
+if (!SPEC %in% SPECS)
+  stop("unknown --spec: ", SPEC, " (want one of: ", paste(SPECS, collapse = ", "), ")",
+       call. = FALSE)
+
+BASELINE <- if (SPEC == "e2sfca") {
+  file.path("tests", "fixtures", "scientific_baseline.json")
+} else {
+  file.path("tests", "fixtures", "agematched_panel_baseline.json")
+}
 TOL <- 1e-9
 
 sha <- function(path) if (file.exists(path))
   digest::digest(file = path, algo = "sha256") else NA_character_
+
+if (SPEC == "e2sfca") {
 
 # --- inputs -------------------------------------------------------------------
 suppressWarnings(suppressMessages(source("scripts/manuscript_e2sfca_values.R")))
@@ -84,9 +107,65 @@ headline <- list(
   mean_access_per100k = per_sub
 )
 
+} else {
+
+# --- age-matched panel --------------------------------------------------------
+# Deliberately does NOT source manuscript_e2sfca_values.R: that pulls
+# dplyr/readr/tidyr/here and hard-requires mufflyaccess, and none of it is needed
+# to diff a standalone panel CSV.
+PANEL <- "artifacts/2sfca/agematched_panel/age_matched_panel.csv"
+if (!file.exists(PANEL))
+  stop("panel artifact missing: ", PANEL,
+       "\n  Build it with tools/multiverse/run_panel.sh then ",
+       "tools/multiverse/consolidate_panel.R", call. = FALSE)
+pn <- utils::read.csv(PANEL, stringsAsFactors = FALSE)
+need <- c("year", "regime", "subspec", "national", "rural_metro_ratio", "aian_white_ratio")
+if (!all(need %in% names(pn)))
+  stop("panel is missing column(s): ",
+       paste(setdiff(need, names(pn)), collapse = ", "), call. = FALSE)
+pn <- pn[order(pn$year, pn$regime, pn$subspec), ]
+
+inputs <- list(
+  panel_csv         = sha(PANEL),
+  manifest_yml      = sha("inst/multiverse/age_matched_denominator.yml"),
+  runner_R          = sha("tools/multiverse/run_age_matched.R"),
+  denominators_R    = sha("tools/multiverse/age_matched_denominators.R"),
+  consolidator_R    = sha("tools/multiverse/consolidate_panel.R"),
+  engine_R          = sha("R/two_step_floating_catchment.R")
+)
+
+# One hash over the WHOLE ordered panel, so a change anywhere is caught even in
+# cells the per-subspecialty summary below does not surface.
+series <- paste(pn$year, pn$regime, pn$subspec,
+                sprintf("%.10f", pn$national),
+                sprintf("%.10f", pn$rural_metro_ratio),
+                sprintf("%.10f", pn$aian_white_ratio), collapse = "|")
+
+per_cell <- lapply(split(pn, paste(pn$regime, pn$subspec)), function(d) {
+  d <- d[order(d$year), ]
+  list(first_year = as.integer(min(d$year)), last_year = as.integer(max(d$year)),
+       first = round(d$national[1], 10), last = round(d$national[nrow(d)], 10),
+       absolute_change = round(d$national[nrow(d)] - d$national[1], 10),
+       max_rural_metro = round(max(d$rural_metro_ratio), 10),
+       max_aian_white  = round(max(d$aian_white_ratio), 10))
+})
+
+headline <- list(
+  n_rows           = nrow(pn),
+  n_years          = length(unique(pn$year)),
+  n_subspecialties = length(unique(pn$subspec)),
+  regimes          = sort(unique(pn$regime)),
+  years            = as.integer(sort(unique(pn$year))),
+  series_sha256    = digest::digest(series, algo = "sha256"),
+  by_regime_subspec = per_cell
+)
+
+}
+
 context <- list(
   git_sha  = tryCatch(trimws(system2("git", c("rev-parse", "HEAD"), stdout = TRUE)),
                       error = function(e) NA_character_),
+  spec = SPEC,
   r_version = paste0(R.version$major, ".", R.version$minor),
   generated_note = "context is RECORDED for provenance, never compared"
 )
@@ -128,7 +207,7 @@ walk <- function(a, b, path = "") {
 walk(current$inputs,   base$inputs,   "inputs")
 walk(current$headline, base$headline, "headline")
 
-cat("scientific diff vs ", BASELINE, "\n", sep = "")
+cat("scientific diff [", SPEC, "] vs ", BASELINE, "\n", sep = "")
 cat("  frozen run:      ", inputs$frozen_run_id, "\n", sep = "")
 cat("  subspecialties:  ", headline$n_subspecialties, " over ",
     min(headline$years), "-", max(headline$years), "\n", sep = "")

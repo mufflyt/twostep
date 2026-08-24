@@ -30,9 +30,20 @@ setwd(root)
 
 MAN   <- "inst/multiverse/age_matched_denominator.yml"
 HASH  <- "inst/multiverse/age_matched_denominator.sha256"
+# Year-parameterised. 2020 keeps its original cache and output paths byte for
+# byte, so the frozen 2020 denominators and the appendix that reads them are
+# untouched; other vintages get suffixed files. One script rather than a copy,
+# because a duplicated fetch-and-band-sum would drift from this one silently.
+YEAR  <- as.integer(Sys.getenv("E2SFCA_AM_YEAR", "2020"))
+if (is.na(YEAR) || YEAR < 2013L || YEAR > 2023L)
+  stop("E2SFCA_AM_YEAR must be 2013-2023, got: ", Sys.getenv("E2SFCA_AM_YEAR"))
 CACHE <- "artifacts/2sfca/sensitivity/cache"
-RAW   <- file.path(CACHE, "acs2020_age_bands.rds")
-OUT   <- file.path(CACHE, "age_matched_denominators.rds")
+RAW   <- file.path(CACHE, sprintf("acs%d_age_bands.rds", YEAR))
+OUT   <- if (YEAR == 2020L) {
+  file.path(CACHE, "age_matched_denominators.rds")
+} else {
+  file.path(CACHE, sprintf("age_matched_denominators_%d.rds", YEAR))
+}
 dir.create(CACHE, showWarnings = FALSE, recursive = TRUE)
 say  <- function(...) cat(sprintf("[age-den] %s\n", sprintf(...)))
 fail <- function(...) { message("FAIL: ", ...); quit(status = 1L, save = "no") }
@@ -75,7 +86,7 @@ if (!file.exists(RAW) || refresh) {
       length(all_bands), length(conus()))
   raw <- purrr::map_dfr(conus(), function(st) suppressMessages(
     tidycensus::get_acs(geography = "tract", variables = all_bands, state = st,
-                        year = 2020, survey = "acs5", geometry = FALSE)))
+                        year = YEAR, survey = "acs5", geometry = FALSE)))
   wide <- raw |>
     dplyr::transmute(GEOID = as.character(GEOID), variable,
                      estimate = as.numeric(estimate)) |>
@@ -106,6 +117,20 @@ for (nm in names(checks)) {
       nm, a, length(parts), b, rel)
   if (rel > 1e-9) fail(nm, ": age bands do not sum to the published total. The band ",
                        "list is wrong; every denominator built from it would be too.")
+}
+
+# ---- Connecticut GEOID vintage ----------------------------------------------
+# From ACS 2022 onward Connecticut reports planning-region tracts (09110...)
+# which match NOTHING in the 2020-vintage tract geometry this pipeline joins
+# against. Left alone, all ~884 CT tracts silently drop and Connecticut's women
+# become zero -- 98.9% matched nationally, 0% of one state. Relabel first.
+if (YEAR >= 2022L) {
+  src_ct <- new.env(); sys.source("R/ct_geoid_relabel.R", envir = src_ct)
+  .before <- sum(substr(wide$GEOID, 1, 2) == "09")
+  wide <- src_ct$relabel_ct_geoids_safe(wide, census_year = YEAR)
+  .after <- sum(substr(wide$GEOID, 1, 2) == "09")
+  say("Connecticut relabel (ACS %d): %d CT tracts before, %d after", YEAR, .before, .after)
+  if (.after < 1L) fail("Connecticut relabel produced no CT tracts")
 }
 
 # ---- rurality ----------------------------------------------------------------

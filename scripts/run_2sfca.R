@@ -192,9 +192,24 @@ PROD_ALLOC_MODE       <- "area"
 # carried 7 of 890 supply units (0.787%) and had no isochrone locally. Their
 # supply evaporated and the engine reported success. The seam caveat recorded
 # above still stands and is not discharged here.
+# RE-PIN 2026-08-23: 0736d4d7 -> 08b14e8f.
+#
+# The entire diff since the previous pin is ONE character inside a roxygen
+# comment: `0.786%` became `0.786\%` in the @param for unmatched_supply_policy.
+# `%` is Rd's comment character, so the unescaped form truncated the generated
+# Rd and R CMD check failed on all five platforms with "unexpected section
+# header". Docs only -- not one executable line changed:
+#
+#   git diff a67f29c..HEAD -- R/two_step_floating_catchment.R
+#
+# The protocol's condition for a re-pin -- the allocator BODY unchanged -- is
+# therefore met trivially. Recorded rather than waved through because the pin
+# hashes the whole FILE, so a comment edit trips it exactly as a logic edit
+# would. That is deliberate and worth keeping: it costs a documented re-pin and
+# it makes an unreviewed engine edit impossible.
 SEAM_ALLOCATOR_SHA256 <- Sys.getenv(
   "E2SFCA_SEAM_ALLOCATOR_SHA256",
-  "0736d4d7202b4881dd5a65a5a61c2522529bb9c65d41985fa2f43d5ac45f7546")
+  "08b14e8fdfad40e32f8bed9d05d16c2def883b6fb69d3aa82fad51bf8d000d7e")
 .module_path <- file.path(ROOT, "R", "two_step_floating_catchment.R")
 .module_sha  <- digest::digest(file = .module_path, algo = "sha256")
 log_msg("ALLOCATOR IDENTITY: fn=%s()  mode=%s  module=%s", PROD_ALLOCATOR,

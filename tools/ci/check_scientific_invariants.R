@@ -156,6 +156,136 @@ if (file.exists(SENS) && file.exists(SPAT)) {
          ") -- level comparison across them is not expected to be exact")
 }
 
+# ---- national summary: the file the manuscript actually reads ----------------
+# Nothing checked this artifact. The two above are sensitivity and spatial
+# outputs; the reported headline numbers come from e2sfca_national_summary.csv,
+# and its only guard was scientific_diff.R's sha256. A hash catches TAMPERING.
+# It cannot catch a wrongly REGENERATED file -- new run, new hash, honest
+# intent, impossible numbers -- which is the case that actually threatens the
+# paper. Every check below is an identity or inequality that must hold for any
+# valid run, and each is exercised by tools/ci/data_adversarial_corpus.R.
+NSUM <- "artifacts/2sfca/ec2/e2sfca_20260712_190734/e2sfca_national_summary.csv"
+if (!file.exists(NSUM)) {
+  bad("frozen national summary missing: ", NSUM)
+} else {
+  n <- utils::read.csv(NSUM, stringsAsFactors = FALSE)
+  cat("\ne2sfca_national_summary.csv (", nrow(n), " rows)\n", sep = "")
+  SH <- c("share_ge_0", "share_ge_1", "share_ge_5",
+          "share_ge_10", "share_ge_20", "share_ge_50")
+  needed <- c("subspecialty", "year", "n_cells_total", "n_cells_valid",
+              "pop_raster_total", "acs_pop_source", "pop_valid_total",
+              "pop_excluded_missing_access", "pop_excluded_missing_pop",
+              "mean_pop_weighted_per100k", SH)
+  miss <- setdiff(needed, names(n))
+  if (length(miss)) {
+    bad("national summary is missing column(s): ", paste(miss, collapse = ", "))
+  } else {
+
+    # (a) one row per (subspecialty, year). A duplicate double-counts that cell
+    # in every aggregate without changing any individual value.
+    key <- paste(n$subspecialty, n$year)
+    if (any(duplicated(key)))
+      bad("national summary has duplicate (subspecialty, year) rows: ",
+          paste(unique(key[duplicated(key)]), collapse = ", "))
+
+    # (b) rectangular. A missing cell drops silently out of every mean and
+    # every trend while the remaining years still look self-consistent.
+    tb <- table(n$subspecialty)
+    if (length(unique(as.integer(tb))) != 1L)
+      bad("national summary is ragged -- subspecialties have different year ",
+          "counts: ", paste(sprintf("%s=%d", names(tb), as.integer(tb)),
+                            collapse = ", "))
+    yrs <- sort(unique(n$year))
+    if (length(yrs) > 1L && any(diff(yrs) != 1L))
+      bad("national summary years are not contiguous: ",
+          paste(yrs, collapse = ", "))
+
+    # (c) accessibility is supply over demand; it cannot be negative.
+    if (any(n$mean_pop_weighted_per100k < 0, na.rm = TRUE))
+      bad("negative mean access in the national summary")
+    if (any(is.na(n$mean_pop_weighted_per100k)))
+      bad("missing mean access in the national summary")
+
+    # (d) population shares are shares.
+    sv <- unlist(n[SH])
+    if (any(sv < -TOL | sv > 1 + TOL, na.rm = TRUE))
+      bad("population share outside [0, 1] in the national summary")
+
+    # (e) shares must be NON-INCREASING in the threshold: the population at or
+    # above a higher access level cannot exceed the population above a lower
+    # one. Arithmetically impossible to violate in a valid run.
+    dv <- apply(as.matrix(n[SH]), 1, function(r) any(diff(r) > TOL))
+    if (any(dv, na.rm = TRUE))
+      bad(sum(dv, na.rm = TRUE), " row(s) have non-monotone threshold shares ",
+          "(e.g. share_ge_5 > share_ge_1)")
+
+    # (f) valid + excluded == raster total. Breaking it means population
+    # vanished silently -- the failure mode that made the reproduction attempt
+    # land 0.786% below the published mean.
+    accounted <- n$pop_valid_total + n$pop_excluded_missing_access +
+                 n$pop_excluded_missing_pop
+    rel <- abs(accounted - n$pop_raster_total) / pmax(n$pop_raster_total, 1)
+    if (any(rel > 1e-9, na.rm = TRUE))
+      bad("population is not conserved in ", sum(rel > 1e-9, na.rm = TRUE),
+          " row(s): valid + excluded != raster total (worst rel ",
+          signif(max(rel, na.rm = TRUE), 3), ")")
+
+    # (g2) the rasterised population must reconcile with the ACS total it
+    # claims to come from. If it does not, the demand denominator is not the
+    # population the paper describes, and every accessibility value is
+    # rescaled without any access number changing.
+    rel_src <- abs(n$pop_raster_total - n$acs_pop_source) /
+               pmax(abs(n$acs_pop_source), 1)
+    if (any(rel_src > 1e-6, na.rm = TRUE))
+      bad("pop_raster_total diverges from acs_pop_source in ",
+          sum(rel_src > 1e-6, na.rm = TRUE), " row(s) (worst rel ",
+          signif(max(rel_src, na.rm = TRUE), 3), ")")
+
+    # (g) cells cannot be more valid than they are.
+    if (any(n$n_cells_valid > n$n_cells_total, na.rm = TRUE))
+      bad("n_cells_valid exceeds n_cells_total")
+
+    note("rows ", nrow(n), ", subspecialties ", length(unique(n$subspecialty)),
+         ", years ", min(yrs), "-", max(yrs))
+    note("population conservation worst relative error: ",
+         signif(max(rel, na.rm = TRUE), 3))
+
+    # (h) CROSS-ARTIFACT AGREEMENT. The checks above are all internal, so a
+    # corruption that keeps the table structurally valid -- inflating one mean,
+    # or swapping two subspecialty labels -- passes every one of them. The
+    # sensitivity artifact's `base` variant computes 2020 national means by an
+    # independent route, so it can be compared. Natural disagreement is ~5e-4
+    # (different grid resolutions); 1% is far above that and far below any
+    # corruption worth catching.
+    if (file.exists(SENS)) {
+      sb <- utils::read.csv(SENS, stringsAsFactors = FALSE)
+      sb <- sb[sb$variant == "base", c("subspec", "national")]
+      n20 <- n[n$year == 2020, c("subspecialty", "mean_pop_weighted_per100k")]
+      mm <- merge(sb, n20, by.x = "subspec", by.y = "subspecialty")
+      if (nrow(mm) == 0L) {
+        bad("no subspecialty in common between the national summary's 2020 rows ",
+            "and the sensitivity base variant -- the labels cannot both be right")
+      } else {
+        if (nrow(mm) != nrow(sb))
+          bad("national summary 2020 covers ", nrow(mm), " of ", nrow(sb),
+              " subspecialties present in the sensitivity base variant")
+        r2 <- abs(mm$national - mm$mean_pop_weighted_per100k) /
+              pmax(abs(mm$mean_pop_weighted_per100k), .Machine$double.eps)
+        AGREE_TOL <- 1e-2
+        if (any(r2 > AGREE_TOL, na.rm = TRUE)) {
+          w <- mm$subspec[which(r2 > AGREE_TOL)]
+          bad("national summary disagrees with the independently produced ",
+              "sensitivity base variant for ", paste(w, collapse = ", "),
+              " (worst rel ", signif(max(r2, na.rm = TRUE), 3),
+              ", tolerance ", AGREE_TOL, ")")
+        }
+        note("agreement with sensitivity base variant, worst relative: ",
+             signif(max(r2, na.rm = TRUE), 3))
+      }
+    }
+  }
+}
+
 cat("\n")
 if (length(fail)) {
   message("FAIL: the frozen artifacts violate scientific invariants:")

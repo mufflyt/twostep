@@ -84,7 +84,7 @@ jobs:
         timeout-minutes: 10
         with: { use-public-rspm: true }
       - name: Install rprojroot
-        run: install.packages("rprojroot")
+        run: install.packages(c("rprojroot", "digest"))
         shell: Rscript {0}
       # The test suite proves the ENGINE satisfies its invariants on synthetic
       # fixtures. This proves the PUBLISHED NUMBERS hold together: the two
@@ -98,6 +98,40 @@ jobs:
       # not possibly be right.
       - name: Scientific invariants on the frozen artifacts
         run: Rscript tools/ci/check_scientific_invariants.R
+      # Supply conservation. Every origin entering E2SFCA must have a catchment.
+      # A local age-matched run dropped supply in 12 of 14 cells -- FPMRS lost 15
+      # of 580 origins -- which deflated every affected mean while reporting
+      # success. This is expected to FAIL until the panel is regenerated from a
+      # fail-closed run; that is the point.
+      - name: No supply may enter E2SFCA without a catchment
+        run: Rscript tools/ci/check_supply_conservation.R
+
+
+      # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks
+      # whether the tests notice; this corrupts the STUDY and asks whether the
+      # invariants notice. That matters more here, because the manuscript does
+      # not read the engine -- it reads e2sfca_national_summary.csv.
+      #
+      # The hash gate is deliberately held out as a detector: sha256 answers
+      # "was the artifact edited?", which kills every mutant trivially. The
+      # question that threatens the paper is different -- when the artifact is
+      # legitimately REGENERATED, does anything notice the numbers are
+      # impossible? Only the invariants can answer that.
+      #
+      # Self-guarding: the control must pass first, every mutation must actually
+      # change the file (a no-op reads exactly like a detector gap), and the
+      # artifact must be restored byte-identically.
+      - name: Data-adversarial corpus on the frozen study
+        run: Rscript tools/ci/data_adversarial_corpus.R
+      - name: Fail if the corpus left the study corrupted
+        if: always()
+        run: |
+          if ! git diff --quiet -- artifacts/; then
+            echo "::error::the data corpus left a frozen artifact modified"
+            git --no-pager diff --stat -- artifacts/
+            exit 1
+          fi
+          echo "frozen artifacts unmodified"
 
   readme:
     name: README agrees with the repository
@@ -123,6 +157,19 @@ jobs:
       # exercised" was true the hour it was written.
       - name: README consistency audit
         run: Rscript tools/ci/check_readme.R
+      # YAML validity does not imply the shell inside it is valid. A stray quote
+      # in a run: block ships cleanly and then kills the job on the runner with
+      # a bare "exit code 2" -- which is exactly how the previous nightly failed,
+      # AFTER the work the step was verifying had already succeeded.
+      - name: Every bash workflow step parses
+        run: Rscript tools/ci/check_workflow_syntax.R
+      # bash -n does not expand heredocs, so an R accessor like ref$variant
+      # inside an UNQUOTED heredoc is eaten by the shell and only fails at
+      # runtime -- after an instance has been provisioned. This catches it here.
+      - name: Unquoted heredocs expand only defined variables
+        run: Rscript tools/ci/check_launcher_heredoc.R
+
+
       # Two guards that existed but were never wired -- an unrun guard is worse
       # than none, because it reads as coverage. The Rd check catches a literal
       # `%` in documentation prose (it is Rd's comment character, and roxygen
@@ -826,7 +873,19 @@ jobs:
       # matching fails too -- a corpus that silently mutates nothing is worse
       # than no corpus. The engine is restored and byte-compared afterwards.
       - name: Every scientific mutant must be killed
-        run: Rscript tools/ci/mutation_corpus.R --quick
+        # NOT --quick. That flag drops the Monte Carlo null-and-signal-recovery
+        # suite, which is the right trade for the PR gate but leaves nightly
+        # running the SAME reduced tier as a PR -- so that suite participated in
+        # mutation testing only in the weekly deep run.
+        #
+        # Measured cost: +30s. The mutant loop really is free -- the corpus stops
+        # at the first suite that kills a mutant, the simulation suite is last,
+        # and none of the 17 current mutants is killed by it. The 30s is the
+        # CONTROL, which runs every suite once by design. (An earlier version of
+        # this comment claimed "close to free" and had overlooked the control.)
+        # It costs mutant-loop time only for a mutant no earlier suite catches --
+        # which is exactly the mutant worth paying for.
+        run: Rscript tools/ci/mutation_corpus.R
       - name: Fail if the engine was left mutated
         run: |
           if ! git diff --quiet R/two_step_floating_catchment.R; then
@@ -873,6 +932,7 @@ jobs:
             any::rmarkdown
             any::knitr
             any::kableExtra
+            any::xml2
           needs: check
       # render.R verifies every consumed artifact against SHA256SUMS.txt before
       # rendering, so a swapped or corrupted input fails here rather than
@@ -885,6 +945,39 @@ jobs:
       # checks that the Figure 1 and Table 1 caption years agree.
       - name: Semantic QA
         run: Rscript tools/ci/check_manuscript.R
+      # The strongest gate in the repo, and until now nothing ran it. It records
+      # the 47 reported headline numbers plus a hash over the WHOLE reported
+      # series and fails when any moves against a committed baseline, so a change
+      # that alters a reported estimate cannot pass silently just because no test
+      # asserts on it.
+      #
+      # It lives HERE, and not in a lightweight gate job, because it sources
+      # scripts/manuscript_e2sfca_values.R -- which pulls dplyr/readr/tidyr/here
+      # and hard-requires mufflyaccess from the DESCRIPTION Remotes field. Only a
+      # job with setup-r-dependencies(needs: check) can resolve that. Wiring it
+      # into a job with a bare install.packages() made it fail on CI having never
+      # run, which is the exact defect this gate family exists to prevent.
+      #
+      # What it does and does not prove: the headline is READ from the frozen
+      # national summary, not recomputed, so this detects drift in the reported
+      # record -- it is not a reproduction check.
+      - name: Reported headline numbers have not moved
+        run: Rscript tools/ci/scientific_diff.R
+
+      # Two more that existed but were wired into nothing. Both printed their
+      # findings and exited 0 regardless, so each was documentation of a check
+      # rather than a check. Both now return a status.
+      #
+      # Word count enforces only the abstract's 300-word Obstetrics &
+      # Gynecology cap -- the one limit this repository has established. The
+      # main-text count is reported, not gated.
+      - name: Abstract is within the journal word limit
+        run: Rscript scripts/check_wordcount.R
+      # Fatal only when a Figure/Table is referenced but never defined. The
+      # reverse (defined, never referenced) stays a warning: that is an
+      # editorial choice, not a defect a reviewer would hit.
+      - name: Figure and table cross-references resolve
+        run: Rscript scripts/check_cross_references.R
       - name: Upload the rendered manuscript
         if: always()
         uses: actions/upload-artifact@v7

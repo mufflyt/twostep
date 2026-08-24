@@ -237,6 +237,82 @@ run_suite <- function(path) {
 cat("scientific mutation corpus:", length(MUTANTS), "mutants x",
     length(SUITES), "suite(s)\n\n")
 
+# ---------------------------------------------------------------------------
+# CONTROL. Run every suite against the UNMUTATED engine before corrupting
+# anything.
+#
+# Without this the corpus can report a perfect score while proving nothing. A
+# mutant is judged "killed" when a suite reports a failure -- and run_suite()
+# also returns TRUE when the suite CRASHES, on the reasonable ground that a
+# crash counts as detection. Both of those fire for a suite that was already
+# broken: a renamed fixture, a missing package, a syntax error. Every mutant
+# then looks killed, 17 of 17, green, and the corpus has tested nothing.
+#
+# "The tests failed" is only evidence about the mutant if the tests PASS
+# without it. That is the whole claim a mutation score rests on, and nothing
+# here checked it.
+#
+# The assertion floor is the second half: a suite whose tests were all skipped
+# reports zero failures and would satisfy the control while running nothing.
+# Zero failures and zero assertions are not the same as agreement.
+suite_stats <- function(path) {
+  out <- suppressWarnings(system2(
+    file.path(R.home("bin"), "Rscript"),
+    c("-e", shQuote(sprintf(
+      "testthat::set_max_fails(Inf); r <- as.data.frame(testthat::test_file('%s', reporter='silent')); cat(sum(r$failed), sum(r$error), sum(r$passed))",
+      path))),
+    stdout = TRUE, stderr = TRUE))
+  nums <- suppressWarnings(as.integer(strsplit(trimws(tail(out, 1)), "\\s+")[[1]]))
+  if (length(nums) < 3 || anyNA(nums))
+    return(list(ok = FALSE, failed = NA_integer_, error = NA_integer_,
+                passed = NA_integer_, crashed = TRUE, log = out))
+  list(ok = nums[1] == 0L && nums[2] == 0L, failed = nums[1], error = nums[2],
+       passed = nums[3], crashed = FALSE, log = out)
+}
+
+CONTROL_SUITES <- unique(c(SUITES, unlist(lapply(MUTANTS, function(m) m$suites))))
+CONTROL_SUITES <- CONTROL_SUITES[!is.na(CONTROL_SUITES) & nzchar(CONTROL_SUITES)]
+MIN_ASSERTIONS <- 1L
+ctl_bad <- character(0)
+ctl_assertions <- 0L
+cat("control (unmutated engine):\n")
+for (s in CONTROL_SUITES) {
+  st <- suite_stats(s)
+  if (st$crashed) {
+    ctl_bad <- c(ctl_bad, sprintf("%s CRASHED before any mutation", basename(s)))
+    cat(sprintf("  %-58s CRASHED\n", basename(s)))
+    next
+  }
+  ctl_assertions <- ctl_assertions + st$passed
+  if (!st$ok) {
+    ctl_bad <- c(ctl_bad, sprintf("%s already fails (%d failed, %d error)",
+                                  basename(s), st$failed, st$error))
+    cat(sprintf("  %-58s FAILS (%d/%d)\n", basename(s), st$failed, st$error))
+  } else if (st$passed < MIN_ASSERTIONS) {
+    ctl_bad <- c(ctl_bad, sprintf("%s ran ZERO assertions", basename(s)))
+    cat(sprintf("  %-58s 0 assertions\n", basename(s)))
+  } else {
+    cat(sprintf("  %-58s ok (%d assertions)\n", basename(s), st$passed))
+  }
+}
+if (length(ctl_bad)) {
+  # The sentinel is written before this point, so aborting here without
+  # clearing it leaves a stale sentinel that blocks the NEXT invocation
+  # entirely -- it refuses, correctly, to restore sources from another commit.
+  # Nothing has been mutated yet (the control runs before the mutant loop), so
+  # this sentinel is stale-but-clean and must not outlive the run. Found by
+  # negative-testing the control and then being unable to run the corpus again.
+  restore()
+  unlink(SENTINEL)
+  message("\nFAIL: the unmutated engine does not pass its own suites, so every ",
+          "mutant\nwould look killed for the wrong reason:")
+  for (b in ctl_bad) message("  - ", b)
+  message("\n  Fix the suite before trusting any mutation score from this run.")
+  quit(status = 1L, save = "no")
+}
+cat(sprintf("control passed: %d suite(s), %d assertions, 0 failures\n\n",
+            length(CONTROL_SUITES), ctl_assertions))
+
 results <- list()
 for (nm in names(MUTANTS)) {
   m <- MUTANTS[[nm]]
