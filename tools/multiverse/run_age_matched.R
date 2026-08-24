@@ -41,8 +41,21 @@ suppressMessages(
   } else if (requireNamespace("devtools", quietly = TRUE)) {
     devtools::load_all(".", quiet = TRUE)
   } else {
-    for (.f in list.files("R", pattern = "[.][Rr]$", full.names = TRUE, recursive = TRUE))
-      sys.source(.f, envir = globalenv())
+    # Direct sourcing makes these files part of the execution environment, so
+    # they are provenance-tracked like a package would be: the ORDER they are
+    # sourced in and the sha256 of each, written beside the results.
+    .fs <- sort(list.files("R", pattern = "[.][Rr]$", full.names = TRUE, recursive = TRUE))
+    for (.f in .fs) sys.source(.f, envir = globalenv())
+    if (requireNamespace("digest", quietly = TRUE)) {
+      dir.create("artifacts/multiverse", showWarnings = FALSE, recursive = TRUE)
+      writeLines(c("# ordered source manifest for the direct-sourcing load path",
+                   sprintf("# %d files, sourced in this order", length(.fs)),
+                   vapply(seq_along(.fs), function(i)
+                     sprintf("%02d  %s  %s", i,
+                             digest::digest(file = .fs[i], algo = "sha256"), .fs[i]),
+                     character(1))),
+                 "artifacts/multiverse/sourced_R_files.sums")
+    }
   })
 S <- Sys.getenv("S"); stopifnot(nzchar(S))
 say <- function(...) cat(sprintf("[s11] %s\n", sprintf(...)))

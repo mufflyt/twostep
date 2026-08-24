@@ -250,12 +250,23 @@ if (length(miss)) { cat("MISSING:", paste(miss, collapse=","), "\n"); quit(statu
 # HARD GATE: every package that determines the arithmetic must resolve from the
 # frozen system library, never from a user library. A future bootstrap that
 # shadowed the pinned spatial stack would otherwise pass silently.
+# ALLOWLIST, not a blocklist: ~/Rlib may contain and resolve ONLY mufflyaccess.
+# Simpler and stronger than naming individual prohibited packages -- it catches
+# anything that appears there in future without needing to anticipate it.
+ulib <- path.expand("~/Rlib")
+present <- list.dirs(ulib, full.names=FALSE, recursive=FALSE)
+present <- present[nzchar(present)]
+extra <- setdiff(present, "mufflyaccess")
+if (length(extra)) {
+  cat("USER LIB CONTAMINATED:", paste(extra, collapse=","), "\n"); quit(status=3)
+}
+# and nothing except mufflyaccess may RESOLVE from there
+from_ulib <- Filter(function(p) identical(dirname(find.package(p)), ulib), need)
+if (!setequal(from_ulib, intersect("mufflyaccess", need))) {
+  cat("RESOLVED FROM USER LIB:", paste(from_ulib, collapse=","), "\n"); quit(status=2)
+}
 spatial <- c("sf","terra","exactextractr")
 loc <- vapply(spatial, function(p) dirname(find.package(p)), character(1))
-bad <- loc[grepl("^/home/|Rlib|[.]local", loc)]
-if (length(bad)) {
-  cat("SHADOWED:", paste(names(bad), unname(bad), sep="=", collapse=" "), "\n"); quit(status=2)
-}
 ma <- dirname(find.package("mufflyaccess"))
 writeLines(c(paste("libPaths:", paste(.libPaths(), collapse=" | ")),
              paste(spatial, unname(loc), vapply(spatial, function(p) as.character(utils::packageVersion(p)), character(1)),
@@ -267,7 +278,7 @@ writeLines(c(paste("libPaths:", paste(.libPaths(), collapse=" | ")),
 cat("packages verified, none installed, spatial stack from the frozen library\n")'
 PKG=\$?
 cat /home/ec2-user/pkgs.log 2>/dev/null
-[ \$PKG -eq 0 ] || fail "package verification failed (status \$PKG: 1=missing, 2=spatial stack shadowed by a user library)"
+[ \$PKG -eq 0 ] || fail "package verification failed (status \$PKG: 1=missing, 2=resolved from user lib, 3=user lib contaminated)"
 
 # Environment gate: a different geospatial stack produces different overlap
 # fractions, so refuse before computing anything.
@@ -394,11 +405,18 @@ json.dump({
       open("/tmp/env.txt").read().split())),
   "isochrone_checksums": open("/home/ec2-user/iso.sums").read().strip().splitlines(),
   "package_provenance": open("/home/ec2-user/pkgs.log").read().strip().splitlines(),
+  "mufflyaccess": {"version": os.environ.get("MA_VER_ENV",""),
+                   "staged_tarball_sha256": os.environ.get("MA_SHA_ENV",""),
+                   "source": "copied from the local install; pure R, not built on the instance"},
+  "sourced_R_files": (open("/home/ec2-user/proj/artifacts/multiverse/sourced_R_files.sums").read().strip().splitlines()
+                      if os.path.exists("/home/ec2-user/proj/artifacts/multiverse/sourced_R_files.sums") else
+                      ["load_all() was used; R/ was not sourced directly"]),
   "denominator_manifest_sha256": sh("sha256sum /home/ec2-user/proj/inst/multiverse/age_matched_denominator.yml | cut -d\" \" -f1"),
   "outputs": open("/home/ec2-user/out/outputs.sums").read().strip().splitlines(),
 }, open(1,"w"), indent=2)
 PY
-RID_ENV="\$RID" GIT_ENV="\$GIT" aws s3 cp /home/ec2-user/_SUCCESS.json "s3://\$B/\$RES/_SUCCESS.json" --region "\$R" || true
+RID_ENV="\$RID" GIT_ENV="\$GIT" MA_VER_ENV="\$MA_VER" MA_SHA_ENV="\$MA_SHA" \
+  aws s3 cp /home/ec2-user/_SUCCESS.json "s3://\$B/\$RES/_SUCCESS.json" --region "\$R" || true
 log "SUCCESS uploaded; shutting down"
 sudo shutdown -h +2
 REMOTE
