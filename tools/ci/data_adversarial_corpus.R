@@ -31,9 +31,33 @@ suppressWarnings(suppressMessages({
 if (!okpkg) { cat("::error::data corpus needs 'digest'\n"); quit(status = 1L) }
 if (!file.exists("DESCRIPTION")) { cat("::error::run from the repository root\n"); quit(status = 1L) }
 
+# --- which artifact are we attacking? -----------------------------------------
+# Two targets, one implementation. The self-guards below -- control must pass
+# first, every mutation must actually change the file, the artifact must be
+# restored byte-identically, a no-op is a corpus bug -- are the valuable part,
+# and a second copy of them would drift from this one silently.
+TARGET <- local({
+  a <- commandArgs(trailingOnly = TRUE)
+  i <- grep("^--target=", a)
+  if (length(i)) sub("^--target=", "", a[i[1]]) else "national_summary"
+})
+TARGETS <- c("national_summary", "panel")
+if (!TARGET %in% TARGETS) {
+  cat("::error::unknown --target: ", TARGET, " (want: ",
+      paste(TARGETS, collapse = ", "), ")\n", sep = ""); quit(status = 1L)
+}
 RUN <- "artifacts/2sfca/ec2/e2sfca_20260712_190734"
-NS  <- file.path(RUN, "e2sfca_national_summary.csv")
-DETECTOR <- "tools/ci/check_scientific_invariants.R"
+if (TARGET == "national_summary") {
+  NS       <- file.path(RUN, "e2sfca_national_summary.csv")
+  DETECTOR <- "tools/ci/check_scientific_invariants.R"
+} else {
+  # Same override the detector honours, so the panel family can be validated
+  # against a synthetic panel before ten hours of compute produces the real one.
+  # CI never sets it.
+  NS       <- Sys.getenv("E2SFCA_PANEL_CSV",
+                         "artifacts/2sfca/agematched_panel/age_matched_panel.csv")
+  DETECTOR <- "tools/ci/check_panel_invariants.R"
+}
 for (f in c(NS, DETECTOR)) if (!file.exists(f)) {
   cat("::error::missing ", f, "\n", sep = ""); quit(status = 1L)
 }
@@ -129,13 +153,77 @@ MUTANTS <- list(
 )
 
 # ---------------------------------------------------------------------------
+# The panel family. Each corruption is a lie the 11-year panel could plausibly
+# tell after a legitimate re-run, and each is aimed at one invariant in
+# check_panel_invariants.R -- an invariant with no mutant is unvalidated.
+PANEL_MUTANTS <- list(
+  list(id = "cell_dropped",
+       what = "Delete one (year, regime, subspecialty) cell.",
+       why  = "That cell leaves every trend and every mean silently, and the
+               remaining years still look internally consistent.",
+       f = function(d) d[-which(d$year == d$year[5])[1], ]),
+
+  list(id = "cell_duplicated",
+       what = "Duplicate one cell.",
+       why  = "Double-counts it in any aggregate without changing any value.",
+       f = function(d) rbind(d, d[3, ])),
+
+  list(id = "derived_ratio_detached",
+       what = "Move rural_metro_ratio away from rural/metro.",
+       why  = "The reported disparity stops being the ratio of the numbers it is
+               reported beside, so the table contradicts itself.",
+       f = function(d) { d$rural_metro_ratio[2] <- d$rural_metro_ratio[2] * 1.05; d }),
+
+  list(id = "all_ages_denominator_varies",
+       what = "Change one subspecialty's all-ages denominator within a year.",
+       why  = "The all-ages arm is ONE population by construction. If it differs
+               by subspecialty the comparison arm was not held fixed, and every
+               age-matched contrast for that year is meaningless while looking
+               entirely reasonable.",
+       f = function(d) { i <- which(d$regime == "all_ages")[1]
+                         d$denominator[i] <- d$denominator[i] * 0.97; d }),
+
+  list(id = "age_window_exceeds_all_ages",
+       what = "Make an age-matched denominator larger than the all-ages one.",
+       why  = "An age window is a subset of all ages; its denominator cannot be
+               bigger than the population it is drawn from.",
+       f = function(d) { i <- which(d$regime == "age_matched")[1]
+                         d$denominator[i] <- max(d$denominator) * 2; d }),
+
+  list(id = "negative_access",
+       what = "Make one national access value negative.",
+       why  = "Accessibility is supply over demand; it cannot be below zero.",
+       f = function(d) { d$national[4] <- -1; d }),
+
+  list(id = "iso_origins_exceed_supply",
+       what = "Report more isochrone origins than supply origins.",
+       why  = "Origins that reached a catchment cannot outnumber the origins
+               that existed, so the supply accounting is wrong.",
+       f = function(d) { d$n_iso_origins[1] <- d$n_supply_origins[1] + 5L; d }),
+
+  list(id = "regime_label_mismatch",
+       what = "Label an all-ages row with a restricted age range.",
+       why  = "The two arms differ only by denominator. If the labels disagree
+               with the regime, the arms have been mixed up somewhere.",
+       f = function(d) { i <- which(d$regime == "all_ages")[1]
+                         d$age_range[i] <- "under 20"; d }),
+
+  list(id = "year_gap",
+       what = "Move one year out of the contiguous range.",
+       why  = "A gap in the panel breaks every decade-scale comparison while
+               each remaining year stays individually valid.",
+       f = function(d) { y <- sort(unique(d$year))[2]; d$year[d$year == y] <- 2099L; d })
+)
+if (TARGET == "panel") MUTANTS <- PANEL_MUTANTS
+
+# ---------------------------------------------------------------------------
 run_detector <- function() {
   out <- suppressWarnings(system2("Rscript", DETECTOR, stdout = TRUE, stderr = TRUE))
   st  <- attr(out, "status")
   list(failed = !is.null(st) && st != 0L, output = out)
 }
 
-cat("Data-adversarial corpus\n")
+cat(sprintf("Data-adversarial corpus [%s]\n", TARGET))
 cat("  artifact: ", NS, "\n", sep = "")
 cat("  detector: ", DETECTOR, " (the hash gate is deliberately NOT used)\n", sep = "")
 cat("  mutants:  ", length(MUTANTS), "\n\n", sep = "")
