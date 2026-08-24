@@ -119,6 +119,8 @@ tar czf "$TAR" -C "$PROJECT_ROOT" \
   R scripts/manuscript_e2sfca_values.R tools/multiverse tools/ci inst/multiverse DESCRIPTION NAMESPACE
 say "code bundle $(du -h "$TAR" | cut -f1)"
 aws s3 cp "$TAR" "s3://$BUCKET/$PFX/inputs/am_code.tar.gz" --region "$REGION" --no-progress
+[ "$(stat -f%z "$TAR")" = "$(aws s3api head-object --bucket "$BUCKET" --key "$PFX/inputs/am_code.tar.gz" --region "$REGION" --query ContentLength --output text 2>/dev/null || echo -1)" ] \
+  || { say "ERROR: code bundle upload did not land"; exit 1; }
 
 IN=/tmp/am_inputs.tar.gz
 # sensitivity_2020.csv is the GATE'S REFERENCE and must travel with the inputs.
@@ -129,7 +131,22 @@ GATE_REF="artifacts/2sfca/sensitivity/sensitivity_2020.csv"
 tar czf "$IN" "$CACHE" artifacts/2sfca/agematched_panel/sup \
   artifacts/multiverse/age_matched_results.csv "$GATE_REF"
 say "input bundle $(du -h "$IN" | cut -f1)"
-aws s3 cp "$IN" "s3://$BUCKET/$PFX/inputs/am_inputs.tar.gz" --region "$REGION" --no-progress
+# MULTIPART, NOT `s3 cp`. scripts/s3_multipart_put.sh exists because this
+# environment SILENTLY DROPS s3 cp / put-object above ~16 MB -- its own header
+# says so. A plain cp of this 224 MB bundle produced no output, no error, and no
+# object: the instance then downloaded a stale tarball from a previous run and
+# failed its input preflight. set -e cannot catch an upload that "succeeds".
+bash scripts/s3_multipart_put.sh "$IN" "$BUCKET" "$PFX/inputs/am_inputs.tar.gz" "$REGION" \
+  || { say "ERROR: multipart upload of the input bundle failed"; exit 1; }
+
+# Verify what actually landed, the way ec2_run_2sfca.sh does: re-read the object
+# size from S3 and require it to match the local file. Uploading and hoping is
+# what cost the last two runs.
+LOCAL_SZ=$(stat -f%z "$IN")
+S3_SZ=$(aws s3api head-object --bucket "$BUCKET" --key "$PFX/inputs/am_inputs.tar.gz" \
+        --region "$REGION" --query ContentLength --output text 2>/dev/null || echo -1)
+[ "$LOCAL_SZ" = "$S3_SZ" ] || { say "ERROR: uploaded bundle is $S3_SZ bytes, local is $LOCAL_SZ"; exit 1; }
+say "input bundle verified in S3 ($S3_SZ bytes)"
 # mufflyaccess is the study's own SSOT package (scenario dictionary, projection
 # contract, DENOMINATOR_CATEGORY) and six R/ files require it -- so the analysis
 # genuinely needs it, and the run fails without it. It is PURE R with no compiled
