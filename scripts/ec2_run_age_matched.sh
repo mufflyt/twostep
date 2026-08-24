@@ -125,6 +125,18 @@ tar czf "$IN" "$CACHE" artifacts/2sfca/agematched_panel/sup \
   artifacts/multiverse/age_matched_results.csv
 say "input bundle $(du -h "$IN" | cut -f1)"
 aws s3 cp "$IN" "s3://$BUCKET/$PFX/inputs/am_inputs.tar.gz" --region "$REGION" --no-progress
+# mufflyaccess is the study's own SSOT package (scenario dictionary, projection
+# contract, DENOMINATOR_CATEGORY) and six R/ files require it -- so the analysis
+# genuinely needs it, and the run fails without it. It is PURE R with no compiled
+# code, so ship the installed copy at the exact version this analysis uses rather
+# than building it on the instance. Verified loading under R 4.5.1 there.
+MA_LIB="$(R_PROFILE_USER=/dev/null Rscript -e 'cat(find.package("mufflyaccess"))' 2>/dev/null | tail -1)"
+[ -d "$MA_LIB" ] || { say "ERROR: mufflyaccess not installed locally; cannot stage it"; exit 1; }
+MA_VER="$(R_PROFILE_USER=/dev/null Rscript -e 'cat(as.character(packageVersion("mufflyaccess")))' 2>/dev/null | tail -1)"
+COPYFILE_DISABLE=1 tar czf /tmp/mufflyaccess.tar.gz -C "$(dirname "$MA_LIB")" mufflyaccess
+MA_SHA="$(shasum -a 256 /tmp/mufflyaccess.tar.gz | awk '{print $1}')"
+say "staging mufflyaccess $MA_VER (sha256 ${MA_SHA:0:16}...)"
+aws s3 cp /tmp/mufflyaccess.tar.gz "s3://$BUCKET/$PFX/inputs/mufflyaccess.tar.gz" --region "$REGION" --no-progress
 aws s3 cp "$RUCA_2020" "s3://$BUCKET/$PFX/inputs/ruca_tract_mapping.csv" --region "$REGION" --no-progress
 aws s3 cp "$RUCA_2010" "s3://$BUCKET/$PFX/inputs/ruca_tract_mapping_2010.csv" --region "$REGION" --no-progress
 
@@ -167,6 +179,7 @@ ssh $SSH_OPTS "ec2-user@$PUBLIC_IP" "cat > /home/ec2-user/run_am.sh" <<REMOTE
 set -uo pipefail
 B="$BUCKET"; R="$REGION"; P="$PFX"; RES="$RESULTS"; RID="$RUN_ID"; J="$JOBS"
 ISO="$ISO_PFX"; GIT="$GIT_SHA"
+MA_VER="$MA_VER"; MA_SHA="$MA_SHA"
 EXP_R="$EXP_R"; EXP_SF="$EXP_SF"; EXP_TERRA="$EXP_TERRA"; EXP_EXR="$EXP_EXR"
 EXP_GEOS="$EXP_GEOS"; EXP_GDAL="$EXP_GDAL"; EXP_PROJ="$EXP_PROJ"
 cd /home/ec2-user
@@ -213,13 +226,25 @@ for b in 30 60 120 180; do
 done
 log "isochrones byte-identical to the primary analysis"
 
-# NOTHING IS INSTALLED AT RUNTIME. An earlier version installed pkgload into a
+# The study's SSOT package, shipped at the pinned version. This goes into a USER
+# library so it cannot shadow anything in the frozen system library; the gate
+# below proves the spatial stack still resolves from the frozen one.
+aws s3 cp "s3://\$B/\$P/inputs/mufflyaccess.tar.gz" . --region "\$R" || fail "mufflyaccess download"
+got_ma=\$(sha256sum mufflyaccess.tar.gz | awk '{print \$1}')
+[ "\$got_ma" = "\$MA_SHA" ] || fail "mufflyaccess hash mismatch: got \$got_ma want \$MA_SHA"
+mkdir -p /home/ec2-user/Rlib
+tar xzf mufflyaccess.tar.gz -C /home/ec2-user/Rlib || fail "mufflyaccess extract"
+export R_LIBS_USER=/home/ec2-user/Rlib
+log "mufflyaccess \$MA_VER staged into a user library (hash verified)"
+
+# NOTHING ELSE IS INSTALLED AT RUNTIME. An earlier version installed pkgload into a
 # user library; that is now unnecessary (the runner sources R/ directly when no
 # loader is present) and it was undesirable -- any runtime install weakens the
 # claim that the spatial computation ran in the same environment as the frozen
 # primary analysis. Verify what is here, install nothing.
 Rscript -e '
-need <- c("dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
+.libPaths(c(path.expand("~/Rlib"), .libPaths()))
+need <- c("dplyr","tidyr","yaml","digest","sf","terra","exactextractr","mufflyaccess")
 miss <- need[!vapply(need, requireNamespace, logical(1), quietly=TRUE)]
 if (length(miss)) { cat("MISSING:", paste(miss, collapse=","), "\n"); quit(status=1) }
 # HARD GATE: every package that determines the arithmetic must resolve from the
@@ -231,10 +256,14 @@ bad <- loc[grepl("^/home/|Rlib|[.]local", loc)]
 if (length(bad)) {
   cat("SHADOWED:", paste(names(bad), unname(bad), sep="=", collapse=" "), "\n"); quit(status=2)
 }
+ma <- dirname(find.package("mufflyaccess"))
 writeLines(c(paste("libPaths:", paste(.libPaths(), collapse=" | ")),
              paste(spatial, unname(loc), vapply(spatial, function(p) as.character(utils::packageVersion(p)), character(1)),
                    sep="@", collapse="; "),
-             "runtime_installs: none"), "/home/ec2-user/pkgs.log")
+             paste0("mufflyaccess@", ma, "@", as.character(utils::packageVersion("mufflyaccess")),
+                    " (shipped from the local install, hash-verified; pure R, not built here)"),
+             "runtime_installs: none (mufflyaccess was copied, not compiled)",
+             "spatial_stack_source: frozen system library"), "/home/ec2-user/pkgs.log")
 cat("packages verified, none installed, spatial stack from the frozen library\n")'
 PKG=\$?
 cat /home/ec2-user/pkgs.log 2>/dev/null
