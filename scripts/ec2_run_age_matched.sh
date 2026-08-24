@@ -121,8 +121,13 @@ say "code bundle $(du -h "$TAR" | cut -f1)"
 aws s3 cp "$TAR" "s3://$BUCKET/$PFX/inputs/am_code.tar.gz" --region "$REGION" --no-progress
 
 IN=/tmp/am_inputs.tar.gz
+# sensitivity_2020.csv is the GATE'S REFERENCE and must travel with the inputs.
+# It did not, and the run computed 14 cells over an hour before the comparison
+# failed on a missing file.
+GATE_REF="artifacts/2sfca/sensitivity/sensitivity_2020.csv"
+[ -f "$GATE_REF" ] || { say "ERROR: gate reference missing locally: $GATE_REF"; exit 1; }
 tar czf "$IN" "$CACHE" artifacts/2sfca/agematched_panel/sup \
-  artifacts/multiverse/age_matched_results.csv
+  artifacts/multiverse/age_matched_results.csv "$GATE_REF"
 say "input bundle $(du -h "$IN" | cut -f1)"
 aws s3 cp "$IN" "s3://$BUCKET/$PFX/inputs/am_inputs.tar.gz" --region "$REGION" --no-progress
 # mufflyaccess is the study's own SSOT package (scenario dictionary, projection
@@ -296,6 +301,22 @@ for pair in "\${E[0]}:\$EXP_R" "\${E[1]}:\$EXP_SF" "\${E[2]}:\$EXP_TERRA" "\${E[
 done
 log "environment matches the seam-validated stack"
 
+# Verify every input the run will need BEFORE computing anything. The previous
+# attempt spent an hour on 14 cells and then died because the gate's reference
+# file had never been uploaded. Inputs are cheap to check; compute is not.
+for f in artifacts/2sfca/sensitivity/sensitivity_2020.csv \
+         artifacts/multiverse/age_matched_results.csv \
+         inst/multiverse/age_matched_denominator.yml \
+         inst/multiverse/age_matched_denominator.sha256; do
+  [ -f "\$f" ] || fail "required input missing on the instance: \$f"
+done
+for y in 2013 2014 2015 2016 2017 2018 2019 2020 2021 2022 2023; do
+  d="artifacts/2sfca/sensitivity/cache/age_matched_denominators_\$y.rds"
+  [ "\$y" = "2020" ] && d="artifacts/2sfca/sensitivity/cache/age_matched_denominators.rds"
+  [ -f "\$d" ] || fail "denominators missing for \$y"
+done
+log "all analysis inputs present on the instance"
+
 export S=artifacts/2sfca/agematched_panel
 export E2SFCA_ISO_DIR=/home/ec2-user/proj/iso
 run_year(){
@@ -339,7 +360,7 @@ drop <- m\$n_supply_origins - m\$n_iso_origins
 if (any(drop > 0)) {
   cat("SUPPLY DROPPED for:", paste(m\$subspec[drop>0], collapse=","), "\n"); quit(status=4)
 }
-if (max(m\$rel) > 1e-3) quit(status=3)' GS=\$?
+if (max(m\$rel) > 1e-3) quit(status=3)' GS=\${?:-1}
 cat /home/ec2-user/gate.txt
 aws s3 cp /home/ec2-user/gate.txt "s3://\$B/\$RES/gate_2020.txt" --region "\$R" || true
 [ \$GS -eq 0 ] || fail "EC2 could not reproduce the committed 2020 results (status \$GS) -- the panel would not be comparable"
