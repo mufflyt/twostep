@@ -172,14 +172,20 @@ EXP_GEOS="$EXP_GEOS"; EXP_GDAL="$EXP_GDAL"; EXP_PROJ="$EXP_PROJ"
 cd /home/ec2-user
 log(){ echo "[remote] \$*"; }
 fail(){ log "FAILED: \$*"
-  python3 - "\$*" <<'PY' > /home/ec2-user/_FAILED.json
-import json,sys,datetime
-json.dump({"status":"FAILED","run_id":"'"$RUN_ID"'","reason":sys.argv[1],
-           "when":datetime.datetime.utcnow().isoformat()}, open(1,"w"), indent=2)
-PY
+  # Plain printf, not a nested Python heredoc. The previous version interpolated
+  # the run id through three quoting layers, raised a Python SyntaxError, and
+  # wrote a ZERO-BYTE _FAILED.json -- so the failure reported nothing about itself.
+  printf '{\n  "status": "FAILED",\n  "run_id": "%s",\n  "reason": "%s",\n  "when": "%s"\n}\n' \
+    "\$RID" "\$*" "\$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /home/ec2-user/_FAILED.json
+  # Upload EVERY log. The last run failed inside year_2020.log, which was never
+  # uploaded, and the instance terminated holding the only copy of the error.
+  cp /home/ec2-user/run_am.out /home/ec2-user/run_am.log 2>/dev/null || true
+  for f in /home/ec2-user/*.log /home/ec2-user/*.txt; do
+    [ -f "\$f" ] && aws s3 cp "\$f" "s3://\$B/\$RES/logs/\$(basename \$f)" --region "\$R" >/dev/null 2>&1 || true
+  done
   aws s3 cp /home/ec2-user/_FAILED.json "s3://\$B/\$RES/_FAILED.json" --region "\$R" || true
-  aws s3 cp /home/ec2-user/run_am.out   "s3://\$B/\$RES/run_am.log"   --region "\$R" || true
-  sudo shutdown -h +2; exit 1; }
+  # 20 minutes, not 2: a real window to SSH in and look before it vanishes.
+  sudo shutdown -h +20; exit 1; }
 
 mkdir -p proj && cd proj
 aws s3 cp "s3://\$B/\$P/inputs/am_code.tar.gz"   . --region "\$R" || fail "code download"
@@ -206,6 +212,27 @@ for b in 30 60 120 180; do
   [ "\$got" = "\${ISOSHA[\$b]}" ] || fail "isochrone \$b hash mismatch: got \$got want \${ISOSHA[\$b]} -- NOT the geography the primary analysis used"
 done
 log "isochrones byte-identical to the primary analysis"
+
+# The AMI was built for run_2sfca.R. The age-matched runner additionally needs
+# devtools (for load_all) and tidyr, which may not be present -- that is exactly
+# what killed the previous run, and the error sat in a log that never got
+# uploaded. Install ONLY what is missing, and record it.
+Rscript -e '
+need <- c("devtools","pkgload","dplyr","tidyr","yaml","digest","sf","terra","exactextractr")
+miss <- need[!vapply(need, requireNamespace, logical(1), quietly=TRUE)]
+cat("missing:", if (length(miss)) paste(miss, collapse=",") else "none", "\n")
+if (length(miss)) {
+  install.packages(miss, repos="https://packagemanager.posit.co/cran/__linux__/amazonlinux2023/latest")
+  still <- miss[!vapply(miss, requireNamespace, logical(1), quietly=TRUE)]
+  if (length(still)) { cat("STILL MISSING:", paste(still, collapse=","), "\n"); quit(status=1) }
+}
+cat("packages ok\n")' > /home/ec2-user/pkgs.log 2>&1
+PKG=\$?
+tail -3 /home/ec2-user/pkgs.log
+[ \$PKG -eq 0 ] || fail "required R packages could not be installed"
+# Only non-numeric tooling is installed here. Everything that determines the
+# arithmetic -- sf, terra, exactextractr, GEOS, GDAL, PROJ -- is pinned and
+# verified by the gate below, so this cannot move a result.
 
 # Environment gate: a different geospatial stack produces different overlap
 # fractions, so refuse before computing anything.
@@ -236,7 +263,10 @@ run_year(){
 # ---- THE GATE: reproduce 2020 before computing anything new ----------------
 cp artifacts/multiverse/age_matched_results.csv /home/ec2-user/committed_2020.csv
 log "gate: reproducing 2020 on this instance"
-run_year 2020 || fail "2020 reproduction run errored"
+if ! run_year 2020; then
+  log "---- year_2020.log (tail) ----"; tail -40 /home/ec2-user/year_2020.log || true
+  fail "2020 reproduction run errored (see logs/year_2020.log)"
+fi
 Rscript -e '
 a <- read.csv("/home/ec2-user/committed_2020.csv", stringsAsFactors=FALSE)
 b <- read.csv("artifacts/multiverse/age_matched_results.csv", stringsAsFactors=FALSE)
