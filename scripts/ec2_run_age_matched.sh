@@ -316,8 +316,12 @@ fi
 Rscript -e '
 a <- read.csv("/home/ec2-user/committed_2020.csv", stringsAsFactors=FALSE)
 b <- read.csv("artifacts/multiverse/age_matched_results.csv", stringsAsFactors=FALSE)
+# Everything the results carry, not just the headline. Origin counts are
+# compared as EXACT integers -- they are provider/isochrone accounting, and a
+# tolerance would be meaningless there.
 k <- c("regime","subspec","denominator","national","metro","rural","white","aian",
-       "rural_metro_ratio","aian_white_ratio")
+       "rural_metro_ratio","aian_white_ratio","n_supply_origins","n_iso_origins")
+k <- intersect(k, intersect(names(a), names(b)))
 a <- a[order(a\$regime,a\$subspec), k]; b <- b[order(b\$regime,b\$subspec), k]
 stopifnot(nrow(a)==nrow(b))
 num <- sapply(a, is.numeric)
@@ -325,7 +329,14 @@ d <- max(abs(as.matrix(a[,num]) - as.matrix(b[,num])) /
          pmax(abs(as.matrix(a[,num])), 1e-12))
 cat(sprintf("max relative deviation: %.3e\n", d))
 if (!identical(a\$regime,b\$regime) || !identical(a\$subspec,b\$subspec)) quit(status=2)
-if (d > 1e-6) quit(status=3)' > /home/ec2-user/gate.txt 2>&1
+if (d > 1e-6) quit(status=3)
+# exact integer identity for the accounting columns
+for (cc in c("n_supply_origins","n_iso_origins")) {
+  if (cc %in% names(a) && !identical(as.integer(a[[cc]]), as.integer(b[[cc]]))) {
+    cat("origin-count mismatch in ", cc, "\n"); quit(status=6)
+  }
+}
+cat("age_range labels identical: ", identical(a\$age_range, b\$age_range), "\n")' > /home/ec2-user/gate.txt 2>&1
 GS=\$?
 cat /home/ec2-user/gate.txt
 aws s3 cp /home/ec2-user/gate.txt "s3://\$B/\$RES/gate_2020.txt" --region "\$R" || true
