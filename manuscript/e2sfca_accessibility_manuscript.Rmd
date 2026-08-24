@@ -271,6 +271,25 @@ top_gain <- change_tbl |> dplyr::arrange(dplyr::desc(rel_change_pct)) |>
   dplyr::slice(1)
 decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
   dplyr::arrange(rel_change_pct)
+# ---- age-matched denominators (prespecified; hash-frozen before any outcome) --
+# Loaded HERE rather than in the Results chunk because the Introduction and the
+# Discussion both state the magnitude of the shared-denominator effect, and a
+# number quoted in three places must come from one source. Fails loud: this is a
+# committed artifact, and a Results subsection whose table silently vanished is
+# exactly the failure mode the appendix render guard exists to prevent.
+.am_path <- here::here("artifacts", "multiverse", "age_matched_results.csv")
+if (!file.exists(.am_path))
+  stop("age-matched results missing: ", .am_path)
+am_raw   <- utils::read.csv(.am_path, stringsAsFactors = FALSE)
+am_all   <- am_raw[am_raw$regime == "all_ages", ];    rownames(am_all) <- am_all$subspec
+am_age   <- am_raw[am_raw$regime == "age_matched", ]; rownames(am_age) <- am_age$subspec
+am_order <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
+am_order <- am_order[am_order %in% rownames(am_all) & am_order %in% rownames(am_age)]
+# alpha: the share of the all-ages denominator each age window retains
+am_alpha <- stats::setNames(
+  am_age[am_order, "denominator"] / am_all[am_order, "denominator"], am_order)
+am_lo    <- names(which.min(am_alpha)); am_hi <- names(which.max(am_alpha))
+
 full_name <- c(GO="gynecologic oncology", MFM="maternal-fetal medicine",
   REI="reproductive endocrinology and infertility",
   FPMRS="urogynecology and reconstructive pelvic surgery",
@@ -610,7 +629,12 @@ female population, differences *between* subspecialties reflect workforce size a
 clinical scope as much as access, and the low indices for complex family planning and
 pediatric and adolescent gynecology are in part a consequence of that shared
 denominator rather than a statement about access among the patients those fields
-actually serve. We quantify that contribution directly.
+actually serve. The size of that effect is not small: the fraction of the common
+denominator that is actually age-eligible ranges from
+`r pp1(100*am_alpha[[am_lo]])`% for `r full_name[[am_lo]]` to
+`r pp1(100*am_alpha[[am_hi]])`% for `r full_name[[am_hi]]`, so the two fields are
+not being measured against comparable populations. We quantify that contribution
+directly, in a prespecified analysis reported alongside the primary results.
 
 We characterized national accessibility levels and temporal trends by subspecialty and quantified disparities by rurality and by race and ethnicity, with
 gynecologic oncology designated a priori as the detailed exemplar, both because timely
@@ -975,21 +999,10 @@ estimands were prespecified and hash-frozen before any outcome was computed
 (eMethods).
 
 ```{r age-matched-main, results="asis"}
-# here::here(), not a relative path: knitr resolves chunk paths from the Rmd's
-# directory, so "artifacts/..." looks for manuscript/artifacts/ and the chunk
-# silently emits nothing. Every other artifact read in this file uses here::here().
-.amp <- here::here("artifacts", "multiverse", "age_matched_results.csv")
-if (!file.exists(.amp))
-  stop("age-matched results missing: ", .amp,
-       "\n  This section cannot be rendered without them; refusing to emit a ",
-       "Results subsection with its table silently absent.")
 {
-  .r  <- utils::read.csv(.amp, stringsAsFactors = FALSE)
-  .aa <- .r[.r$regime == "all_ages", ];    rownames(.aa) <- .aa$subspec
-  .am <- .r[.r$regime == "age_matched", ]; rownames(.am) <- .am$subspec
-  .o  <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
-  .o  <- .o[.o %in% rownames(.aa) & .o %in% rownames(.am)]
-  .al <- .am[.o, "denominator"] / .aa[.o, "denominator"]
+  # Loaded once in setup so the Introduction, this table, and the Discussion all
+  # quote the same numbers from the same source.
+  .aa <- am_all; .am <- am_age; .o <- am_order; .al <- unname(am_alpha)
   .tab <- data.frame(
     Subspecialty = unname(full_name[.o]),
     `Age window` = .am[.o, "age_range"],
@@ -1005,8 +1018,8 @@ if (!file.exists(.amp))
     "artifacts of the shared denominator. The *ordering* of subspecialties did not ",
     "survive, however -- %s and %s exchanged rank once each was indexed to the ",
     "population it serves.\n"),
-    pp1(100 * min(.al)), full_name[[.o[which.min(.al)]]],
-    pp1(100 * max(.al)), full_name[[.o[which.max(.al)]]],
+    pp1(100 * am_alpha[[am_lo]]), full_name[[am_lo]],
+    pp1(100 * am_alpha[[am_hi]]), full_name[[am_hi]],
     acc2(max(.am[.o, "rural_metro_ratio"])), acc2(max(.am[.o, "aian_white_ratio"])),
     full_name[["GO"]], full_name[["REI"]]))
 }
