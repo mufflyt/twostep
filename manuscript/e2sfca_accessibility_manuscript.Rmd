@@ -992,11 +992,28 @@ The share of women outside any modeled catchment ("access deserts") varied widel
 
 ### Age-matched demand denominators
 
+This is a **sensitivity analysis, not a replacement estimand.** The universal
+denominator gives a standardized comparison of workforce reachability across
+subspecialties; the age-matched denominator asks a different and narrower question,
+namely whether the substantive conclusions persist when demand is restricted to the
+age groups a field actually serves. The primary analysis is unchanged.
+
 Because the primary index holds the denominator constant, we re-ran the entire
 pipeline with each subspecialty indexed instead to the age range it plausibly serves,
-changing nothing else. The age windows, the ACS variables implementing them, and the
-estimands were prespecified and hash-frozen before any outcome was computed
-(eMethods).
+changing nothing else: the same subspecialists, the same drive-time isochrones, the
+same road-network geography, and the same computational engine. The age windows, the
+ACS variables implementing them, and the estimands were prespecified and hash-frozen
+before any outcome was computed (eMethods).
+
+Two windows are aligned to Census age-band edges rather than to the intuitive
+clinical cutoff: pediatric and adolescent gynecology is analyzed as under 20 rather
+than under 21, and complex family planning as under 35 rather than under 40. The
+American Community Survey reports age in fixed categories, and a window that splits a
+category could only be met by interpolating within it, which would impose a
+uniform-age-distribution assumption inside the split band. Shifting to an exact band
+edge keeps every denominator a sum of published counts rather than an estimate; the
+direction and size of each shift, and the alternative considered, are given in
+Supplemental Digital Content.
 
 ```{r age-matched-main, results="asis"}
 {
