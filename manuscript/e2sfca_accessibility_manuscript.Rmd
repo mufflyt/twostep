@@ -1023,6 +1023,15 @@ same road-network geography, and the same computational engine. The age windows,
 ACS variables implementing them, and the estimands were prespecified and hash-frozen
 before any outcome was computed (eMethods).
 
+Sensitivity analyses were required to conserve the complete subspecialty supply
+at each analytic step. Every provider origin entering the accessibility model must
+have an associated drive-time catchment; the analysis fails closed and names the
+offending origins if any does not, preventing silent loss of supply from entering
+age-restricted accessibility estimates. This invariant is enforced in the
+pipeline rather than checked by inspection, because supply with no catchment
+contributes to no one's access and deflates every downstream mean while leaving
+each individual value looking plausible.
+
 Two windows are aligned to Census age-band edges rather than to the intuitive
 clinical cutoff: pediatric and adolescent gynecology is analyzed as under 20 rather
 than under 21, and complex family planning as under 35 rather than under 40. The

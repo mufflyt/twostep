@@ -256,6 +256,22 @@ across space without creating or destroying it. This holds separately under each
 denominator regime, with $P_i^{(s)}$ substituted throughout; it is verified
 numerically in the package test suite rather than assumed here.
 
+### 4b. Supply conservation
+
+Age-restricted accessibility estimates are only meaningful if the supply side is
+complete. Every provider origin entering the model must have an associated
+drive-time catchment. The pipeline fails closed if any does not, naming the
+offending origins and quantifying the supply they carry, rather than dropping
+them and continuing.
+
+This is enforced rather than assumed because the failure mode is silent: supply
+with no catchment contributes to no one's accessibility, so it deflates every
+downstream mean while each individual value still looks plausible. An earlier
+version of this analysis dropped unmatched origins by configuration and landed
+0.786% below the frozen reference for gynecologic oncology, with the loss visible
+only in a column that nothing compared. All results reported here come from runs
+in which supply is fully conserved.
+
 ### 5. Validation of the denominators
 
 Three checks were run before any accessibility computation.
