@@ -52,6 +52,12 @@ JOBS="${PANEL_JOBS:-4}"
 # comparable to the committed 2020 numbers.
 EXP_R="4.5.1"; EXP_SF="1.1.1"; EXP_TERRA="1.9.34"; EXP_EXR="0.10.1"
 EXP_GEOS="3.13.0"; EXP_GDAL="3.10.3"; EXP_PROJ="9.6.2"
+# Isochrone content hashes, lifted from the frozen run's _SUCCESS.json. These are
+# what make "same computational geography" a checkable claim rather than a hope.
+ISO30="917d60e3e9f2f5c6a6c5f94d5024b71c050f2b700a6506ba642b23186aa38ea7"
+ISO60="3ce5041be6e81ea6b047125f3f5542abbab4de9c4cd6351183dd68fb5128a29d"
+ISO120="e6bc2ae5af32ea8b474509a95016fbbbab7741d2b9ddb43c75ed9b7db2df1127"
+ISO180="4bfbd5c29814cc2cde4910b1a5bb00277f68c74b3258fe453b29a8e6ab80c99d"
 SSH_OPTS="-i $KEY_PATH -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=6"
 say(){ echo "[ec2-am] $*"; }
 
@@ -188,6 +194,18 @@ for b in 30 60 120 180; do
   aws s3 cp "s3://\$B/\$ISO/isochrones_\${b}min_consolidated.rds" "iso/" --region "\$R" --no-progress \
     || fail "isochrone \$b download"
 done
+# The whole defensibility argument is that the computational geography is
+# IDENTICAL to the primary analysis and only the denominator changed. That is a
+# claim about bytes, so verify it rather than assert it. Hashes come from the
+# frozen run's own _SUCCESS.json input_checksums.
+declare -A ISOSHA=( [30]="$ISO30" [60]="$ISO60" [120]="$ISO120" [180]="$ISO180" )
+: > /home/ec2-user/iso.sums
+for b in 30 60 120 180; do
+  got=\$(sha256sum "iso/isochrones_\${b}min_consolidated.rds" | awk '{print \$1}')
+  echo "\$got  isochrones_\${b}min_consolidated.rds" >> /home/ec2-user/iso.sums
+  [ "\$got" = "\${ISOSHA[\$b]}" ] || fail "isochrone \$b hash mismatch: got \$got want \${ISOSHA[\$b]} -- NOT the geography the primary analysis used"
+done
+log "isochrones byte-identical to the primary analysis"
 
 # Environment gate: a different geospatial stack produces different overlap
 # fractions, so refuse before computing anything.
@@ -259,6 +277,30 @@ Rscript tools/ci/check_panel_invariants.R > /home/ec2-user/invariants.log 2>&1
 IV=\$?
 cat /home/ec2-user/invariants.log
 
+# Prove the panel is the AGE-MATCHED analysis and not eleven copies of the
+# universal denominator: both regimes present in every year, and the age-matched
+# denominator must actually DIFFER from all-ages for every subspecialty except
+# where the window genuinely covers everyone.
+Rscript -e '
+p <- read.csv("artifacts/2sfca/agematched_panel/age_matched_panel.csv", stringsAsFactors=FALSE)
+stopifnot(setequal(unique(p\$regime), c("all_ages","age_matched")))
+yrs <- sort(unique(p\$year)); subs <- unique(p\$subspec)
+for (y in yrs) for (r in c("all_ages","age_matched"))
+  stopifnot(length(unique(p\$subspec[p\$year==y & p\$regime==r])) == length(subs))
+aa <- p[p\$regime=="all_ages",]; am <- p[p\$regime=="age_matched",]
+k <- paste(am\$year, am\$subspec); ref <- setNames(aa\$denominator, paste(aa\$year, aa\$subspec))
+share <- am\$denominator / ref[k]
+cat(sprintf("age-eligible share: min %.3f max %.3f over %d cells\n",
+            min(share), max(share), length(share)))
+if (max(share) >= 0.999) quit(status=4)   # an age window covering everyone means
+                                          # the universal denominator leaked in
+if (any(share <= 0)) quit(status=5)
+cat(sprintf("tracts: %d years x %d subspecialties x 2 regimes = %d rows\n",
+            length(yrs), length(subs), nrow(p)))' > /home/ec2-user/panel_assertions.txt 2>&1
+PA=\$?
+cat /home/ec2-user/panel_assertions.txt
+[ \$PA -eq 0 ] || fail "panel assertions failed (status \$PA) -- the denominators may not be the age-matched ones"
+
 OUTD=/home/ec2-user/out; mkdir -p \$OUTD
 cp artifacts/2sfca/agematched_panel/age_matched_panel.csv \$OUTD/ 2>/dev/null
 cp artifacts/2sfca/agematched_panel/provenance.json       \$OUTD/ 2>/dev/null
@@ -281,6 +323,12 @@ json.dump({
   "instance_type": sh("curl -s --max-time 3 http://169.254.169.254/latest/meta-data/instance-type"),
   "ami": sh("curl -s --max-time 3 http://169.254.169.254/latest/meta-data/ami-id"),
   "gate_2020": open("/home/ec2-user/gate.txt").read().strip(),
+  "panel_assertions": open("/home/ec2-user/panel_assertions.txt").read().strip(),
+  "environment": dict(zip(
+      ["r","sf","terra","exactextractr","geos","gdal","proj"],
+      open("/tmp/env.txt").read().split())),
+  "isochrone_checksums": open("/home/ec2-user/iso.sums").read().strip().splitlines(),
+  "denominator_manifest_sha256": sh("sha256sum /home/ec2-user/proj/inst/multiverse/age_matched_denominator.yml | cut -d\" \" -f1"),
   "outputs": open("/home/ec2-user/out/outputs.sums").read().strip().splitlines(),
 }, open(1,"w"), indent=2)
 PY
