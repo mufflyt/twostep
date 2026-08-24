@@ -98,6 +98,14 @@ jobs:
       # not possibly be right.
       - name: Scientific invariants on the frozen artifacts
         run: Rscript tools/ci/check_scientific_invariants.R
+      # Supply conservation. Every origin entering E2SFCA must have a catchment.
+      # A local age-matched run dropped supply in 12 of 14 cells -- FPMRS lost 15
+      # of 580 origins -- which deflated every affected mean while reporting
+      # success. This is expected to FAIL until the panel is regenerated from a
+      # fail-closed run; that is the point.
+      - name: No supply may enter E2SFCA without a catchment
+        run: Rscript tools/ci/check_supply_conservation.R
+
 
       # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks
       # whether the tests notice; this corrupts the STUDY and asks whether the

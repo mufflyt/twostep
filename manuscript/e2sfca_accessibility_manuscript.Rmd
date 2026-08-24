@@ -280,6 +280,24 @@ decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
 .am_path <- here::here("artifacts", "multiverse", "age_matched_results.csv")
 if (!file.exists(.am_path))
   stop("age-matched results missing: ", .am_path)
+# SUPPLY CONSERVATION, enforced at render time. The committed 2020 age-matched
+# results were computed with an isochrone set that did not cover every provider:
+# 12 of 14 cells silently dropped supply (FPMRS lost 15 of 580 origins, GO 5 of
+# 516), which deflated every affected mean. Numbers derived from that artifact
+# must not reach the manuscript. Refuse to render until the artifact is
+# regenerated from a run where every origin has a catchment.
+.am_chk <- utils::read.csv(.am_path, stringsAsFactors = FALSE)
+if (all(c("n_supply_origins", "n_iso_origins") %in% names(.am_chk))) {
+  .am_drop <- .am_chk$n_supply_origins - .am_chk$n_iso_origins
+  if (any(.am_drop > 0, na.rm = TRUE))
+    stop(sprintf(paste0("age-matched artifact dropped supply in %d of %d cells ",
+      "(worst: %s lost %d of %d origins).\n  These numbers are NOT publishable. ",
+      "Regenerate the panel with unmatched_supply_policy = \"error\" and rebuild ",
+      "the whole age-matched chain from it -- see tools/ci/check_supply_conservation.R."),
+      sum(.am_drop > 0, na.rm = TRUE), nrow(.am_chk),
+      .am_chk$subspec[which.max(.am_drop)], max(.am_drop, na.rm = TRUE),
+      .am_chk$n_supply_origins[which.max(.am_drop)]))
+}
 am_raw   <- utils::read.csv(.am_path, stringsAsFactors = FALSE)
 am_all   <- am_raw[am_raw$regime == "all_ages", ];    rownames(am_all) <- am_all$subspec
 am_age   <- am_raw[am_raw$regime == "age_matched", ]; rownames(am_age) <- am_age$subspec
