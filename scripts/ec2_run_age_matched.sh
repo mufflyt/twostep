@@ -322,24 +322,24 @@ if ! run_year 2020; then
 fi
 Rscript -e '
 ref <- read.csv("artifacts/2sfca/sensitivity/sensitivity_2020.csv", stringsAsFactors=FALSE)
-ref <- ref[ref$variant == "base", c("subspec","national")]
+ref <- ref[ref\$variant == "base", c("subspec","national")]
 got <- read.csv("artifacts/multiverse/age_matched_results.csv", stringsAsFactors=FALSE)
-got <- got[got$regime == "all_ages", c("subspec","national","n_supply_origins","n_iso_origins")]
+got <- got[got\$regime == "all_ages", c("subspec","national","n_supply_origins","n_iso_origins")]
 m <- merge(ref, got, by="subspec", suffixes=c("_frozen","_ec2"))
 if (nrow(m) != nrow(ref)) { cat("subspecialty mismatch\n"); quit(status=2) }
-m$rel <- abs(m$national_ec2 - m$national_frozen) / m$national_frozen
+m\$rel <- abs(m\$national_ec2 - m\$national_frozen) / m\$national_frozen
 for (i in seq_len(nrow(m)))
   cat(sprintf("  %-6s frozen %.5f  ec2 %.5f  rel %+.4f%%  origins %d/%d\n",
-      m$subspec[i], m$national_frozen[i], m$national_ec2[i], 100*m$rel[i],
-      m$n_iso_origins[i], m$n_supply_origins[i]))
-cat(sprintf("max relative deviation: %.3e\n", max(m$rel)))
+      m\$subspec[i], m\$national_frozen[i], m\$national_ec2[i], 100*m\$rel[i],
+      m\$n_iso_origins[i], m\$n_supply_origins[i]))
+cat(sprintf("max relative deviation: %.3e\n", max(m\$rel)))
 # EVERY supply origin must have a catchment. The local run silently dropped five
 # and landed 0.786% low; that must never pass here.
-drop <- m$n_supply_origins - m$n_iso_origins
+drop <- m\$n_supply_origins - m\$n_iso_origins
 if (any(drop > 0)) {
-  cat("SUPPLY DROPPED for:", paste(m$subspec[drop>0], collapse=","), "\n"); quit(status=4)
+  cat("SUPPLY DROPPED for:", paste(m\$subspec[drop>0], collapse=","), "\n"); quit(status=4)
 }
-if (max(m$rel) > 1e-3) quit(status=3)' GS=\$?
+if (max(m\$rel) > 1e-3) quit(status=3)' GS=\$?
 cat /home/ec2-user/gate.txt
 aws s3 cp /home/ec2-user/gate.txt "s3://\$B/\$RES/gate_2020.txt" --region "\$R" || true
 [ \$GS -eq 0 ] || fail "EC2 could not reproduce the committed 2020 results (status \$GS) -- the panel would not be comparable"

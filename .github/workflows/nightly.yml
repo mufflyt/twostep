@@ -163,6 +163,12 @@ jobs:
       # AFTER the work the step was verifying had already succeeded.
       - name: Every bash workflow step parses
         run: Rscript tools/ci/check_workflow_syntax.R
+      # bash -n does not expand heredocs, so an R accessor like ref$variant
+      # inside an UNQUOTED heredoc is eaten by the shell and only fails at
+      # runtime -- after an instance has been provisioned. This catches it here.
+      - name: Unquoted heredocs expand only defined variables
+        run: Rscript tools/ci/check_launcher_heredoc.R
+
 
       # Two guards that existed but were never wired -- an unrun guard is worse
       # than none, because it reads as coverage. The Rd check catches a literal
