@@ -55,3 +55,9 @@ artifacts/2sfca/sensitivity/cache/
 
 # CI accounting written by the nightly testthat job
 artifacts/ci/
+
+# Age-matched panel working set: per-year supply extracted from the frozen-run
+# tarball, and per-vintage ACS caches. Derived and large; the tarball and the
+# Census API are the sources.
+artifacts/2sfca/agematched_panel/
+artifacts/2sfca/sensitivity/cache/

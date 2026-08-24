@@ -33,8 +33,24 @@ if (!identical(rec, act)) stop("manifest changed since freezing", call. = FALSE)
 say("freeze verified %s...", substr(act, 1, 16))
 man <- yaml::read_yaml(MAN)
 
-acs <- readRDS("artifacts/2sfca/sensitivity/cache/acs2020_tracts.rds")
-amd <- readRDS("artifacts/2sfca/sensitivity/cache/age_matched_denominators.rds")
+# Year-parameterised; 2020 keeps its original inputs and output path so the
+# frozen 2020 results stay reproducible. One script rather than a copy: a
+# duplicated E2SFCA loop would drift from this one without anyone noticing.
+YEAR <- as.integer(Sys.getenv("E2SFCA_AM_YEAR", "2020"))
+if (is.na(YEAR) || YEAR < 2013L || YEAR > 2023L) stop("E2SFCA_AM_YEAR must be 2013-2023")
+# Tract geometry has exactly TWO vintages across 2013-2023, verified by querying
+# GEOIDs year by year rather than assumed: 2013-2019 are the 2010 tracts and
+# 2020-2023 the 2020 tracts. So this needs two cached extracts, not eleven.
+GEOM_VINTAGE <- if (YEAR <= 2019L) 2013L else 2020L
+CACHE <- "artifacts/2sfca/sensitivity/cache"
+acs_path <- file.path(CACHE, sprintf("acs%d_tracts.rds", GEOM_VINTAGE))
+if (!file.exists(acs_path)) stop("tract geometry cache missing: ", acs_path)
+acs <- readRDS(acs_path)
+amd_path <- if (YEAR == 2020L) file.path(CACHE, "age_matched_denominators.rds") else
+            file.path(CACHE, sprintf("age_matched_denominators_%d.rds", YEAR))
+if (!file.exists(amd_path)) stop("age-matched denominators missing for ", YEAR, ": ", amd_path)
+amd <- readRDS(amd_path)
+say("year %d (geometry vintage %d)", YEAR, GEOM_VINTAGE)
 if (!identical(amd$manifest_sha256, act))
   stop("the denominators were built from a different manifest version", call. = FALSE)
 
@@ -42,7 +58,17 @@ ruca_path <- Sys.getenv("E2SFCA_RUCA_PATH")
 src <- new.env(); sys.source("R/accessibility_stratification.R", envir = src)
 ruca <- utils::read.csv(ruca_path, colClasses = "character") |>
   dplyr::transmute(GEOID = tract_geoid, rurality = src$rurality_from_ruca(ruca_code))
-all_ages <- acs$den |> dplyr::left_join(ruca, by = "GEOID") |>
+# The all-ages comparator has to be the same vintage as the age-matched arm,
+# otherwise the two regimes differ by year as well as by denominator and the
+# contrast stops being attributable to age. Built from that year's own bands.
+.bands_path <- file.path(CACHE, sprintf("acs%d_age_bands.rds", YEAR))
+if (!file.exists(.bands_path)) stop("ACS age bands missing for ", YEAR, ": ", .bands_path)
+.bd <- readRDS(.bands_path)
+acs_den_year <- dplyr::tibble(GEOID = .bd$GEOID,
+                              total_f = .bd$B01001_026,
+                              white_f = .bd$B01001H_017,
+                              aian_f  = .bd$B01001C_017)
+all_ages <- acs_den_year |> dplyr::left_join(ruca, by = "GEOID") |>
   dplyr::mutate(dplyr::across(c(total_f, white_f, aian_f), ~tidyr::replace_na(., 0)),
                 metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
                 rural_f = ifelse(rurality %in% "Rural", total_f, 0))
@@ -80,7 +106,8 @@ wmean <- function(surf, wr) {
 rows <- list()
 for (sp in SUBS) {
   supf <- file.path(S, "sup/run_e2sfca_20260712_190734",
-                    sprintf("step_4_2sfca_%s_2020_providers.rds", sp))
+                    sprintf("step_4_2sfca_%s_%d_providers.rds", sp, YEAR))
+  if (!file.exists(supf)) stop("supply missing for ", sp, " ", YEAR, ": ", supf)
   sup <- readRDS(supf) |> dplyr::select(coord_id, supply)
   iso <- load_iso(as.character(sup$coord_id))
   n_iso <- length(unique(unlist(lapply(iso$bands, function(b) as.character(b$coord_id)))))
@@ -121,7 +148,7 @@ for (sp in SUBS) {
     m <- vapply(c("total","metro_f","rural_f","white_f","aian_f"),
                 function(k) wmean(surf, wr[[k]]), numeric(1))
     rows[[length(rows)+1L]] <- data.frame(
-      regime = regime, subspec = sp,
+      year = YEAR, regime = regime, subspec = sp,
       age_range = if (regime=="all_ages") "all ages" else
         Filter(function(z) z$code==sp, man$subspecialties)[[1]]$age_range,
       denominator = sum(den$total_f, na.rm = TRUE),
@@ -138,5 +165,7 @@ for (sp in SUBS) {
 }
 res <- do.call(rbind, rows)
 dir.create("artifacts/multiverse", showWarnings = FALSE, recursive = TRUE)
-utils::write.csv(res, "artifacts/multiverse/age_matched_results.csv", row.names = FALSE)
-say("wrote artifacts/multiverse/age_matched_results.csv")
+out_csv <- if (YEAR == 2020L) "artifacts/multiverse/age_matched_results.csv" else
+           sprintf("artifacts/multiverse/age_matched_results_%d.csv", YEAR)
+utils::write.csv(res, out_csv, row.names = FALSE)
+say("wrote %s", out_csv)
