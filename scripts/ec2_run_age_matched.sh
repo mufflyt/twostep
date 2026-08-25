@@ -87,7 +87,6 @@ RUCA_2010="${E2SFCA_RUCA_2010_PATH:-/Users/tylermuffly/isochrones-den/data/exter
 CACHE="artifacts/2sfca/sensitivity/cache"
 REQ=( "$RUCA_2020" "$RUCA_2010"
       "$CACHE/acs2013_tracts.rds" "$CACHE/acs2020_tracts.rds"
-      "artifacts/multiverse/age_matched_results.csv"
       "inst/multiverse/age_matched_denominator.yml"
       "inst/multiverse/age_matched_denominator.sha256" )
 for y in 2013 2014 2015 2016 2017 2018 2019 2021 2022 2023; do
@@ -128,8 +127,12 @@ IN=/tmp/am_inputs.tar.gz
 # failed on a missing file.
 GATE_REF="artifacts/2sfca/sensitivity/sensitivity_2020.csv"
 [ -f "$GATE_REF" ] || { say "ERROR: gate reference missing locally: $GATE_REF"; exit 1; }
-tar czf "$IN" "$CACHE" artifacts/2sfca/agematched_panel/sup \
-  artifacts/multiverse/age_matched_results.csv "$GATE_REF"
+# age_matched_results.csv is deliberately NOT shipped. run_year 2020 WRITES that
+# path on the instance, and the gate reads what the instance just computed -- so
+# a shipped copy is only ever a placeholder waiting to be overwritten. Sending it
+# made the same path both input and output, and a local correction to it was
+# silently reverted by this bundle. It is output-only now.
+tar czf "$IN" "$CACHE" artifacts/2sfca/agematched_panel/sup "$GATE_REF"
 say "input bundle $(du -h "$IN" | cut -f1)"
 # MULTIPART, NOT `s3 cp`. scripts/s3_multipart_put.sh exists because this
 # environment SILENTLY DROPS s3 cp / put-object above ~16 MB -- its own header
@@ -322,7 +325,6 @@ log "environment matches the seam-validated stack"
 # attempt spent an hour on 14 cells and then died because the gate's reference
 # file had never been uploaded. Inputs are cheap to check; compute is not.
 for f in artifacts/2sfca/sensitivity/sensitivity_2020.csv \
-         artifacts/multiverse/age_matched_results.csv \
          inst/multiverse/age_matched_denominator.yml \
          inst/multiverse/age_matched_denominator.sha256; do
   [ -f "\$f" ] || fail "required input missing on the instance: \$f"

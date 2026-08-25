@@ -61,3 +61,10 @@ artifacts/ci/
 # Census API are the sources.
 artifacts/2sfca/agematched_panel/
 artifacts/2sfca/sensitivity/cache/
+
+# The frozen isochrone set (1.4 GB across four bands). Content is pinned by
+# inst/multiverse/frozen_isochrones.sha256 and the authoritative copy lives at
+# s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ -- the bytes do not
+# belong in git, but the hashes do, so tools/ci/check_frozen_isochrones.sh can
+# prove whichever copy is on disk is the right one.
+artifacts/2sfca/frozen_isochrones/

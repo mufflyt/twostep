@@ -1,0 +1,23 @@
+# SHA-256 of the FROZEN isochrone set the primary analysis was computed against.
+#
+# Pinned because the wrong set is indistinguishable from the right one by name,
+# path or file size. The local directory run_panel.sh used to point at
+# (/Users/tylermuffly/isochrones/artifacts/isochrones) carries 3,909 coord_ids;
+# the frozen set carries 4,050. The 141 missing origins included five that five
+# subspecialties needed, and with unmatched_supply_policy = "drop" their supply
+# silently vanished -- 12 of 14 cells, 68 origins, and a C5 ordering that
+# depended on a margin the loss manufactured.
+#
+# Nine isochrone directories exist across this Mac and the Samsung drive. NONE
+# of them matches these hashes. The frozen set was recovered from
+#   s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/
+# which is where the EC2 launcher stages it. Fetch with:
+#   aws s3 sync s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ "$E2SFCA_ISO_DIR"
+#
+# Hashes are from the frozen run's own input manifest
+# (artifacts/2sfca_recovered/e2sfca_inputs_SHA256SUMS.txt), not recomputed from
+# a copy that happened to be lying around.
+917d60e3e9f2f5c6a6c5f94d5024b71c050f2b700a6506ba642b23186aa38ea7  isochrones_30min_consolidated.rds
+3ce5041be6e81ea6b047125f3f5542abbab4de9c4cd6351183dd68fb5128a29d  isochrones_60min_consolidated.rds
+e6bc2ae5af32ea8b474509a95016fbbbab7741d2b9ddb43c75ed9b7db2df1127  isochrones_120min_consolidated.rds
+4bfbd5c29814cc2cde4910b1a5bb00277f68c74b3258fe453b29a8e6ab80c99d  isochrones_180min_consolidated.rds

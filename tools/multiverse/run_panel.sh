@@ -10,21 +10,35 @@
 # RESUMABLE. A year whose results CSV already exists is skipped, so an
 # interrupted run continues where it stopped rather than starting over.
 #
-# 2020 is deliberately NOT in the list: it is already computed and committed at
-# artifacts/multiverse/age_matched_results.csv, and re-running it would rewrite
-# the file the manuscript and appendix read.
+# 2020 is NOT in the list because it is computed separately as the correction
+# baseline, not because its committed value is authoritative. The previously
+# committed 2020 artifact was the CONTAMINATED one -- it dropped supply in 12 of
+# 14 cells -- and has been replaced from a fail-closed run against the frozen
+# set. Re-running it here would overwrite that correction.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
 
 export S="artifacts/2sfca/agematched_panel"
-export E2SFCA_ISO_DIR="/Users/tylermuffly/isochrones/artifacts/isochrones"
+# NOT a hardcoded local path. That path was
+# /Users/tylermuffly/isochrones/artifacts/isochrones, which carries 3,909
+# coord_ids against the frozen set's 4,050 -- and the 141 it lacks include five
+# origins that five subspecialties need. Override with E2SFCA_ISO_DIR; either
+# way the hash gate below decides whether it may be used.
+export E2SFCA_ISO_DIR="${E2SFCA_ISO_DIR:-artifacts/2sfca/frozen_isochrones}"
 RUCA_2020="/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping.csv"
 RUCA_2010="/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping_2010.csv"
 
 # Fail before spending hours if an input is absent.
-for f in "$E2SFCA_ISO_DIR/isochrones_30min_consolidated.rds" "$RUCA_2020" "$RUCA_2010"; do
+for f in "$RUCA_2020" "$RUCA_2010"; do
   [ -f "$f" ] || { echo "::error::missing required input: $f" >&2; exit 1; }
 done
+
+# THE GEOGRAPHY GATE. Presence is not enough: the wrong isochrone set is
+# indistinguishable from the right one by name, path or size, and nine of them
+# exist across this machine and the Samsung drive. Only the hash separates them.
+# Ten years x 14 cells against the wrong set would reproduce the dropped-supply
+# defect silently, year by year.
+tools/ci/check_frozen_isochrones.sh "$E2SFCA_ISO_DIR" || exit 1
 [ -d "$S/sup/run_e2sfca_20260712_190734" ] || {
   echo "::error::supply directory missing: $S/sup/run_e2sfca_20260712_190734" >&2; exit 1; }
 
