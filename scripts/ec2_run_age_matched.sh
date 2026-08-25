@@ -377,7 +377,8 @@ drop <- m\$n_supply_origins - m\$n_iso_origins
 if (any(drop > 0)) {
   cat("SUPPLY DROPPED for:", paste(m\$subspec[drop>0], collapse=","), "\n"); quit(status=4)
 }
-if (max(m\$rel) > 1e-3) quit(status=3)' GS=\${?:-1}
+if (max(m\$rel) > 1e-3) quit(status=3)' > /home/ec2-user/gate.txt 2>&1
+GS=\$?
 cat /home/ec2-user/gate.txt
 aws s3 cp /home/ec2-user/gate.txt "s3://\$B/\$RES/gate_2020.txt" --region "\$R" || true
 [ \$GS -eq 0 ] || fail "EC2 could not reproduce the committed 2020 results (status \$GS) -- the panel would not be comparable"
