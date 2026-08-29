@@ -85,6 +85,43 @@ Documented in full in
 - New `tools/ci/check_launcher_heredoc.R` catches `$VAR` interpolation inside
   unquoted heredocs, which `bash -n` cannot see. An R accessor `ref$variant` had
   been eaten by the shell and surfaced as `variant: unbound variable` on EC2.
+- New `tools/ci/check_documented_shortfalls.R` recomputes every supply-loss figure
+  quoted in prose from `age_matched_correction_diff.csv`. Written because three
+  hand-typed numbers were wrong at once, none of them catchable by rereading the
+  text: each sentence was internally plausible. It keeps proportional origin loss
+  and effect-on-the-mean as separate vectors, because conflating them is the error
+  it exists to catch -- FPMRS lost the largest share of origins (2.59%), PAG had
+  the largest effect on a reported mean (3.54%), and NEWS had named PAG for both.
+  It also refuses the alternative convention (dividing by the contaminated value,
+  which gives 3.67%) anywhere it appears without naming its denominator.
+- `tools/ci/check_readme.R` now pins the release audit's gate count against
+  `release_audit.sh` itself. "all 19 gates" appeared in three places and survived
+  the twentieth gate being added.
+
+## The mirrors were real; the check that said so could not have known
+
+The frozen isochrones and the ABOG registry are mirrored to S3 and Dropbox, both
+recorded in `mufflyaccess`'s `ssot_sources.json`. The script that uploaded them
+verified with `rclone hashsum sha256 dropbox:...`.
+
+**Dropbox does not expose SHA-256.** It supports exactly one algorithm, its own
+content hash, so every hashsum came back empty, every comparison failed, and the
+run's own log ends in five consecutive `MISMATCH` lines -- while `ssot_sources.json`
+recorded Dropbox as canonical anyway.
+
+- The mirrors are in fact correct, confirmed 2026-08-29: **4 matching files, 0
+  differences** on the frozen isochrones by content hash, and the S3 copy of
+  `refresh_merged.csv` matches its recorded sha256 (79,398 rows).
+- The verification was **structurally incapable of passing**. That is worse than
+  no check, because it trains the reader to treat the output as noise -- the same
+  shape as `unmatched_supply_policy = "drop"` reporting success on a run that had
+  lost supply. One check lied by staying silent, the other by crying wolf.
+- `scripts/dbx_upload_ssot.sh` recovers that script from `/tmp`, where it lived
+  and would have been lost, and replaces the verification with `rclone check`,
+  which negotiates a hash both ends support. It refuses to mirror a local
+  directory that does not pass the hash gate first, and it distinguishes "the
+  mirror disagrees" from "I could not read the local file" -- a distinction its
+  predecessor collapsed.
 
 
 ## Geography is identified by hash, not by path

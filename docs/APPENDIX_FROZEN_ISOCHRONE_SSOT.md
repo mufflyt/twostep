@@ -187,7 +187,55 @@ Every band here exceeds that by two orders of magnitude. Use `s3 sync`, or
 `scripts/s3_multipart_put.sh` for single objects, and verify `ContentLength`
 afterwards. This bug cost a 224 MB upload that appeared to succeed.
 
-## 6. The audit
+## 6. The mirrors, and how they were actually verified
+
+Both canonical copies were checked on 2026-08-29:
+
+| copy | state |
+|---|---|
+| Dropbox `MufflyAccess_SSOT/frozen_isochrones/e2sfca_20260712_190734/` | **4 matching files, 0 differences** by content hash |
+| S3 `s3://tmuffly-isochrone-library-163531628641/frozen/e2sfca_20260712_190734/` | all four bands present, sizes match local exactly |
+| S3 `.../abog_refresh_2026/refresh_merged.csv` | sha256 `6e32189a…` matches its recorded manifest; 79,398 rows |
+| Dropbox `.../abog_refresh_2026/refresh_merged.csv` | present, correct size — **content not verified** (see below) |
+
+The mirrors are real. But the script that created them **could not have told you
+that**, and said the opposite.
+
+It verified with `rclone hashsum sha256 dropbox:…`. Dropbox does not expose
+SHA-256 — `rclone backend features dropbox:` reports exactly one algorithm,
+`dropbox`, its own content hash. Every hashsum therefore returned **empty**,
+every comparison against a real local SHA-256 failed, and the run's own log ends:
+
+```
+[dbx] MISMATCH 30min local=917d60e3... dropbox=
+[dbx] MISMATCH 60min local=3ce5041b... dropbox=
+[dbx] MISMATCH 120min local=e6bc2ae5... dropbox=
+[dbx] MISMATCH 180min local=4bfbd5c2... dropbox=
+[dbx] MISMATCH refresh_merged.csv
+[dbx] DONE
+```
+
+Five failures, and `ssot_sources.json` recorded Dropbox as canonical anyway. The
+uploads had succeeded; the verification was **structurally incapable of
+passing**. That is worse than having no check, because it trains the reader to
+treat its output as noise — and it is the same shape as the defect in §2, where
+`unmatched_supply_policy = "drop"` reported success on a run that had quietly
+lost supply. One check lied by staying silent, the other by crying wolf.
+
+`scripts/dbx_upload_ssot.sh` is that script, recovered from `/tmp` where it would
+have been lost, with the verification replaced by `rclone check`, which
+negotiates a hash both ends support and compares content. It also refuses to
+mirror a local directory that does not pass the hash gate first — propagating the
+wrong isochrones to the place everyone fetches from is strictly worse than not
+mirroring — and it distinguishes *"the mirror disagrees"* from *"I could not read
+the local file"*, which is the distinction its predecessor collapsed.
+
+The ABOG registry is the one honest gap: macOS denies this session read access to
+`~/Downloads`, so the Dropbox copy of `refresh_merged.csv` is unverified rather
+than verified-good. The script now says exactly that instead of blaming the
+mirror. Run it locally with read access, or set `ABOG_REFRESH_DIR`, to close it.
+
+## 7. The audit
 
 [`tools/ci/release_audit.sh`](../tools/ci/release_audit.sh) runs all twenty
 gates in one pass and prints a single verdict. The nightly and PR workflows each
@@ -205,7 +253,7 @@ RELEASE AUDIT -- twostep @ f986c97
 AUDIT VERDICT: ALL 20 GATES PASS
 ```
 
-## 7. What is still open
+## 8. What is still open
 
 - **`tools/ci/check_artifact_provenance.R` is non-strict.** Three load-bearing
   artifacts have no record of the inputs that produced them. It reports rather

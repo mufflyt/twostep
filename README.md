@@ -82,6 +82,23 @@ advertising:
   contrast does not — it reverses for complex family planning under flatter decay
   and under M2SFCA, where the primary estimate sits 2.5% from parity. The abstract
   was corrected accordingly.
+
+  ![Specification curve: AIAN-White area disparity](https://raw.githubusercontent.com/mufflyt/twostep/main/artifacts/multiverse/fig_speccurve_aian_white.jpg)
+
+  The reversal is visible rather than asserted: CFP (pink) crosses the parity line
+  under S03 (slower decay) and S07 (M2SFCA). Every other subspecialty stays below
+  it in every specification, and the primary analysis S01 is shaded.
+
+  ![Specification curve: rural-metropolitan disparity](https://raw.githubusercontent.com/mufflyt/twostep/main/artifacts/multiverse/fig_speccurve_rural_metro.jpg)
+
+  The rural–metropolitan contrast is the control case. C2 is
+  `all(rural_metro_ratio < 1)`, and the whole y-axis tops out near 0.7 — every
+  subspecialty is rural-disadvantaged in every specification, by a wide margin.
+  Note the dashed line here is the manuscript's 0.5 threshold, **not** parity:
+  PAG sits above it under several specifications, and under slower decay (S03)
+  most subspecialties do. That is a claim about magnitude, not about direction,
+  and it is the reason the two curves need reading against their own reference
+  line rather than against each other.
 - Three load-bearing artifacts **have no record of the inputs that produced them**.
   [`tools/ci/check_artifact_provenance.R`](tools/ci/check_artifact_provenance.R)
   reports this rather than failing, because the inputs are not currently

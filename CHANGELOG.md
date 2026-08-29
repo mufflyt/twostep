@@ -22,4 +22,5 @@ If you are looking for:
 | where every data input came from | [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md) |
 | which isochrone set the analysis used, and why it is pinned by hash | [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) |
 | whether this commit is publishable | `bash tools/ci/release_audit.sh` |
+| where the canonical copies of the large inputs live | [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) §6 |
 | what the method does and why | `vignette("e2sfca-accessibility")` |
