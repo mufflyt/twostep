@@ -237,20 +237,20 @@ mirror. Run it locally with read access, or set `ABOG_REFRESH_DIR`, to close it.
 
 ## 7. The audit
 
-[`tools/ci/release_audit.sh`](../tools/ci/release_audit.sh) runs all twenty-one
+[`tools/ci/release_audit.sh`](../tools/ci/release_audit.sh) runs all twenty-two
 gates in one pass and prints a single verdict. The nightly and PR workflows each
 run a subset, split across jobs for parallelism; that is correct for CI and
 insufficient for a freeze decision, which needs one answer rather than four
 workflow runs reconciled by hand.
 
-It does not stop on first failure, deliberately — learning twenty-one failures one
+It does not stop on first failure, deliberately — learning twenty-two failures one
 at a time, an hour apart, is how a freeze slips a day.
 
 ```
 $ bash tools/ci/release_audit.sh
 RELEASE AUDIT -- twostep @ f986c97
 ...
-AUDIT VERDICT: ALL 21 GATES PASS
+AUDIT VERDICT: ALL 22 GATES PASS
 ```
 
 ## 8. What is still open

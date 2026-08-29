@@ -191,6 +191,8 @@ jobs:
         run: Rscript tools/ci/check_documented_shortfalls.R
       - name: NEWS.md headings do not read as version numbers
         run: Rscript tools/ci/check_news_headings.R
+      - name: One version, stated the same in every file
+        run: Rscript tools/ci/check_version_consistency.R
 
   artifact-provenance:
     name: frozen artifacts record their inputs

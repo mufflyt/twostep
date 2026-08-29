@@ -5,8 +5,8 @@
   "name": "twostep: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists",
   "description": "Standalone analysis and manuscript for national travel-time accessibility to the seven ABOG-certified obstetric and gynecologic subspecialties across the contiguous United States, 2013-2023, using an Enhanced Two-Step Floating Catchment Area (E2SFCA) method on road-network isochrones with a mass-conserving demand allocation and a Spatial Access Ratio (SPAR). Extracted from the isochrones pipeline so the accessibility paper builds and reproduces independently. This DESCRIPTION also serves as the project-root anchor for here/rprojroot.",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "0.1.0",
-  "dateModified": "2026-08-18",
+  "version": "0.2.0",
+  "dateModified": "2026-08-29",
   "codeRepository": "https://github.com/mufflyt/twostep",
   "issueTracker": "https://github.com/mufflyt/twostep/issues",
   "programmingLanguage": {

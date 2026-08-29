@@ -1,4 +1,4 @@
-# twostep (development version)
+# twostep 0.2.0 (2026-08-29)
 
 ## Dropped supply: a silent defect in the age-matched sensitivity analysis
 
@@ -76,7 +76,7 @@ Documented in full in
 ## One command for a freeze decision
 
 - New `tools/ci/release_audit.sh` runs **every gate** in one pass and prints a
-  single verdict (21 at the time of writing). The nightly and PR workflows each run a subset split across jobs
+  single verdict (22 at the time of writing). The nightly and PR workflows each run a subset split across jobs
   for parallelism; correct for CI, insufficient for a freeze, which otherwise means
   reconciling four workflow runs by hand. It does not stop on first failure --
   learning nineteen failures one at a time is how a freeze slips a day.
@@ -108,6 +108,23 @@ Documented in full in
   simultaneously -- seven minutes of CI for something a millisecond of parsing
   establishes. A study-year range in a heading is a natural thing to write, so it
   will be written again.
+
+## Release 0.2.0, and the version that lived in seven places
+
+- The version is stated in `DESCRIPTION`, `CITATION.cff`, `CITATION.bib`,
+  `.zenodo.json`, `codemeta.json`, the README badge and the newest NEWS heading.
+  **Nothing checked that they agreed.** Found by bumping 0.1.0 to 0.2.0 and
+  noticing that seven files needed the change and no gate would have caught a
+  missed one.
+- New `tools/ci/check_version_consistency.R` treats `DESCRIPTION` as the
+  authority. The failure it prevents is not cosmetic: a tagged release whose
+  `CITATION.cff` still names the previous version makes every citation point at
+  the wrong artifact, and Zenodo mints a DOI against a string that does not match
+  the tag. Each file is individually plausible, so nobody notices.
+- NEWS is checked as *"the newest release heading matches"*, not *"some heading
+  mentions this version"* -- a stale heading for the current version is precisely
+  the thing that looks correct. Negative-tested on all four failure shapes,
+  including that one.
 
 ## The recovered bundle: one copy that was two, and two that were one
 

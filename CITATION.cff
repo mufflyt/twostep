@@ -10,8 +10,8 @@ abstract: >-
   isochrones pipeline so the accessibility paper builds and reproduces
   independently.
 type: software
-version: 0.1.0
-date-released: 2026-08-02
+version: 0.2.0
+date-released: 2026-08-29
 license: MIT
 repository-code: "https://github.com/mufflyt/twostep"
 url: "https://github.com/mufflyt/twostep"

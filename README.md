@@ -12,7 +12,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](https://github.com/mufflyt/twostep/blob/main/DESCRIPTION)
+[![Version](https://img.shields.io/badge/version-0.2.0-informational.svg)](https://github.com/mufflyt/twostep/blob/main/DESCRIPTION)
 [![R >= 4.1](https://img.shields.io/badge/R-%3E%3D%204.1-blue.svg)](https://cran.r-project.org/)
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mufflyt.github.io/twostep/)
 
@@ -72,7 +72,7 @@ Most accessibility papers ask whether the code runs. These layers ask whether th
 | **Specification curve** | conclusions that depend on one modelling choice | [`inst/multiverse/`](inst/multiverse/) — prespecified and hash-frozen |
 | **Input pinning by hash** | the analysis silently run against the wrong copy of an input | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — nine isochrone sets exist; only the hash tells them apart |
 | **Supply conservation** | a provider whose catchment is missing vanishing from the numerator | [`tools/ci/check_supply_conservation.R`](tools/ci/check_supply_conservation.R) — `n_iso_origins == n_supply_origins`, every cell |
-| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 21 gates, one verdict |
+| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 22 gates, one verdict |
 
 Two things worth stating plainly, because they are results rather than
 advertising:
