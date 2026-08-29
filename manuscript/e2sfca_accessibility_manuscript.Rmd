@@ -282,9 +282,15 @@ decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
 # qualification. The standalone 2020 file is byte-identical to the panel's 2020
 # rows, but reading the panel means the document and the correction diff cite one
 # source rather than two that merely agree.
-.am_panel <- here::here("artifacts", "2sfca", "agematched_panel", "age_matched_panel.csv")
-.am_path  <- if (file.exists(.am_panel)) .am_panel else
-             here::here("artifacts", "multiverse", "age_matched_results.csv")
+# MANDATORY, not preferred. A fallback to the standalone 2020 file is fail-OPEN
+# provenance: the document would silently cite a different artifact than the
+# correction diff whenever the panel was absent, and nothing would say so.
+.am_path <- here::here("artifacts", "2sfca", "agematched_panel", "age_matched_panel.csv")
+if (!file.exists(.am_path))
+  stop("the age-matched panel is missing: ", .am_path,
+       "\n  It is the sole source for every age-matched number in this manuscript.",
+       "\n  There is deliberately no fallback -- rebuild the panel rather than",
+       "\n  rendering against a different artifact.")
 if (!file.exists(.am_path))
   stop("age-matched results missing: ", .am_path)
 # SUPPLY CONSERVATION, enforced at render time. The committed 2020 age-matched

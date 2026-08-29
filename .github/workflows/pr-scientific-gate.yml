@@ -91,6 +91,13 @@ jobs:
       # fail-closed run; that is the point.
       - name: No supply may enter E2SFCA without a catchment
         run: Rscript tools/ci/check_supply_conservation.R
+      # One artifact: every live age-matched consumer must read the panel, never
+      # the standalone 2020 file. They are byte-identical today, so a consumer
+      # pointed at the wrong one has no symptom until they diverge -- which has
+      # already happened once.
+      - name: Age-matched chain has a single source
+        run: Rscript tools/ci/check_agematched_ssot.R
+
 
 
       # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks

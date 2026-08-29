@@ -29,10 +29,13 @@ amd <- if (file.exists(amd_path)) readRDS(amd_path) else NULL
 # AMI. Its 2020 rows are byte-identical to the standalone file, but reading the
 # panel means this appendix, the manuscript and the correction diff all cite one
 # artifact rather than three that happen to agree.
-panel_path <- file.path(root, "artifacts/2sfca/agematched_panel/age_matched_panel.csv")
-res_path   <- if (file.exists(panel_path)) panel_path else
-              file.path(root, "artifacts/multiverse/age_matched_results.csv")
-res <- if (file.exists(res_path)) utils::read.csv(res_path, stringsAsFactors = FALSE) else NULL
+# MANDATORY. No fallback to the standalone 2020 file -- see the manuscript setup
+# chunk for why fail-open provenance is worse than a hard stop.
+res_path <- file.path(root, "artifacts/2sfca/agematched_panel/age_matched_panel.csv")
+if (!file.exists(res_path))
+  stop("the age-matched panel is missing: ", res_path,
+       "\n  It is the sole source for every age-matched number in this appendix.")
+res <- utils::read.csv(res_path, stringsAsFactors = FALSE)
 if (!is.null(res) && "year" %in% names(res)) res <- res[res$year == 2020L, , drop = FALSE]
 have_results <- !is.null(res) && nrow(res) > 0
 ```
@@ -280,7 +283,11 @@ compared.
 
 ```{r supply-loss, results="asis"}
 .sp <- file.path(root, "artifacts/2sfca/sensitivity/sensitivity_2020.csv")
-.am <- file.path(root, "artifacts/multiverse/age_matched_results.csv")
+# The CONTAMINATED artifact, deliberately. This paragraph describes the historical
+# defect, and computing it from the corrected file made it report a 0.000%
+# shortfall from 0 lost origins -- the defect described using data in which it had
+# been fixed.
+.am <- file.path(root, "artifacts/multiverse/_precorrection/age_matched_results_CONTAMINATED_2020.csv")
 if (file.exists(.sp) && file.exists(.am)) {
   .s <- utils::read.csv(.sp, stringsAsFactors = FALSE)
   .a <- utils::read.csv(.am, stringsAsFactors = FALSE)
@@ -292,7 +299,7 @@ if (file.exists(.sp) && file.exists(.am)) {
     "relative to the frozen reference, from %d of %d provider origins having no ",
     "catchment. All results reported here come from runs in which supply is ",
     "fully conserved.\n"),
-    formatC(100 * (.got - .ref) / .ref, format = "f", digits = 3), .lost, .tot))
+    formatC(100 * (.ref - .got) / .ref, format = "f", digits = 3), .lost, .tot))
 }
 ```
 
@@ -393,7 +400,7 @@ Only two things may be compared across regimes:
 ```{r results, results="asis"}
 if (!have_results) {
   cat("_The analysis run has not yet completed. This section is generated from",
-      "`artifacts/multiverse/age_matched_results.csv`; re-knit once it exists._\n")
+      "`artifacts/2sfca/agematched_panel/age_matched_panel.csv`; re-knit once it exists._\n")
 } else {
   ord <- c("GO","FPMRS","MFM","REI","MIGS","PAG","CFP")
   res$subspec <- factor(res$subspec, levels = ord)
@@ -496,7 +503,8 @@ availability, transportation, or whether care is sought.
 | Specification hash | `inst/multiverse/age_matched_denominator.sha256` |
 | Denominator construction | `tools/multiverse/age_matched_denominators.R` |
 | Analysis | `tools/multiverse/run_age_matched.R` |
-| Results | `artifacts/multiverse/age_matched_results.csv` |
+| Results | `artifacts/2sfca/agematched_panel/age_matched_panel.csv` (11 vintages, frozen AMI) |
+| Historical defect example | `artifacts/multiverse/_precorrection/age_matched_results_CONTAMINATED_2020.csv` |
 
 The specification hash is verified at run time; the analysis refuses to execute
 against a modified manifest.
