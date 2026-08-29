@@ -1087,7 +1087,7 @@ jobs:
       - name: Install jsonlite
         run: install.packages("jsonlite")
         shell: Rscript {0}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with: { pattern: fingerprint-*, path: fingerprints }
       - name: Show what was collected
         run: |
