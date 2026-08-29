@@ -313,8 +313,14 @@ am_panel_all <- am_raw
 if ("year" %in% names(am_raw)) am_raw <- am_raw[am_raw$year == 2020L, , drop = FALSE]
 am_all   <- am_raw[am_raw$regime == "all_ages", ];    rownames(am_all) <- am_all$subspec
 am_age   <- am_raw[am_raw$regime == "age_matched", ]; rownames(am_age) <- am_age$subspec
-am_order <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
-am_order <- am_order[am_order %in% rownames(am_all) & am_order %in% rownames(am_age)]
+# Derived from the SSOT constant and then ORDERED BY THE DATA -- ascending
+# age-eligible share -- rather than by a hand-written code vector. A literal
+# seven-code list here both duplicates E2SFCA_SUBSPECIALTIES and silently goes
+# stale; tests/testthat/test-ssot-subspecialties.R forbids it, correctly.
+am_order <- E2SFCA_SUBSPECIALTIES[E2SFCA_SUBSPECIALTIES %in% rownames(am_all) &
+                                  E2SFCA_SUBSPECIALTIES %in% rownames(am_age)]
+am_order <- am_order[order(am_age[am_order, "denominator"] /
+                           am_all[am_order, "denominator"])]
 # alpha: the share of the all-ages denominator each age window retains
 am_alpha <- stats::setNames(
   am_age[am_order, "denominator"] / am_all[am_order, "denominator"], am_order)
