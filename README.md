@@ -119,6 +119,20 @@ C2 and C3 survived the correction unchanged. The subspecialty ordering did not �
 [`artifacts/multiverse/age_matched_correction_diff.csv`](artifacts/multiverse/age_matched_correction_diff.csv)
 for all 136 affected quantities.
 
+To fetch a working copy and prove it is the right one before trusting it:
+
+```bash
+aws s3 sync s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ "$E2SFCA_ISO_DIR"
+bash tools/ci/check_frozen_isochrones.sh "$E2SFCA_ISO_DIR"
+```
+
+`mufflyaccess` (≥ 0.10.0) also serves the set as a single source of truth —
+`verify_frozen_isochrones()`, `use_frozen_isochrones()`, `frozen_isochrones_dir()`
+and `frozen_isochrones_provenance()`, backed by the same manifest and by canonical
+S3 and Dropbox copies. `E2SFCA_ISO_DIR` still works, but it is now **verified
+rather than trusted**: the old contract was "tell me where it is and I will
+believe you," which is exactly how the wrong set got used.
+
 ## Learn the method
 
 A worked four-tract, two-provider example — small enough to check by hand — is in
@@ -188,30 +202,20 @@ source for every age-matched number in the manuscript, the appendix and this
 figure; [`tools/ci/check_agematched_ssot.R`](tools/ci/check_agematched_ssot.R)
 fails if any live consumer reads the older standalone 2020 file instead.
 
-## The frozen isochrone set
-
-The analysis is computed against one specific isochrone set (run
-`e2sfca_20260712_190734`, 4,050 origins, four bands, ~1.4 GiB). It is far too
-large to version-control, so what ships is its checksum manifest,
-[`inst/multiverse/frozen_isochrones.sha256`](inst/multiverse/frozen_isochrones.sha256)
-— the payload is retrievable, the identity is not, so the identity is what gets
-tracked.
-
-This matters because at least nine directories across the author's machines hold
-files with these exact names, similar sizes and identical structure, and **none
-of the local ones is the frozen set**. The one the age-matched runner used
-carries 3,909 origins and is missing 44 physician locations. Nothing about a
-path distinguishes them; only the hash does. Full account, including the defect
-this caused and its correction, in
-[`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md).
-
-```bash
-aws s3 sync s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ "$E2SFCA_ISO_DIR"
-bash tools/ci/check_frozen_isochrones.sh "$E2SFCA_ISO_DIR"
-```
-
 ## Status and open items
 
+- **RESOLVED (2026-08-25): the age-matched analysis ran against the wrong
+  isochrone set.** Supply for providers whose catchment was missing was silently
+  dropped, understating access in 12 of 14 cells and changing the C5 ordering.
+  The runner now fails closed, the input is pinned by hash, and every committed
+  cell must satisfy `n_iso_origins == n_supply_origins`. Full account in
+  [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md).
+- **`tools/ci/check_artifact_provenance.R` is still non-strict.** Three
+  load-bearing artifacts have no record of the inputs that produced them. It
+  reports rather than fails because those inputs are not currently recoverable.
+  A known gap, not a solved problem.
+- **`manuscript/figures/figS10_satellite_clinics.jpg` is orphaned** — on disk,
+  referenced by no document, and absent from `FIGURE_PROVENANCE.csv`.
 - **RESOLVED (2026-08-16): Figure 1 and Table 1 now agree at 2020.** This entry
   previously warned that Table 1's headline had moved to 2022 while Figure 1
   (`manuscript/figures/fig0_level2020.jpg`) remained the 2020 surface, so the two
