@@ -189,6 +189,8 @@ jobs:
         run: Rscript tools/ci/check_appendix_literals.R
       - name: Documented supply-loss figures match the correction diff
         run: Rscript tools/ci/check_documented_shortfalls.R
+      - name: NEWS.md headings do not read as version numbers
+        run: Rscript tools/ci/check_news_headings.R
 
   artifact-provenance:
     name: frozen artifacts record their inputs

@@ -72,7 +72,7 @@ Most accessibility papers ask whether the code runs. These layers ask whether th
 | **Specification curve** | conclusions that depend on one modelling choice | [`inst/multiverse/`](inst/multiverse/) — prespecified and hash-frozen |
 | **Input pinning by hash** | the analysis silently run against the wrong copy of an input | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — nine isochrone sets exist; only the hash tells them apart |
 | **Supply conservation** | a provider whose catchment is missing vanishing from the numerator | [`tools/ci/check_supply_conservation.R`](tools/ci/check_supply_conservation.R) — `n_iso_origins == n_supply_origins`, every cell |
-| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 20 gates, one verdict |
+| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 21 gates, one verdict |
 
 Two things worth stating plainly, because they are results rather than
 advertising:

@@ -66,6 +66,7 @@ echo "== manuscript and appendix =="
 run "manuscript guards"          Rscript tools/ci/check_manuscript.R
 run "appendix literals"          Rscript tools/ci/check_appendix_literals.R
 run "documented shortfalls"      Rscript tools/ci/check_documented_shortfalls.R
+run "NEWS headings"              Rscript tools/ci/check_news_headings.R
 run "docs fresh"                 Rscript tools/ci/check_docs_fresh.R
 run "README agrees"              Rscript tools/ci/check_readme.R
 echo

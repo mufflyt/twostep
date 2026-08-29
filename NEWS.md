@@ -29,7 +29,7 @@ a complete-looking result computed on less supply than the study population had.
   *corrected* file and printing a 0.000% shortfall from 0 lost origins -- an
   account of the contamination written from data in which it had been repaired.
 
-## Age-matched denominators: the full 2013-2023 panel
+## Age-matched denominators: the full eleven-year panel
 
 The age-matched sensitivity analysis covered 2020 only, which is why it could not
 be promoted without deleting the paper's temporal arm.
@@ -76,7 +76,7 @@ Documented in full in
 ## One command for a freeze decision
 
 - New `tools/ci/release_audit.sh` runs **every gate** in one pass and prints a
-  single verdict (20 at the time of writing). The nightly and PR workflows each run a subset split across jobs
+  single verdict (21 at the time of writing). The nightly and PR workflows each run a subset split across jobs
   for parallelism; correct for CI, insufficient for a freeze, which otherwise means
   reconciling four workflow runs by hand. It does not stop on first failure --
   learning nineteen failures one at a time is how a freeze slips a day.
@@ -97,6 +97,17 @@ Documented in full in
 - `tools/ci/check_readme.R` now pins the release audit's gate count against
   `release_audit.sh` itself. "all 19 gates" appeared in three places and survived
   the twentieth gate being added.
+- New `tools/ci/check_news_headings.R`. R CMD check `--as-cran` decides which
+  heading level marks a release by walking NEWS.md until it finds the **first**
+  heading containing something version-shaped, then adopting that heading's
+  level. `([[:digit:]]+[.-]){1,}[[:digit:]]+` matches **`2013-2023`**, so the
+  heading "Age-matched denominators: the full 2013-2023 panel" was read as a
+  release, level 2 became the release level, and all twenty `##` topic headings
+  became malformed release titles at once. That is a NOTE, the nightly runs check
+  with `error_on = "note"`, and it failed all five R CMD check platforms
+  simultaneously -- seven minutes of CI for something a millisecond of parsing
+  establishes. A study-year range in a heading is a natural thing to write, so it
+  will be written again.
 
 ## The recovered bundle: one copy that was two, and two that were one
 
