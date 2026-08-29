@@ -75,8 +75,8 @@ Documented in full in
 
 ## One command for a freeze decision
 
-- New `tools/ci/release_audit.sh` runs all **19 gates** in one pass and prints a
-  single verdict. The nightly and PR workflows each run a subset split across jobs
+- New `tools/ci/release_audit.sh` runs **every gate** in one pass and prints a
+  single verdict (20 at the time of writing). The nightly and PR workflows each run a subset split across jobs
   for parallelism; correct for CI, insufficient for a freeze, which otherwise means
   reconciling four workflow runs by hand. It does not stop on first failure --
   learning nineteen failures one at a time is how a freeze slips a day.
@@ -90,14 +90,19 @@ Documented in full in
 ## Geography is identified by hash, not by path
 
 The age-matched panel ran against an isochrone set carrying **3,909** provider origins
-where the frozen set carries **4,050**. Five of the 141 missing origins had supply
-attached, and `run_age_matched.R` was passing `unmatched_supply_policy = "drop"`, so
-that supply was discarded rather than raising an error. The run reported success and
-landed 0.786% below the frozen analysis.
+where the frozen set carries **4,050**. `run_age_matched.R` was passing
+`unmatched_supply_policy = "drop"`, so a provider whose catchment was missing had their
+supply discarded rather than raising an error. Which of the 141 missing origins mattered
+depended on the cell, because each subspecialty has its own provider set: five of them
+were ones the gynecologic-oncology cell needed -- 7 of its 890 supply units, 0.787% --
+which put that cell 0.786% below the frozen value while the run reported success.
 
 The committed 2020 artifact had dropped supply in **12 of 14 cells** — 68 origins.
-FPMRS lost 15 of 580; PAG lost 2 of 95, which is 2.1% and the largest proportional
-loss. The loss was recorded the entire time in `n_supply_origins` and `n_iso_origins`.
+The largest proportional loss of origins was FPMRS, 15 of 580 (2.59%); the largest
+effect on a reported mean was PAG, 3.54%, from losing only 2 of 95. Those are different
+quantities and they rank differently — a small provider set converts a small loss into a
+large shortfall, which is why PAG moves most while FPMRS loses most. The loss was
+recorded the entire time in `n_supply_origins` and `n_iso_origins`.
 Nothing compared them.
 
 Three defences, because any one of them alone leaves the others open:

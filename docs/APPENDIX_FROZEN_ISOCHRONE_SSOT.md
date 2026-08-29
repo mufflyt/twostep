@@ -60,7 +60,9 @@ physician locations.
 
 The missing origins are **nationally scattered rather than clustered**, which is
 part of why nothing looked wrong: a regional hole in the coverage map might have
-been noticed by eye, a 3.5% shortfall spread evenly across the country was not.
+been noticed by eye, 141 of 4,050 origins (3.48%) missing evenly everywhere was not.
+That 3.48% is a share of *origins*; it is not the access shortfall tabulated below, and
+the two are not interchangeable.
 The map is computed, not drawn — coordinates alongside it at
 [`figures/isochrone_missing_origins.csv`](figures/isochrone_missing_origins.csv)
 so it can be checked rather than believed. (Figure and data by the concurrent
@@ -187,20 +189,20 @@ afterwards. This bug cost a 224 MB upload that appeared to succeed.
 
 ## 6. The audit
 
-[`tools/ci/release_audit.sh`](../tools/ci/release_audit.sh) runs all nineteen
+[`tools/ci/release_audit.sh`](../tools/ci/release_audit.sh) runs all twenty
 gates in one pass and prints a single verdict. The nightly and PR workflows each
 run a subset, split across jobs for parallelism; that is correct for CI and
 insufficient for a freeze decision, which needs one answer rather than four
 workflow runs reconciled by hand.
 
-It does not stop on first failure, deliberately — learning nineteen failures one
+It does not stop on first failure, deliberately — learning twenty failures one
 at a time, an hour apart, is how a freeze slips a day.
 
 ```
 $ bash tools/ci/release_audit.sh
 RELEASE AUDIT -- twostep @ f986c97
 ...
-AUDIT VERDICT: ALL 19 GATES PASS
+AUDIT VERDICT: ALL 20 GATES PASS
 ```
 
 ## 7. What is still open

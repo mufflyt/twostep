@@ -4,7 +4,10 @@
 stood at commit b5313c8, computed against an isochrone set that held 3,909
 origins instead of 4,050. Forty-four physician locations had no catchment and the
 runner was configured to DROP unmatched supply, so their supply silently
-vanished: 12 of 14 cells lost origins, deflating access by up to 3.67%.
+vanished: 12 of 14 cells lost origins, deflating access by up to 3.54% (PAG),
+expressed relative to the corrected value as `(corrected - contaminated) / corrected`.
+Dividing by the contaminated value instead gives 3.67%; both appear in this repository's
+history, so the convention is stated wherever the number is.
 
 It is retained for ONE purpose: the appendix demonstrates the historical defect
 and needs the contaminated numbers to do so. Fixing the live artifact underneath

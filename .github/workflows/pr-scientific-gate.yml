@@ -151,6 +151,8 @@ jobs:
         run: Rscript tools/ci/check_rd_percent.R
       - name: Appendix numbers are computed, not typed
         run: Rscript tools/ci/check_appendix_literals.R
+      - name: Documented supply-loss figures match the correction diff
+        run: Rscript tools/ci/check_documented_shortfalls.R
 
   scientific:
     name: scientific validity
