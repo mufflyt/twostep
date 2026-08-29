@@ -277,7 +277,14 @@ decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
 # number quoted in three places must come from one source. Fails loud: this is a
 # committed artifact, and a Results subsection whose table silently vanished is
 # exactly the failure mode the appendix render guard exists to prevent.
-.am_path <- here::here("artifacts", "multiverse", "age_matched_results.csv")
+# THE PANEL is the authoritative artifact: eleven vintages computed end to end on
+# the frozen AMI, so "same environment, only the denominator changed" holds without
+# qualification. The standalone 2020 file is byte-identical to the panel's 2020
+# rows, but reading the panel means the document and the correction diff cite one
+# source rather than two that merely agree.
+.am_panel <- here::here("artifacts", "2sfca", "agematched_panel", "age_matched_panel.csv")
+.am_path  <- if (file.exists(.am_panel)) .am_panel else
+             here::here("artifacts", "multiverse", "age_matched_results.csv")
 if (!file.exists(.am_path))
   stop("age-matched results missing: ", .am_path)
 # SUPPLY CONSERVATION, enforced at render time. The committed 2020 age-matched
@@ -299,6 +306,11 @@ if (all(c("n_supply_origins", "n_iso_origins") %in% names(.am_chk))) {
       .am_chk$n_supply_origins[which.max(.am_drop)]))
 }
 am_raw   <- utils::read.csv(.am_path, stringsAsFactors = FALSE)
+# The panel spans 2013-2023. The reported cross-sectional table is 2020, matching
+# the primary analysis's exemplar year; the full panel drives the ordering claim
+# below, which is a decade-scale statement rather than a single-year one.
+am_panel_all <- am_raw
+if ("year" %in% names(am_raw)) am_raw <- am_raw[am_raw$year == 2020L, , drop = FALSE]
 am_all   <- am_raw[am_raw$regime == "all_ages", ];    rownames(am_all) <- am_all$subspec
 am_age   <- am_raw[am_raw$regime == "age_matched", ]; rownames(am_age) <- am_age$subspec
 am_order <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
@@ -1047,6 +1059,49 @@ Supplemental Digital Content.
   # Loaded once in setup so the Introduction, this table, and the Discussion all
   # quote the same numbers from the same source.
   .aa <- am_all; .am <- am_age; .o <- am_order; .al <- unname(am_alpha)
+  # Which subspecialties change rank, computed rather than named by hand. The
+  # previous text asserted a single pair; on the corrected panel TWO pairs
+  # exchange, and hardcoding the answer is how that went stale unnoticed.
+  .ord <- function(d) d$subspec[order(-d$national)]
+  .oa <- .ord(.aa[.o, ]); .om <- .ord(.am[.o, ])
+  .ra <- stats::setNames(seq_along(.oa), .oa); .rb <- stats::setNames(seq_along(.om), .om)
+  .moved <- names(.ra)[.ra[names(.ra)] != .rb[names(.ra)]]
+  # Express it as exchanged PAIRS where the movement is a clean swap: "A and B
+  # exchange rank" is both shorter and more informative than listing four names.
+  .pairs <- list(); .rest <- .moved
+  for (x in .moved) {
+    if (!x %in% .rest) next
+    y <- .om[.ra[[x]]]                      # who now occupies x's old position
+    if (!is.na(y) && y %in% .rest && identical(.om[.ra[[y]]], x)) {
+      .pairs[[length(.pairs) + 1L]] <- c(x, y); .rest <- setdiff(.rest, c(x, y))
+    }
+  }
+  # "with", not "and": one of the field names is itself "reproductive
+  # endocrinology AND infertility", so joining pairs with "and" produces a
+  # sentence no reader can parse.
+  .pair_txt <- vapply(.pairs, function(z)
+    sprintf("%s with %s", full_name[[z[1]]], full_name[[z[2]]]), character(1))
+  .rank_moved_txt <- if (!length(.moved)) {
+    "no subspecialty changed rank"
+  } else if (length(.pair_txt) && !length(.rest)) {
+    sprintf("%s pair%s exchange rank -- %s", 
+            c("one","two","three","four")[min(length(.pair_txt), 4L)],
+            if (length(.pair_txt) > 1) "s" else "",
+            paste(.pair_txt, collapse = "; and "))
+  } else {
+    sprintf("%s changed rank", paste(unname(full_name[.moved]), collapse = ", "))
+  }
+  # And whether that is a 2020 artefact or holds across the decade.
+  .rank_years_txt <- ""
+  if (exists("am_panel_all") && "year" %in% names(am_panel_all)) {
+    .yrs <- sort(unique(am_panel_all$year))
+    .diff <- vapply(.yrs, function(y) {
+      d <- am_panel_all[am_panel_all$year == y, ]
+      !identical(.ord(d[d$regime == "all_ages", ]), .ord(d[d$regime == "age_matched", ]))
+    }, logical(1))
+    .rank_years_txt <- sprintf(", and the ordering differs between the two denominators in %d of the %d study years",
+                               sum(.diff), length(.yrs))
+  }
   .tab <- data.frame(
     Subspecialty = unname(full_name[.o]),
     `Age window` = .am[.o, "age_range"],
@@ -1060,12 +1115,12 @@ Supplemental Digital Content.
     "(maximum %s), as did every ratio for areas where American Indian or Alaska ",
     "Native women live (maximum %s): the rural and racial disparities are not ",
     "artifacts of the shared denominator. The *ordering* of subspecialties did not ",
-    "survive, however -- %s and %s exchanged rank once each was indexed to the ",
-    "population it serves.\n"),
+    "survive, however: %s once each field is indexed to the population it ",
+    "serves%s.\n"),
     pp1(100 * am_alpha[[am_lo]]), full_name[[am_lo]],
     pp1(100 * am_alpha[[am_hi]]), full_name[[am_hi]],
     acc2(max(.am[.o, "rural_metro_ratio"])), acc2(max(.am[.o, "aian_white_ratio"])),
-    full_name[["GO"]], full_name[["REI"]]))
+    .rank_moved_txt, .rank_years_txt))
 }
 ```
 

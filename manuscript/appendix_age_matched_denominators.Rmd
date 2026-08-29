@@ -25,8 +25,15 @@ man_sha <- trimws(strsplit(readLines(HASH, warn = FALSE)[1], "\\s+")[[1]][1])
 amd_path <- file.path(root, "artifacts/2sfca/sensitivity/cache/age_matched_denominators.rds")
 amd <- if (file.exists(amd_path)) readRDS(amd_path) else NULL
 
-res_path <- file.path(root, "artifacts/multiverse/age_matched_results.csv")
+# The PANEL is authoritative: eleven vintages computed end to end on the frozen
+# AMI. Its 2020 rows are byte-identical to the standalone file, but reading the
+# panel means this appendix, the manuscript and the correction diff all cite one
+# artifact rather than three that happen to agree.
+panel_path <- file.path(root, "artifacts/2sfca/agematched_panel/age_matched_panel.csv")
+res_path   <- if (file.exists(panel_path)) panel_path else
+              file.path(root, "artifacts/multiverse/age_matched_results.csv")
 res <- if (file.exists(res_path)) utils::read.csv(res_path, stringsAsFactors = FALSE) else NULL
+if (!is.null(res) && "year" %in% names(res)) res <- res[res$year == 2020L, , drop = FALSE]
 have_results <- !is.null(res) && nrow(res) > 0
 ```
 
