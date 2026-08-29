@@ -9,10 +9,6 @@ panel_path <- paste0(
   "age_matched_panel.csv"
 )
 legacy_path <- "artifacts/multiverse/age_matched_results.csv"
-archive_path <- paste0(
-  "artifacts/multiverse/_precorrection/",
-  "age_matched_results_CONTAMINATED_2020.csv"
-)
 panel_hash <- paste0(
   "485df006e8156a5f15add4ad6173e752d320c6d21b2f33f2e1f7e4e4cb025064",
   "  ", panel_path
@@ -44,6 +40,12 @@ require_text <- function(path, needle, label) {
   }
 }
 
+require_all <- function(path, needles, label) {
+  for (needle in needles) {
+    require_text(path, needle, label)
+  }
+}
+
 forbid_text <- function(path, needle, label) {
   txt <- read_text(path)
   if (grepl(needle, txt, fixed = TRUE)) {
@@ -54,15 +56,25 @@ forbid_text <- function(path, needle, label) {
   }
 }
 
+# R consumers may construct a path with here::here() or file.path(), while shell
+# consumers use a slash-joined literal. Test the semantic path components rather
+# than dictating one implementation style, and separately forbid the legacy
+# standalone result path.
+panel_components <- c(
+  "artifacts",
+  "2sfca",
+  "agematched_panel",
+  "age_matched_panel.csv"
+)
 for (path in consumer_paths) {
-  require_text(path, panel_path, "corrected-panel SSOT")
+  require_all(path, panel_components, "corrected-panel SSOT")
   forbid_text(path, legacy_path, "standalone-results fallback")
 }
 
 appendix_path <- "manuscript/appendix_age_matched_denominators.Rmd"
-require_text(
+require_all(
   appendix_path,
-  archive_path,
+  c("_precorrection", "age_matched_results_CONTAMINATED_2020.csv"),
   "archived contaminated artifact for historical example"
 )
 require_text(
