@@ -102,11 +102,17 @@ frozen set carries **4,050**:
 
 ![Provider origins missing from the incomplete isochrone set](docs/figures/isochrone_coverage_gap.png)
 
-The 141 missing origins are nationally distributed, not a regional artifact. Five of them
-had supply attached, and with `unmatched_supply_policy = "drop"` that supply silently
-vanished — 7 of 890 units, 0.787%, which put the run 0.786% below the frozen analysis
-while reporting success. The committed 2020 artifact had dropped supply in **12 of 14
-cells**.
+The 141 missing origins are nationally distributed, not a regional artifact. Which of them
+mattered depended on the cell: each subspecialty has its own provider set, so the drops are
+per-cell rather than a partition of one shared list. The five marked red are the ones the
+gynecologic-oncology cell needed — 7 of its 890 supply units, 0.787%, which with
+`unmatched_supply_policy = "drop"` vanished silently and put **that cell** 0.786% below the
+frozen value while the run reported success. FPMRS lost 15 origins, MFM 6, REI 5, PAG 2,
+MIGS 1, CFP none: **12 of 14 cells**, 34 origin-drops per regime and 68 across both.
+
+Relative shortfall was largest where the provider set was smallest — PAG 3.54% and FPMRS
+2.17% against the corrected value, against GO's 0.79% — which is why PAG and MIGS exchanged
+rank once the supply was restored.
 
 Nine isochrone directories existed across the analysis machine and an attached drive.
 **None** of them matched the frozen hashes; two were byte-identical to each other and
