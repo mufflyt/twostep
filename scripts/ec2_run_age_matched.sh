@@ -82,8 +82,11 @@ case "$BUCKET$AMI$KEY_NAME$PROFILE$SGNAME" in
 esac
 [ -f "$KEY_PATH" ] || { say "ERROR: SSH key not found: $KEY_PATH"; exit 1; }
 
-RUCA_2020="${E2SFCA_RUCA_PATH:-/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping.csv}"
-RUCA_2010="${E2SFCA_RUCA_2010_PATH:-/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping_2010.csv}"
+# Resolve the pinned, hash-verified RUCA copies rather than trusting a local
+# path. The launcher then stages exactly those bytes to S3 for the instance.
+eval "$(bash "$(dirname "$0")/../tools/multiverse/resolve_ruca.sh")" || exit 1
+RUCA_2020="${E2SFCA_RUCA_PATH:-$RUCA_2020}"
+RUCA_2010="${E2SFCA_RUCA_2010_PATH:-$RUCA_2010}"
 CACHE="artifacts/2sfca/sensitivity/cache"
 REQ=( "$RUCA_2020" "$RUCA_2010"
       "$CACHE/acs2013_tracts.rds" "$CACHE/acs2020_tracts.rds"

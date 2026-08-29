@@ -73,3 +73,7 @@ artifacts/2sfca/sensitivity/cache/
 # belong in git, but the hashes do, so tools/ci/check_frozen_isochrones.sh can
 # prove whichever copy is on disk is the right one.
 artifacts/2sfca/frozen_isochrones/
+
+# Pinned RUCA payload: fetched from S3 and hash-verified by
+# tools/multiverse/resolve_ruca.sh. Only inst/multiverse/ruca_inputs.json ships.
+artifacts/2sfca/ruca/

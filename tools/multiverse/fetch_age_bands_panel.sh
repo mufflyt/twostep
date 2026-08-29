@@ -5,8 +5,11 @@
 # is resumable -- a year already built is skipped by the script's own cache.
 set -uo pipefail
 cd "$(dirname "$0")/../.."
-RUCA_2020=/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping.csv
-RUCA_2010=/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping_2010.csv
+# RUCA is resolved by HASH, not by path. The absolute local paths that used to
+# sit here made this script unrunnable anywhere else and unverifiable here --
+# two RUCA files on this machine share an identical row count with different
+# hashes. See inst/multiverse/ruca_inputs.json.
+eval "$(bash "$(dirname "$0")/resolve_ruca.sh")" || exit 1
 ok=0; fail=0
 for Y in 2013 2014 2015 2016 2017 2018 2019 2021 2022 2023; do
   # RUCA vintage must match the tract vintage or the rurality join silently

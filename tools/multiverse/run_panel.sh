@@ -25,8 +25,11 @@ export S="artifacts/2sfca/agematched_panel"
 # origins that five subspecialties need. Override with E2SFCA_ISO_DIR; either
 # way the hash gate below decides whether it may be used.
 export E2SFCA_ISO_DIR="${E2SFCA_ISO_DIR:-artifacts/2sfca/frozen_isochrones}"
-RUCA_2020="/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping.csv"
-RUCA_2010="/Users/tylermuffly/isochrones-den/data/external/ruca_tract_mapping_2010.csv"
+# RUCA is resolved by HASH, not by path. The absolute local paths that used to
+# sit here made this script unrunnable anywhere else and unverifiable here --
+# two RUCA files on this machine share an identical row count with different
+# hashes. See inst/multiverse/ruca_inputs.json.
+eval "$(bash "$(dirname "$0")/resolve_ruca.sh")" || exit 1
 
 # Fail before spending hours if an input is absent.
 for f in "$RUCA_2020" "$RUCA_2010"; do

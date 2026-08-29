@@ -1,0 +1,28 @@
+{
+  "schema": "twostep/ruca-inputs/v1",
+  "supports_release": "v0.2.0",
+  "release_commit": "10afe5cb2935a3c11a2feb5ccb120baa846f1d01",
+  "s3_prefix": "s3://tmuffly-isochrone-library-163531628641/frozen/twostep/v0.2.0/ruca/",
+  "fetch": "aws s3 sync s3://tmuffly-isochrone-library-163531628641/frozen/twostep/v0.2.0/ruca/ <dir>/ --region us-west-2",
+  "source": "USDA ERS Rural-Urban Commuting Area codes, tract level.",
+  "why_pinned": "Two RUCA files on this machine share an identical row count of 85,528 with DIFFERENT hashes, and the wrong one passed every row-count check. Only the hash distinguishes them. The vintage must also match the tract vintage or the rurality join silently drops tracts.",
+  "nature": "HISTORICAL FROZEN INPUTS supporting v0.2.0. Do not regenerate: a newer RUCA release is a different classification vintage, not a correction.",
+  "files": [
+    {
+      "name": "ruca_tract_mapping_2010.csv",
+      "tract_vintage": "2010 tract vintage",
+      "serves_years": "2013-2019",
+      "rows": "73,782 data rows",
+      "bytes": 2257392,
+      "sha256": "59d7b62e5dc5635bcd925a6c96b04917101d093c9f84c67fadc1e929d5ef76f8"
+    },
+    {
+      "name": "ruca_tract_mapping.csv",
+      "tract_vintage": "2020 tract vintage",
+      "serves_years": "2020-2023",
+      "rows": "85,528 data rows",
+      "bytes": 2603400,
+      "sha256": "7d256905d14d2ed55451e6fa4d349cd1c1dd81644e76f82c8a808f65808a2d86"
+    }
+  ]
+}
