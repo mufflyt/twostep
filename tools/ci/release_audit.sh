@@ -68,6 +68,7 @@ run "appendix literals"          Rscript tools/ci/check_appendix_literals.R
 run "documented shortfalls"      Rscript tools/ci/check_documented_shortfalls.R
 run "NEWS headings"              Rscript tools/ci/check_news_headings.R
 run "version consistency"        Rscript tools/ci/check_version_consistency.R
+run "documented counts"          Rscript tools/ci/check_documented_counts.R
 run "docs fresh"                 Rscript tools/ci/check_docs_fresh.R
 run "README agrees"              Rscript tools/ci/check_readme.R
 echo

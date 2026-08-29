@@ -193,6 +193,8 @@ jobs:
         run: Rscript tools/ci/check_news_headings.R
       - name: One version, stated the same in every file
         run: Rscript tools/ci/check_version_consistency.R
+      - name: Counts stated in prose match the repository
+        run: Rscript tools/ci/check_documented_counts.R
 
   artifact-provenance:
     name: frozen artifacts record their inputs

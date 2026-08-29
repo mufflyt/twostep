@@ -76,11 +76,11 @@ Documented in full in
 ## One command for a freeze decision
 
 - New `tools/ci/release_audit.sh` runs **every gate** in one pass and prints a
-  single verdict (22 at the time of writing). The nightly and PR workflows each run a subset split across jobs
+  single verdict (23 at the time of writing). The nightly and PR workflows each run a subset split across jobs
   for parallelism; correct for CI, insufficient for a freeze, which otherwise means
   reconciling four workflow runs by hand. It does not stop on first failure --
   learning nineteen failures one at a time is how a freeze slips a day.
-- New `tools/ci/check_workflow_syntax.R` parses the 114 bash blocks in the
+- New `tools/ci/check_workflow_syntax.R` parses **every** bash block in the
   workflows; an unterminated quote in an `echo` had shipped and failed at run time.
 - New `tools/ci/check_launcher_heredoc.R` catches `$VAR` interpolation inside
   unquoted heredocs, which `bash -n` cannot see. An R accessor `ref$variant` had
@@ -108,6 +108,29 @@ Documented in full in
   simultaneously -- seven minutes of CI for something a millisecond of parsing
   establishes. A study-year range in a heading is a natural thing to write, so it
   will be written again.
+
+## Counts stated in prose are gated too
+
+- New `tools/ci/check_documented_counts.R`. Written after a same-day
+  demonstration: NEWS said `check_workflow_syntax.R` "parses the 114 bash blocks
+  in the workflows", and within four hours that was 126 — invalidated by the same
+  author's later commits wiring three new gates into two workflows. Nobody edits
+  a morning NEWS entry when adding a CI step. It is 128 now, and NEWS no longer
+  states it: the entry describes the property instead, which is the right fix for
+  a dated historical note.
+- Its first two runs were **wrong, not the docs.** `([0-9,]+) cells` matched
+  "12 of 14 cells" — the supply-loss sentence, a different meaning of the word —
+  and reported six stale counts that were not stale. Adding `(?<!of )` then let
+  the engine restart one digit right and match the "4" of "14", turning six false
+  positives into six more confusing ones reporting "says 4". Both lookbehinds are
+  load-bearing and commented as such. A gate that cries wolf is one people learn
+  to skip, which is the failure this suite already documents in the Dropbox
+  verification.
+- Counts deliberately left ungated are named in the file with reasons: the
+  denominator identities (source takes minutes), the SSOT counts (source is an
+  optional package, so checked when present and skipped when not), and the
+  incomplete-isochrone numbers (they describe a directory that no longer exists
+  anywhere, which is why the hashes were pinned).
 
 ## Release 0.2.0, and the version that lived in seven places
 
