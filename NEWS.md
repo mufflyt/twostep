@@ -109,6 +109,33 @@ Documented in full in
   establishes. A study-year range in a heading is a natural thing to write, so it
   will be written again.
 
+## Two release invariants closed, and then the gates stop
+
+- `check_version_consistency.R` now also checks the **git tag**, but only on tag
+  builds (`GITHUB_REF_TYPE=tag`, or `--tag=` locally). The six file checks cannot
+  see the one failure that matters most: all seven files agree on 0.2.1 and
+  somebody tags the commit `v0.2.0`. Unlike a file, a pushed tag is what people
+  cite and what Zenodo archives, so it cannot be corrected after the fact. Wired
+  as the **first** step of `release-manuscript.yml`, ahead of any rendering, so a
+  mistagged release publishes nothing.
+- `check_artifact_provenance.R` becomes a **ratchet with a grandfathered baseline
+  at v0.2.0** rather than a permanently non-blocking report. The three artifacts
+  whose generating inputs are genuinely unrecoverable are enumerated and still
+  only reported; any load-bearing artifact *not* on that list now **fails**. The
+  list may shrink, never grow — and it fails if a listed artifact turns out to
+  have provenance, so the exception cannot outlive the exception and leave a slot
+  for a future artifact to inherit. `--strict` still fails on the legacy three,
+  for the day they are reproduced.
+- Both negative-tested in both directions, artifact restored byte-identically.
+
+**And that is the end of the gates.** The rule that came out of this session:
+*gate stable, consequential facts that have an authoritative machine-readable
+source; do not gate every number merely because it can be counted.* The prose
+count sweep showed the failure mode — the gate produced six false positives, then
+a commit claimed it passed when it had not. Scientific-result gates are saturated
+and no further ones should be added without a real defect revealing a new failure
+class.
+
 ## Counts stated in prose are gated too
 
 - New `tools/ci/check_documented_counts.R`. Written after a same-day

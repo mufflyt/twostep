@@ -75,6 +75,29 @@ if (!length(h1)) {
     bad("NEWS.md's newest release heading is \"", h1[1], "\" but DESCRIPTION says ", want)
 }
 
+# ---- tag releases: the ref must name the version being released ---------------
+# Deliberately NOT checked on ordinary pushes or pull requests, where there is no
+# tag and the question is meaningless. This closes the one failure the six file
+# checks above cannot see: all seven files agree on 0.2.1 and somebody tags the
+# commit v0.2.0 or v0.2.2. Every artifact then says one thing and the immutable
+# ref says another, which is the version of this problem that cannot be fixed by
+# editing a file afterwards -- a pushed tag is what people cite and archive.
+#
+# Runs when GITHUB_REF_TYPE=tag (set by GitHub on tag-triggered workflows), or
+# locally via --tag=v0.2.0.
+tag <- sub("^--tag=", "", grep("^--tag=", commandArgs(trailingOnly = TRUE), value = TRUE))
+if (!length(tag) && identical(Sys.getenv("GITHUB_REF_TYPE"), "tag"))
+  tag <- Sys.getenv("GITHUB_REF_NAME")
+
+if (length(tag) && nzchar(tag)) {
+  expect <- paste0("v", want)
+  cat(sprintf("  %-16s %-22s %s\n", "git tag", tag, if (identical(tag, expect)) "ok" else "MISMATCH"))
+  if (!identical(tag, expect))
+    bad("the tag is ", tag, " but DESCRIPTION says ", want, ", so the release should be ", expect)
+} else {
+  cat("  git tag          (not a tag build)      skipped\n")
+}
+
 cat("\n")
 if (length(fail)) {
   message("FAIL: the version is not stated consistently:")

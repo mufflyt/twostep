@@ -47,6 +47,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Gate the tag BEFORE anything is rendered or attached. A release whose tag
+      # disagrees with DESCRIPTION publishes assets under a version that names a
+      # different artifact, and unlike a file that can be corrected afterwards, a
+      # pushed tag is what people cite and what Zenodo archives. Base R only, so
+      # it runs before any dependency setup and cannot be the thing that breaks.
+      - name: The tag must name the version being released
+        run: Rscript tools/ci/check_version_consistency.R
+
       # The runner's apt mirrorlist points at azure.archive.ubuntu.com, which is
       # intermittently unreachable. setup-r@v2 runs `apt-get update` as its
       # "Updating system package data" phase, so when that mirror is down the
