@@ -42,6 +42,18 @@ no network access — its only external code dependency is the
 [`mufflyaccess`](https://github.com/mufflyt/mufflyaccess) package (data lineage in
 [`docs/DATA_PROVENANCE.md`](https://github.com/mufflyt/twostep/blob/main/docs/DATA_PROVENANCE.md)).
 
+### What the analysis finds, in one figure
+
+![National E2SFCA access to gynecologic subspecialists, 2013-2023](https://raw.githubusercontent.com/mufflyt/twostep/main/manuscript/figures/panel_c_e2sfca_national_access.png)
+
+Population-weighted national access per 100,000 women, log scale, for all seven
+subspecialties across the full study window. The dashed line marks the 2019–2020
+tract-vintage transition; a controlled seam analysis found geometry-only effects
+there to be negligible, and no smoothing is applied. The two-order-of-magnitude
+spread between maternal-fetal medicine and complex family planning is the
+motivating observation — and the reason the age-matched sensitivity analysis
+below exists, since these seven subspecialties do not serve the same population.
+
 ## How this analysis is verified
 
 Most accessibility papers ask whether the code runs. These layers ask whether the
@@ -56,7 +68,11 @@ Most accessibility papers ask whether the code runs. These layers ask whether th
 | **Scientific-core coverage** | an exported function no test ever calls | [`tools/ci/scientific_coverage.R`](tools/ci/scientific_coverage.R) — found 10 untested exports |
 | **Cross-platform agreement** | results that depend on the machine | three GEOS versions agree to 2e-16 |
 | **Manuscript quantifier guards** | prose that drifted from the numbers it describes | "about one in five" must match the computed value or the render fails |
+| **Geography contract** | an accessibility surface computed against an incomplete isochrone set | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — four SHA-256s, gated before the first panel year |
 | **Specification curve** | conclusions that depend on one modelling choice | [`inst/multiverse/`](inst/multiverse/) — prespecified and hash-frozen |
+| **Input pinning by hash** | the analysis silently run against the wrong copy of an input | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — nine isochrone sets exist; only the hash tells them apart |
+| **Supply conservation** | a provider whose catchment is missing vanishing from the numerator | [`tools/ci/check_supply_conservation.R`](tools/ci/check_supply_conservation.R) — `n_iso_origins == n_supply_origins`, every cell |
+| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 19 gates, one verdict |
 
 Two things worth stating plainly, because they are results rather than
 advertising:
@@ -70,6 +86,38 @@ advertising:
   [`tools/ci/check_artifact_provenance.R`](tools/ci/check_artifact_provenance.R)
   reports this rather than failing, because the inputs are not currently
   recoverable. It is a known gap, not a solved problem.
+
+## The geography contract
+
+The accessibility surface is only as complete as the isochrone set behind it, and a
+wrong set is indistinguishable from the right one by name, path or file size. So the
+set is pinned by **hash**, not by location:
+[`inst/multiverse/frozen_isochrones.sha256`](inst/multiverse/frozen_isochrones.sha256),
+enforced by
+[`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) before the
+first panel year runs.
+
+This is not hypothetical. A local directory carried **3,909** provider origins where the
+frozen set carries **4,050**:
+
+![Provider origins missing from the incomplete isochrone set](docs/figures/isochrone_coverage_gap.png)
+
+The 141 missing origins are nationally distributed, not a regional artifact. Five of them
+had supply attached, and with `unmatched_supply_policy = "drop"` that supply silently
+vanished — 7 of 890 units, 0.787%, which put the run 0.786% below the frozen analysis
+while reporting success. The committed 2020 artifact had dropped supply in **12 of 14
+cells**.
+
+Nine isochrone directories existed across the analysis machine and an attached drive.
+**None** of them matched the frozen hashes; two were byte-identical to each other and
+both were the short set. The frozen set was recovered from S3. That is the argument for
+hashing rather than repointing: a corrected path fixes one day's mistake, a hash makes
+the class of mistake unavailable.
+
+C2 and C3 survived the correction unchanged. The subspecialty ordering did not — see
+[`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) for the full account and
+[`artifacts/multiverse/age_matched_correction_diff.csv`](artifacts/multiverse/age_matched_correction_diff.csv)
+for all 136 affected quantities.
 
 ## Learn the method
 
@@ -111,6 +159,56 @@ README and manuscript name the year explicitly rather than saying "current":
 | ACS demand denominator | **ACS 2020** | 2020 tract vintage; ACS 2020 |
 | Temporal-change window (Table 1 "Change" column, trend analyses) | **2013–2022** | 2023 is right-censored and reported provisionally |
 | URPS board-certified-active workforce (cross-reference) | **2023** | `mufflyaccess::urps_count()` (1,306 national / 1,303 CONUS, `include_urology = TRUE`) |
+
+## Age-matched demand denominators
+
+The primary analysis indexes all seven subspecialties to the same denominator —
+the total female population of all ages. That is a deliberate, comparable choice,
+but it is not the population each subspecialty plausibly serves: a
+pediatric/adolescent gynecologist is measured against a population 76% of which
+is outside their age window, and a minimally invasive gynecologic surgeon against
+one only 18% outside. A **sensitivity analysis, not a replacement**, re-indexes
+each subspecialty to its own age range.
+
+![Age-matched versus all-ages demand denominators](https://raw.githubusercontent.com/mufflyt/twostep/main/manuscript/figures/fig_age_matched_denominators.jpg)
+
+Three things are comparable across the two regimes, and each gets a panel.
+**A** is the mechanism: the share of the all-ages female population each age
+window retains, from 82% (MIGS, 15 and over) down to 24% (PAG, under 20).
+**B** is the result: rural:metropolitan and AIAN:White contrasts are
+dimensionless, so they *can* be compared — and both disparities persist, moving
+by at most 1.56%. **C** is claim C5: levels are not comparable across regimes
+(halving a denominator roughly doubles the value, which is arithmetic and not a
+finding), but rank is, and four of seven subspecialties change rank.
+
+The panel covers all **154 cells** (7 subspecialties × 11 years × 2 regimes) at
+`artifacts/2sfca/agematched_panel/age_matched_panel.csv`, with `provenance.json`
+recording the manifest, runner, engine and per-year input hashes. It is the sole
+source for every age-matched number in the manuscript, the appendix and this
+figure; [`tools/ci/check_agematched_ssot.R`](tools/ci/check_agematched_ssot.R)
+fails if any live consumer reads the older standalone 2020 file instead.
+
+## The frozen isochrone set
+
+The analysis is computed against one specific isochrone set (run
+`e2sfca_20260712_190734`, 4,050 origins, four bands, ~1.4 GiB). It is far too
+large to version-control, so what ships is its checksum manifest,
+[`inst/multiverse/frozen_isochrones.sha256`](inst/multiverse/frozen_isochrones.sha256)
+— the payload is retrievable, the identity is not, so the identity is what gets
+tracked.
+
+This matters because at least nine directories across the author's machines hold
+files with these exact names, similar sizes and identical structure, and **none
+of the local ones is the frozen set**. The one the age-matched runner used
+carries 3,909 origins and is missing 44 physician locations. Nothing about a
+path distinguishes them; only the hash does. Full account, including the defect
+this caused and its correction, in
+[`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md).
+
+```bash
+aws s3 sync s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ "$E2SFCA_ISO_DIR"
+bash tools/ci/check_frozen_isochrones.sh "$E2SFCA_ISO_DIR"
+```
 
 ## Status and open items
 

@@ -1,5 +1,141 @@
 # twostep (development version)
 
+## Dropped supply: a silent defect in the age-matched sensitivity analysis
+
+The age-matched runner was configured `unmatched_supply_policy = "drop"` and was
+pointed at an isochrone directory that is **not** the frozen set the primary
+analysis used. A provider whose catchment was missing therefore did not raise an
+error -- that provider's supply left the numerator and the run completed, giving
+a complete-looking result computed on less supply than the study population had.
+
+- **12 of 14 cells were affected, 68 origins lost.** Every affected cell
+  *understated* access, because supply was only ever removed. Worst was PAG at
+  3.54%, from losing two origins out of ninety-five; small denominators make
+  small losses loud. FPMRS lost fifteen of 580 for 2.17%.
+- **It changed a claim, not just a level.** The C5 ordering read
+  `MFM > REI > GO > FPMRS > MIGS > PAG > CFP` under the contaminated data and
+  `MFM > REI > GO > FPMRS > PAG > MIGS > CFP` corrected -- MIGS and PAG exchange
+  rank on a margin the loss manufactured. C2 (max rural:metropolitan 0.5329) and
+  C3 (max AIAN:White 0.9567) were unaffected.
+- The runner now sets `unmatched_supply_policy = "error"`. This one change would
+  have prevented the entire episode and costs nothing when the inputs are right.
+- New `tools/ci/check_supply_conservation.R` is the artifact-level backstop:
+  every committed cell must satisfy `n_iso_origins == n_supply_origins`. It is
+  independent of the hash gate by design, so it catches supply loss from causes a
+  hash cannot see. On its first run it found the twelve failing cells.
+- The contaminated 2020 artifact is preserved at
+  `artifacts/multiverse/_precorrection/age_matched_results_CONTAMINATED_2020.csv`.
+  The appendix paragraph describing the defect had been computing it from the
+  *corrected* file and printing a 0.000% shortfall from 0 lost origins -- an
+  account of the contamination written from data in which it had been repaired.
+
+## Age-matched denominators: the full 2013-2023 panel
+
+The age-matched sensitivity analysis covered 2020 only, which is why it could not
+be promoted without deleting the paper's temporal arm.
+
+- `artifacts/2sfca/agematched_panel/age_matched_panel.csv` now carries all
+  **154 cells** (7 subspecialties x 11 years x 2 regimes), computed on the frozen
+  environment with **0 dropped origins**, with its own `provenance.json` recording
+  manifest, runner, engine and per-year input hashes.
+- Two ACS tract vintages, not eleven: 2013-2019 share the 2010 tract set (72,538)
+  and 2020-2023 the 2020 set (83,776), verified by querying GEOIDs year by year.
+- **Connecticut breaks at exactly ACS 2022** (`09001...` to `09110...` planning
+  regions). Unhandled, 2022-2023 lose all 884 CT tracts while the national join
+  still reads 98.9% complete. `relabel_ct_geoids_safe()` runs fail-closed for
+  `YEAR >= 2022`.
+- The RUCA crosswalk was wrong, and was caught only by insisting the parameterised
+  runner reproduce 2020 byte-for-byte. Two RUCA files share an **identical row
+  count of 85,528** with different hashes. A row-count check would have passed the
+  wrong one.
+- New `tools/ci/check_panel_invariants.R` (10 invariants, each negative-tested) and
+  `tools/ci/check_denominator_identity.R`, which reconstructs denominators from the
+  ACS table definitions and the declared age window rather than from the manifest's
+  own band lists -- 231 tract-vector identities exact across 11 vintages.
+- New `tools/ci/check_agematched_ssot.R` fails if any live consumer reads the
+  standalone 2020 file instead of the panel. The two are byte-identical today, so a
+  consumer pointed at the wrong one produces correct numbers and no symptom.
+
+## Frozen isochrones served by hash, not by path
+
+Documented in full in
+[`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md).
+
+- `inst/multiverse/frozen_isochrones.sha256` pins the four bands of the set the
+  primary analysis was computed against (run `e2sfca_20260712_190734`, 4,050
+  origins). Nine isochrone directories exist across the author's machines and
+  **none of the local ones matches**; the wrong one carries 3,909 origins and is
+  missing 44 physician locations. Nothing about a path distinguishes them.
+- `tools/ci/check_frozen_isochrones.sh` verifies by hash before any year runs, so
+  the wrong set costs seconds rather than a twelve-hour run and a retraction.
+- `mufflyaccess` (>= 0.10.0) serves the set and the ABOG refresh roster as an SSOT
+  with canonical S3 and Dropbox copies. `E2SFCA_ISO_DIR` still works but is now
+  **verified rather than trusted** -- the old contract was "tell me where it is and
+  I will believe you," which is how the wrong set got used.
+
+## One command for a freeze decision
+
+- New `tools/ci/release_audit.sh` runs all **19 gates** in one pass and prints a
+  single verdict. The nightly and PR workflows each run a subset split across jobs
+  for parallelism; correct for CI, insufficient for a freeze, which otherwise means
+  reconciling four workflow runs by hand. It does not stop on first failure --
+  learning nineteen failures one at a time is how a freeze slips a day.
+- New `tools/ci/check_workflow_syntax.R` parses the 114 bash blocks in the
+  workflows; an unterminated quote in an `echo` had shipped and failed at run time.
+- New `tools/ci/check_launcher_heredoc.R` catches `$VAR` interpolation inside
+  unquoted heredocs, which `bash -n` cannot see. An R accessor `ref$variant` had
+  been eaten by the shell and surfaced as `variant: unbound variable` on EC2.
+
+
+## Geography is identified by hash, not by path
+
+The age-matched panel ran against an isochrone set carrying **3,909** provider origins
+where the frozen set carries **4,050**. Five of the 141 missing origins had supply
+attached, and `run_age_matched.R` was passing `unmatched_supply_policy = "drop"`, so
+that supply was discarded rather than raising an error. The run reported success and
+landed 0.786% below the frozen analysis.
+
+The committed 2020 artifact had dropped supply in **12 of 14 cells** — 68 origins.
+FPMRS lost 15 of 580; PAG lost 2 of 95, which is 2.1% and the largest proportional
+loss. The loss was recorded the entire time in `n_supply_origins` and `n_iso_origins`.
+Nothing compared them.
+
+Three defences, because any one of them alone leaves the others open:
+
+- `run_age_matched.R` now passes `unmatched_supply_policy = "error"`. The engine names
+  the offending `coord_id`s and the supply share they carry, rather than returning a
+  plausible number.
+- `tools/ci/check_frozen_isochrones.sh` verifies the four band files against
+  `inst/multiverse/frozen_isochrones.sha256` and refuses to proceed otherwise.
+  `run_panel.sh` runs it **before the first year**, since ten years by fourteen cells
+  against a wrong set would reproduce the defect silently, year after year.
+- `tools/ci/check_supply_conservation.R` requires `n_supply_origins == n_iso_origins`
+  in any results table that records them, whatever produced it.
+
+Nine isochrone directories existed across this machine and an attached drive. **None**
+matched the frozen hashes — two were byte-identical to each other and both were the
+3,909-origin set. The frozen set was recovered from
+`s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/`. This is why the pin is a hash
+and not a path: repointing `run_panel.sh` at a different directory would have fixed
+that day's wrong path and left the failure mode intact.
+
+Scientific effect: C2 (rural/metro) and C3 (AIAN/White) hold. The subspecialty ordering
+does not — PAG and MIGS exchange rank, because the pre-correction margin of +0.000613
+was manufactured by the dropped supply; corrected it is −0.008705 in the opposite
+direction. CFP, which lost no origins, is unchanged. Full comparison of all 136
+manuscript-facing quantities in `artifacts/multiverse/age_matched_correction_diff.csv`;
+background in `docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`.
+
+## The results path is an output, not an input
+
+`scripts/ec2_run_age_matched.sh` required `artifacts/multiverse/age_matched_results.csv`
+in its preflight, shipped it in the uploaded input bundle, and required it again on the
+instance. `run_year 2020` writes that same path, so the shipped copy was only ever a
+placeholder waiting to be overwritten — and a corrected local artifact was silently
+reverted by the input bundle at one point. Removed from all three input sites. The gate
+still reads the path, but reads what the instance just computed, and compares against
+frozen `sensitivity_2020.csv`.
+
 ## Scientific validity: fail closed on ambiguous data
 
 A scientific join doctrine now governs every path that consumes scientific keys:
