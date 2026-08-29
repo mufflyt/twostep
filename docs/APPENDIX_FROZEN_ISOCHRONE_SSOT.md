@@ -259,10 +259,21 @@ AUDIT VERDICT: ALL 20 GATES PASS
   artifacts have no record of the inputs that produced them. It reports rather
   than fails, because those inputs are not currently recoverable. Known gap, not
   a solved problem.
-- **`artifacts/2sfca_recovered/` (213 MB) is untracked and undecided.** It holds
-  the recovered input manifest the isochrone hashes were read from. It is
-  referenced by `inst/multiverse/frozen_isochrones.sha256` as the source of those
-  hashes, so it should not be deleted without moving that record somewhere
-  durable first.
+- **RESOLVED (2026-08-29): `artifacts/2sfca_recovered/` is gone.** It was
+  described here, and by me to the user, as the only home of the input manifest
+  the isochrone hashes were read from. That was wrong: a byte-identical copy
+  (sha256 `5e018dea…`) was already committed at
+  `artifacts/2sfca/provenance/frozen_run_e2sfca_20260712_190734/`, as was
+  `step_3_year_coord_map.rds`. Committing it again would have created the second
+  copy this repository refuses everywhere else. The pin file's citation has been
+  repointed at the committed path.
+
+  What was genuinely unique were the 205 MB of payload — `acs_bundle_2013_2022.rds`
+  and the 77-cell outputs tarball — and those were **not** recoverable from the
+  frozen run, contrary to what was assumed. They are now at
+  `s3://tmuffly-isochrone-library-163531628641/frozen/e2sfca_20260712_190734/run_bundle/`,
+  uploaded through `scripts/s3_multipart_put.sh` and verified by downloading each
+  back and hashing it against the committed manifests — a size gate would not have
+  been proof, and this environment silently drops `s3 cp` above 16 MB.
 - **`manuscript/figures/figS10_satellite_clinics.jpg` is orphaned** — present on
   disk, referenced by no document and absent from `FIGURE_PROVENANCE.csv`.

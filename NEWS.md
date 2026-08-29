@@ -98,6 +98,27 @@ Documented in full in
   `release_audit.sh` itself. "all 19 gates" appeared in three places and survived
   the twentieth gate being added.
 
+## The recovered bundle: one copy that was two, and two that were one
+
+`artifacts/2sfca_recovered/` (205 MB, untracked) was believed to be the only home
+of the frozen run's input manifest, and was left in place on that basis.
+
+- **It was not.** A byte-identical copy (sha256 `5e018dea…`) was already committed
+  at `artifacts/2sfca/provenance/frozen_run_e2sfca_20260712_190734/`, along with
+  `step_3_year_coord_map.rds`. Committing it again would have created exactly the
+  second copy this repository refuses for scientific constants.
+- **The payload was the opposite case.** `acs_bundle_2013_2022.rds` and the
+  77-cell outputs tarball were assumed recoverable from the frozen run. They were
+  not in any bucket — checked all three, 25,141 objects — so deleting them would
+  have been irreversible. They now live at
+  `s3://tmuffly-isochrone-library-163531628641/frozen/e2sfca_20260712_190734/run_bundle/`.
+- Verified by **downloading each object back and hashing it** against the
+  committed manifests, not by the upload's size gate. This environment silently
+  drops `s3 cp` above 16 MB, so a size that matches is evidence of nothing until
+  the bytes are read back.
+- `inst/multiverse/frozen_isochrones.sha256` cited the untracked path as the
+  source of its four hashes; it now cites the committed one.
+
 ## The mirrors were real; the check that said so could not have known
 
 The frozen isochrones and the ABOG registry are mirrored to S3 and Dropbox, both
