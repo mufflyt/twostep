@@ -1,0 +1,28 @@
+name: tmp-age-matched-ssot-red
+
+on:
+  push:
+    branches:
+      - chatgpt/age-matched-manuscript-regeneration
+
+permissions:
+  contents: read
+
+jobs:
+  red:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: New guard must fail on the current manuscript chain
+        shell: bash
+        run: |
+          set +e
+          Rscript tools/ci/check_age_matched_manuscript_ssot.R
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "::error::guard unexpectedly passed before the fix"
+            exit 1
+          fi
+          echo "RED confirmed: guard rejected the current chain"
