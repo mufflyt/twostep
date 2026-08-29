@@ -63,7 +63,76 @@ bands_in <- function(win, bands, prefix, offset) {
 
 MAN <- "inst/multiverse/age_matched_denominator.yml"
 man <- yaml::read_yaml(MAN)
-CACHE <- "artifacts/2sfca/sensitivity/cache"
+# RELEASE-AUDIT ONLY, DELIBERATELY NOT IN nightly.yml OR pr-scientific-gate.yml.
+# This gate needs the 227.7 MB pinned ACS cache, which lives in S3, and no
+# workflow in this repository has AWS credentials. Wiring it in would produce a
+# job that fails on every run for a reason unrelated to the science -- the exact
+# thing that teaches people to ignore a red gate. It runs in
+# tools/ci/release_audit.sh, which is executed on a machine that can fetch the
+# payload, and a release is not declared without it.
+#
+# ---- the cache is a PINNED external input, verified before it is read --------
+# These 24 files (227.7 MB) are the exact ACS band extracts, tract geometry and
+# derived denominators that produced the accepted v0.2.0 analysis. They are too
+# large for git, so only the manifest ships and the payload lives in S3.
+#
+# This gate previously read whatever happened to be at the cache path. A clean
+# checkout of v0.2.0 could not run it at all -- every year reported "inputs
+# missing" -- and it passed on the author's machine only because the files were
+# lying there from the panel build. That is precisely the condition that let the
+# WRONG isochrone set be used for four days: a load-bearing input identified by
+# local path rather than by hash.
+#
+# So: resolve the directory, verify every file against the manifest by SHA-256,
+# and fail closed. No fallback, no "use what is there", no size-only check --
+# this environment silently truncates large S3 transfers, so a file of the right
+# length proves nothing.
+CACHE <- Sys.getenv("E2SFCA_DENOM_CACHE", "artifacts/2sfca/sensitivity/cache")
+MANIFEST <- "inst/multiverse/acs_denominator_cache.json"
+
+.sha256 <- function(path) {
+  # digest is pinned in renv.lock (0.6.39). No shelling out to shasum/sha256sum,
+  # which differ across the three CI platforms.
+  as.character(digest::digest(file = path, algo = "sha256"))
+}
+
+.verify_cache <- function(cache, manifest) {
+  if (!file.exists(manifest))
+    stop("the denominator-cache manifest is missing: ", manifest, call. = FALSE)
+  for (pkg in c("jsonlite", "digest"))
+    if (!requireNamespace(pkg, quietly = TRUE))
+      stop(pkg, " is required to verify the denominator cache", call. = FALSE)
+
+  m <- jsonlite::fromJSON(manifest, simplifyDataFrame = FALSE)
+  absent <- character(0); wrong <- character(0)
+  for (f in m$files) {
+    p <- file.path(cache, f$name)
+    if (!file.exists(p)) { absent <- c(absent, f$name); next }
+    got <- .sha256(p)
+    if (!identical(got, f$sha256))
+      wrong <- c(wrong, sprintf("%s\n      want %s\n      got  %s", f$name, f$sha256, got))
+  }
+
+  if (length(absent) || length(wrong)) {
+    msg <- c("the pinned ACS denominator cache is not present and correct at: ", cache)
+    if (length(absent))
+      msg <- c(msg, sprintf("\n\n  MISSING (%d of %d):\n    - %s", length(absent),
+                            length(m$files), paste(absent, collapse = "\n    - ")))
+    if (length(wrong))
+      msg <- c(msg, sprintf("\n\n  WRONG CONTENT (%d):\n    - %s", length(wrong),
+                            paste(wrong, collapse = "\n    - ")))
+    msg <- c(msg, "\n\n  Fetch the pinned set:\n    ", m$fetch,
+             "\n\n  These are HISTORICAL FROZEN INPUTS supporting ", m$supports_release,
+             ". Do not regenerate them\n  to make this pass -- a later ACS vintage extends observation time rather\n",
+             "  than correcting these study-era estimates, so regenerating would change\n",
+             "  the analysis rather than verify it.")
+    stop(paste0(msg, collapse = ""), call. = FALSE)
+  }
+  cat("  pinned cache verified: ", length(m$files), " files, sha256 exact\n", sep = "")
+  invisible(m)
+}
+
+.verify_cache(CACHE, MANIFEST)
 yrs <- Sys.getenv("E2SFCA_IDENTITY_YEARS", "")
 YEARS <- if (nzchar(yrs)) as.integer(strsplit(yrs, ",")[[1]]) else 2013:2023
 

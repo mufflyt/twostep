@@ -1,0 +1,169 @@
+{
+  "schema": "twostep/acs-denominator-cache/v1",
+  "supports_release": "v0.2.0",
+  "release_commit": "10afe5cb2935a3c11a2feb5ccb120baa846f1d01",
+  "s3_prefix": "s3://tmuffly-isochrone-library-163531628641/frozen/twostep/v0.2.0/acs_denominator_cache/",
+  "local_path": "artifacts/2sfca/sensitivity/cache",
+  "fetch": "aws s3 sync s3://tmuffly-isochrone-library-163531628641/frozen/twostep/v0.2.0/acs_denominator_cache/ artifacts/2sfca/sensitivity/cache/",
+  "study_years": "2013-2023",
+  "acs_tables": [
+    "B01001",
+    "B01001H",
+    "B01001C"
+  ],
+  "acquired": "ACS 5-year API via tools/multiverse/fetch_age_bands_panel.sh and fetch_tract_geometry.R; tract geometry via tigris. Fetched 2026-08-25 for the panel build.",
+  "nature": "HISTORICAL FROZEN INPUTS. These are the exact bytes that produced the accepted v0.2.0 analysis. They are NOT refreshed ACS data and must not be regenerated to 'update' them: a later ACS vintage extends observation time rather than correcting these study-era estimates.",
+  "layers": {
+    "raw_acs_extract": "Per-year ACS band extracts. The denominator-identity check reconstructs from THIS layer, so the verification is independent of the derived files below.",
+    "raw_tract_geometry": "Two tract vintages: 2013 (2010 tracts, 72,538) serves 2013-2019; 2020 (2020 tracts, 83,776) serves 2020-2023.",
+    "derived_denominator": "Per-year denominators built by tools/multiverse/age_matched_denominators.R. Checked against, never trusted."
+  },
+  "n_files": 24,
+  "total_bytes": 227702366,
+  "files": [
+    {
+      "name": "acs2013_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5358717,
+      "sha256": "fd8c0f751be4e84015002844b67bb978630c65c6bcb7cfc99e7aecce7514e417"
+    },
+    {
+      "name": "acs2013_tracts.rds",
+      "layer": "raw_tract_geometry",
+      "bytes": 47317599,
+      "sha256": "0db659b5f6e7ffd5b43089b511c1e679c30640c0e994c49699e5e91c1ea8c98a"
+    },
+    {
+      "name": "acs2014_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5367135,
+      "sha256": "0837bfba70cbc4bdb52c5ffedcfa6a79c7f149bfa40f60dd2dda6bb60a3d5af9"
+    },
+    {
+      "name": "acs2015_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5375241,
+      "sha256": "cb4a1699da196b5d2debcfc439c1ad4fed78fbac26ab20cdfec2a950c591e37f"
+    },
+    {
+      "name": "acs2016_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5377964,
+      "sha256": "2e5dd8a5cab817c59374ee25117c7c09bc07465d73946e8c0bacbf1eaee193f0"
+    },
+    {
+      "name": "acs2017_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5376492,
+      "sha256": "30d615622552010161fcd30ad163c5a1434707f40ad90aa2691c4ca90a16945b"
+    },
+    {
+      "name": "acs2018_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5380368,
+      "sha256": "8faf79dfe300b22264ee6ba4b2820c840d3b0fe54f8358d3007cc59fda0a7586"
+    },
+    {
+      "name": "acs2019_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 5379438,
+      "sha256": "989ec425b627157929b8ac59c1a454ea7f3d2657db9b5c84edfbab7c84171fb7"
+    },
+    {
+      "name": "acs2020_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 6027649,
+      "sha256": "cff73b5bf64fea4fb6103df6a285bdbad14a2d7ce874c82f4e77372689040ec9"
+    },
+    {
+      "name": "acs2020_tracts.rds",
+      "layer": "raw_tract_geometry",
+      "bytes": 58775184,
+      "sha256": "af74f9a819b7fe1fa84f7f316eaae4fcde2a3407a6b11b7a30f1df51ef6bb95e"
+    },
+    {
+      "name": "acs2021_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 6021517,
+      "sha256": "a7289cc20603e0c5cc4e86a33d800349e175b4119dfbfb7c88e84dc6a596d86c"
+    },
+    {
+      "name": "acs2022_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 6036646,
+      "sha256": "93a91b5f5b5f5e67b59f73015a1b094dfb6a322d134498c5bc6cc2084638fc99"
+    },
+    {
+      "name": "acs2023_age_bands.rds",
+      "layer": "raw_acs_extract",
+      "bytes": 6045017,
+      "sha256": "0bca756313f2f81b2301bdfed38703c618ec72a57153494000da66b7a00aa608"
+    },
+    {
+      "name": "age_matched_denominators.rds",
+      "layer": "derived_denominator",
+      "bytes": 5862311,
+      "sha256": "b6f5d788d051e82f4388417fa9dc7b0bcb1bcecd251e38d3615ecf4e90083ec5"
+    },
+    {
+      "name": "age_matched_denominators_2013.rds",
+      "layer": "derived_denominator",
+      "bytes": 5187505,
+      "sha256": "57bd8fb0678474dbe561c7fb8a00c3e650bdfa59f2e8e60eda487e5568b38b1d"
+    },
+    {
+      "name": "age_matched_denominators_2014.rds",
+      "layer": "derived_denominator",
+      "bytes": 5191660,
+      "sha256": "e9532bd4628c9b0c46ed88a86fe99272e5a0dd665429a88322a655b0e27ca986"
+    },
+    {
+      "name": "age_matched_denominators_2015.rds",
+      "layer": "derived_denominator",
+      "bytes": 5198269,
+      "sha256": "fd0fd1d4c5750eb27c679f832cb950c8cf42d11dee103be4fae7831ce14e3613"
+    },
+    {
+      "name": "age_matched_denominators_2016.rds",
+      "layer": "derived_denominator",
+      "bytes": 5201593,
+      "sha256": "536376900f7c11f7f20217bfe2b841191d87b110ced5f9dc5de5e0be107cbfc8"
+    },
+    {
+      "name": "age_matched_denominators_2017.rds",
+      "layer": "derived_denominator",
+      "bytes": 5201290,
+      "sha256": "39e443a3d7732e10f1a6f6b9ef0fb7373f8147380c20821f8e3eea5a0b96a9ea"
+    },
+    {
+      "name": "age_matched_denominators_2018.rds",
+      "layer": "derived_denominator",
+      "bytes": 5208907,
+      "sha256": "83381eef9feb84ebcca6ce3fedccb265561120956e6bb01df901975fd87f1029"
+    },
+    {
+      "name": "age_matched_denominators_2019.rds",
+      "layer": "derived_denominator",
+      "bytes": 5208772,
+      "sha256": "7080e6cd3ad89bb4d82aa612459c211ea5edf66acf6a428cb0ecdf740ed985e3"
+    },
+    {
+      "name": "age_matched_denominators_2021.rds",
+      "layer": "derived_denominator",
+      "bytes": 5855892,
+      "sha256": "2e32a269907b0546f0ad2ba2c2f08d28dea22e70dcb1b8ffa057bd8b3aa24950"
+    },
+    {
+      "name": "age_matched_denominators_2022.rds",
+      "layer": "derived_denominator",
+      "bytes": 5867227,
+      "sha256": "9d6ce5f2bc375c887bdf17f1a0fb1de5ae99b97cc64d554cd80c60397d8e0845"
+    },
+    {
+      "name": "age_matched_denominators_2023.rds",
+      "layer": "derived_denominator",
+      "bytes": 5879973,
+      "sha256": "1cf01c6c5025d4af545d1614564092e2062a7a2c1462b7572ba03026d8d952fb"
+    }
+  ]
+}

@@ -91,6 +91,8 @@ jobs:
       # fail-closed run; that is the point.
       - name: No supply may enter E2SFCA without a catchment
         run: Rscript tools/ci/check_supply_conservation.R
+      - name: The age-matched panel satisfies its structural invariants
+        run: Rscript tools/ci/check_panel_invariants.R
       # One artifact: every live age-matched consumer must read the panel, never
       # the standalone 2020 file. They are byte-identical today, so a consumer
       # pointed at the wrong one has no symptom until they diverge -- which has
