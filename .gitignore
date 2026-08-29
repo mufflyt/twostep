@@ -59,7 +59,12 @@ artifacts/ci/
 # Age-matched panel working set: per-year supply extracted from the frozen-run
 # tarball, and per-vintage ACS caches. Derived and large; the tarball and the
 # Census API are the sources.
-artifacts/2sfca/agematched_panel/
+# Derived working set only: the per-cell supply files extracted from the frozen
+# run's tarball. The PANEL ITSELF is the deliverable and is tracked -- an earlier
+# blanket ignore of this directory would have kept the corrected 154-row result
+# out of the repository entirely.
+artifacts/2sfca/agematched_panel/sup/
+artifacts/2sfca/agematched_panel/ec2/
 artifacts/2sfca/sensitivity/cache/
 
 # The frozen isochrone set (1.4 GB across four bands). Content is pinned by
