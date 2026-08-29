@@ -47,6 +47,13 @@ verify <- function(rx, want, label) {
   seen <- 0L
   for (f in DOCS) {
     ln <- readLines(f, warn = FALSE)
+    # A number inside a backtick code span is a literal being QUOTED, not a claim
+    # being made -- a NEWS entry explaining that an old sentence said "114 bash
+    # blocks" is describing history, and flagging it as stale is the gate reading
+    # its own cautionary tale as a defect. It did exactly that on first run.
+    # Code spans are literal text by definition, so they are the right place to
+    # put a retired figure, and the right thing for this check to skip.
+    ln <- gsub("`[^`]*`", "", ln)
     hits <- grep(rx, ln, perl = TRUE)
     for (i in hits) {
       m <- regmatches(ln[i], regexec(rx, ln[i], perl = TRUE))[[1]]

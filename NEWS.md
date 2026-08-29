@@ -112,8 +112,8 @@ Documented in full in
 ## Counts stated in prose are gated too
 
 - New `tools/ci/check_documented_counts.R`. Written after a same-day
-  demonstration: NEWS said `check_workflow_syntax.R` "parses the 114 bash blocks
-  in the workflows", and within four hours that was 126 — invalidated by the same
+  demonstration: NEWS said `check_workflow_syntax.R` parses `114 bash blocks` in
+  the workflows, and within four hours that was 126 — invalidated by the same
   author's later commits wiring three new gates into two workflows. Nobody edits
   a morning NEWS entry when adding a CI step. It is 128 now, and NEWS no longer
   states it: the entry describes the property instead, which is the right fix for
@@ -126,6 +126,13 @@ Documented in full in
   load-bearing and commented as such. A gate that cries wolf is one people learn
   to skip, which is the failure this suite already documents in the Dropbox
   verification.
+- A limitation worth stating: the gate cannot tell a claim from a *quotation* of
+  a retired claim, and flagged this very entry for quoting the old figure. Fixed
+  by skipping backtick code spans, which are literal text by definition and are
+  therefore the correct place to put a retired number. The strip is line-wise, so
+  a code span must not straddle a line break — the first attempt did, and still
+  failed.
+
 - Counts deliberately left ungated are named in the file with reasons: the
   denominator identities (source takes minutes), the SSOT counts (source is an
   optional package, so checked when present and skipped when not), and the
