@@ -1,4 +1,4 @@
-name: tmp-age-matched-ssot-red
+name: tmp-age-matched-ssot-green
 
 on:
   push:
@@ -6,23 +6,422 @@ on:
       - chatgpt/age-matched-manuscript-regeneration
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+  R_KEEP_PKG_SOURCE: yes
+  RENV_CONFIG_AUTOLOADER_ENABLED: false
 
 jobs:
-  red:
+  green:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - name: New guard must fail on the current manuscript chain
+        with:
+          fetch-depth: 0
+
+      - name: Apply fail-closed manuscript SSOT fix
         shell: bash
         run: |
-          set +e
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"{label}: expected one match in {path}, found {count}")
+              p.write_text(text.replace(old, new, 1))
+              print("patched:", label)
+
+          panel = (
+              "artifacts/2sfca/agematched_panel/age_matched_panel.csv"
+          )
+          legacy = "artifacts/multiverse/age_matched_results.csv"
+          archive = (
+              "artifacts/multiverse/_precorrection/"
+              "age_matched_results_CONTAMINATED_2020.csv"
+          )
+
+          main = "manuscript/e2sfca_accessibility_manuscript.Rmd"
+          replace_once(
+              main,
+              '.am_panel <- here::here("artifacts", "2sfca", '
+              '"agematched_panel", "age_matched_panel.csv")\n'
+              '.am_path  <- if (file.exists(.am_panel)) .am_panel else\n'
+              '             here::here("artifacts", "multiverse", '
+              '"age_matched_results.csv")',
+              '.am_path <- here::here(\n'
+              '  "artifacts", "2sfca", "agematched_panel",\n'
+              '  "age_matched_panel.csv"\n'
+              ')',
+              "main panel is fail-closed",
+          )
+          replace_once(
+              main,
+              '# SUPPLY CONSERVATION, enforced at render time. The committed '
+              '2020 age-matched\n'
+              '# results were computed with an isochrone set that did not cover '
+              'every provider:\n'
+              '# 12 of 14 cells silently dropped supply (FPMRS lost 15 of 580 '
+              'origins, GO 5 of\n'
+              '# 516), which deflated every affected mean. Numbers derived from '
+              'that artifact\n'
+              '# must not reach the manuscript. Refuse to render until the '
+              'artifact is\n'
+              '# regenerated from a run where every origin has a catchment.',
+              '# SUPPLY CONSERVATION, enforced at render time. An earlier '
+              'standalone\n'
+              '# 2020 artifact silently dropped supply in 12 of 14 cells '
+              '(FPMRS lost 15\n'
+              '# of 580 origins; GO lost 5 of 516). The corrected panel must '
+              'conserve\n'
+              '# every origin in every year and regime before its values can '
+              'enter the\n'
+              '# manuscript.',
+              "main historical conservation comment",
+          )
+
+          appendix = "manuscript/appendix_age_matched_denominators.Rmd"
+          replace_once(
+              appendix,
+              'panel_path <- file.path(root, "artifacts/2sfca/agematched_panel/'
+              'age_matched_panel.csv")\n'
+              'res_path   <- if (file.exists(panel_path)) panel_path else\n'
+              '              file.path(root, "artifacts/multiverse/'
+              'age_matched_results.csv")\n'
+              'res <- if (file.exists(res_path)) '
+              'utils::read.csv(res_path, stringsAsFactors = FALSE) else NULL\n'
+              'if (!is.null(res) && "year" %in% names(res)) '
+              'res <- res[res$year == 2020L, , drop = FALSE]\n'
+              'have_results <- !is.null(res) && nrow(res) > 0',
+              'panel_path <- file.path(\n'
+              '  root, "artifacts/2sfca/agematched_panel/'
+              'age_matched_panel.csv"\n'
+              ')\n'
+              'if (!file.exists(panel_path))\n'
+              '  stop("corrected age-matched panel missing: ", panel_path)\n'
+              'res <- utils::read.csv(panel_path, stringsAsFactors = FALSE)\n'
+              'if ("year" %in% names(res))\n'
+              '  res <- res[res$year == 2020L, , drop = FALSE]\n'
+              'have_results <- nrow(res) == 14L',
+              "appendix panel is fail-closed",
+          )
+          replace_once(
+              appendix,
+              '.am <- file.path(root, "artifacts/multiverse/'
+              'age_matched_results.csv")',
+              '.am <- file.path(\n'
+              '  root, "artifacts/multiverse/_precorrection/" ,\n'
+              '  "age_matched_results_CONTAMINATED_2020.csv"\n'
+              ')',
+              "appendix historical artifact is archived contaminated run",
+          )
+          replace_once(
+              appendix,
+              '100 * (.got - .ref) / .ref',
+              '100 * (.ref - .got) / .ref',
+              "appendix historical shortfall sign",
+          )
+          replace_once(
+              appendix,
+              'Only the demand denominator differs. Any incompleteness in the '
+              'reproduction\n'
+              'inputs therefore affects both regimes equally and cancels in '
+              'the contrast.',
+              'Only the demand denominator differs. In the corrected analysis, '
+              'complete\n'
+              'provider-to-catchment coverage is required in both regimes; no '
+              'supply\n'
+              'incompleteness is permitted to enter either side of a contrast.',
+              "appendix removes cancellation overclaim",
+          )
+          replace_once(
+              appendix,
+              '`artifacts/multiverse/age_matched_results.csv`; '
+              're-knit once it exists._\\n")',
+              '`artifacts/2sfca/agematched_panel/age_matched_panel.csv`; '
+              're-knit once it exists._\\n")',
+              "appendix missing-results path",
+          )
+          replace_once(
+              appendix,
+              '| Results | `artifacts/multiverse/age_matched_results.csv` |',
+              '| Results | `artifacts/2sfca/agematched_panel/'
+              'age_matched_panel.csv` |',
+              "appendix reproducibility table",
+          )
+
+          plot = "tools/multiverse/plot_age_matched.R"
+          replace_once(
+              plot,
+              'RES <- "artifacts/multiverse/age_matched_results.csv"\n'
+              'if (!file.exists(RES)) { message("results not present yet: ", '
+              'RES); quit(status = 0L, save = "no") }\n'
+              'res <- utils::read.csv(RES, stringsAsFactors = FALSE)',
+              'RES <- "artifacts/2sfca/agematched_panel/'
+              'age_matched_panel.csv"\n'
+              'if (!file.exists(RES))\n'
+              '  stop("corrected age-matched panel missing: ", RES)\n'
+              'panel <- utils::read.csv(RES, stringsAsFactors = FALSE)\n'
+              'res <- panel[panel$year == 2020L, , drop = FALSE]\n'
+              'if (nrow(res) != 14L)\n'
+              '  stop("corrected panel must contain 14 rows for 2020; found ", '
+              'nrow(res))',
+              "figure reads corrected panel",
+          )
+          replace_once(
+              plot,
+              '#      within subspecialty, all-ages to age-matched. A flat line '
+              'means the\n'
+              '#      disparity does not depend on the denominator. A line '
+              'crossing 1.0 is a\n'
+              '#      reversal. Ratios are dimensionless, so this comparison is '
+              'legitimate.',
+              '#      within subspecialty, all-ages to age-matched. Small '
+              'movement indicates\n'
+              '#      robustness; a line crossing 1.0 is a reversal. Ratios are\n'
+              '#      dimensionless, so this comparison is legitimate.',
+              "figure contrast interpretation",
+          )
+          replace_once(
+              plot,
+              'main = "B. Disparity contrasts are\\nunchanged by the denominator", '
+              'cex.main = 0.98)',
+              'main = "B. Disparity contrasts persist\\nunder age matching", '
+              'cex.main = 0.98)',
+              "figure contrast title",
+          )
+
+          render_appendix = "tools/ci/render_appendix.sh"
+          replace_once(
+              render_appendix,
+              'for f in artifacts/multiverse/age_matched_results.csv \\\\n',
+              'for f in artifacts/2sfca/agematched_panel/'
+              'age_matched_panel.csv \\\\n',
+              "appendix render guard reads corrected panel",
+          )
+
+          workflow = ".github/workflows/pr-scientific-gate.yml"
+          replace_once(
+              workflow,
+              '      - name: No supply may enter E2SFCA without a catchment\n'
+              '        run: Rscript tools/ci/check_supply_conservation.R\n\n\n'
+              '      # Data-adversarial corpus.',
+              '      - name: No supply may enter E2SFCA without a catchment\n'
+              '        run: Rscript tools/ci/check_supply_conservation.R\n'
+              '      - name: Manuscript uses corrected age-matched SSOT only\n'
+              '        run: Rscript '
+              'tools/ci/check_age_matched_manuscript_ssot.R\n\n\n'
+              '      # Data-adversarial corpus.',
+              "wire SSOT guard into PR gate",
+          )
+
+          sums = Path("SHA256SUMS.txt")
+          hash_line = (
+              "485df006e8156a5f15add4ad6173e752d320c6d21b2f33f2e1f7e4e4cb025064"
+              "  artifacts/2sfca/agematched_panel/age_matched_panel.csv"
+          )
+          sum_text = sums.read_text().rstrip() + "\n"
+          if hash_line not in sum_text:
+              sum_text += hash_line + "\n"
+              sums.write_text(sum_text)
+              print("patched: corrected panel SHA-256 pin")
+
+          stale = Path("manuscript/appendix_age_matched_denominators.docx")
+          if stale.exists():
+              stale.unlink()
+              print("removed: stale appendix DOCX")
+
+          for path in (
+              main,
+              appendix,
+              plot,
+              render_appendix,
+          ):
+              if legacy in Path(path).read_text():
+                  raise SystemExit(
+                      f"legacy live results path remains in {path}: {legacy}")
+          print("all live age-matched consumers now use", panel)
+          print("historical example uses", archive)
+          PY
+
+      - name: New SSOT guard must now pass
+        run: Rscript tools/ci/check_age_matched_manuscript_ssot.R
+
+      - name: Verify corrected panel claims independently
+        shell: bash
+        run: |
+          python - <<'PY'
+          import csv
+
+          path = "artifacts/2sfca/agematched_panel/age_matched_panel.csv"
+          with open(path, newline="") as handle:
+              rows = list(csv.DictReader(handle))
+          if len(rows) != 154:
+              raise SystemExit(f"expected 154 panel rows, found {len(rows)}")
+          dropped = [
+              row for row in rows
+              if int(row["n_supply_origins"]) != int(row["n_iso_origins"])
+          ]
+          if dropped:
+              raise SystemExit(f"panel drops supply in {len(dropped)} cells")
+
+          years = sorted({int(row["year"]) for row in rows})
+          differing = 0
+          ranks_2020 = {}
+          for year in years:
+              year_rows = [row for row in rows if int(row["year"]) == year]
+              ranks = {}
+              for regime in ("all_ages", "age_matched"):
+                  cells = [row for row in year_rows if row["regime"] == regime]
+                  ranks[regime] = [
+                      row["subspec"]
+                      for row in sorted(
+                          cells,
+                          key=lambda row: -float(row["national"]),
+                      )
+                  ]
+              differing += ranks["all_ages"] != ranks["age_matched"]
+              if year == 2020:
+                  ranks_2020 = ranks
+
+          expected_all = [
+              "MFM", "GO", "REI", "FPMRS", "MIGS", "PAG", "CFP"
+          ]
+          expected_age = [
+              "MFM", "REI", "GO", "FPMRS", "PAG", "MIGS", "CFP"
+          ]
+          if ranks_2020.get("all_ages") != expected_all:
+              raise SystemExit("unexpected 2020 all-ages ordering")
+          if ranks_2020.get("age_matched") != expected_age:
+              raise SystemExit("unexpected 2020 age-matched ordering")
+          if differing != 10:
+              raise SystemExit(
+                  f"expected ordering to differ in 10 years, found {differing}")
+
+          age_2020 = [
+              row for row in rows
+              if int(row["year"]) == 2020
+              and row["regime"] == "age_matched"
+          ]
+          c2 = max(float(row["rural_metro_ratio"]) for row in age_2020)
+          c3 = max(float(row["aian_white_ratio"]) for row in age_2020)
+          if not (c2 < 1 and c3 < 1):
+              raise SystemExit(f"disparity direction reversed: C2={c2}, C3={c3}")
+          print(f"panel rows: {len(rows)}; zero dropped origins")
+          print(f"2020 C2 max rural:metro: {c2:.10f}")
+          print(f"2020 C3 max AIAN:White: {c3:.10f}")
+          print("2020 all ages:", " > ".join(expected_all))
+          print("2020 age matched:", " > ".join(expected_age))
+          print(f"ordering differs in {differing} of {len(years)} years")
+          PY
+
+      - name: Use a reachable apt mirror
+        if: runner.os == 'Linux'
+        run: |
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' \
+            /etc/apt/apt-mirrors.txt 2>/dev/null || true
+
+      - uses: r-lib/actions/setup-r@v2
+        timeout-minutes: 10
+        with:
+          r-version: release
+          use-public-rspm: true
+
+      - name: Install system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgdal-dev libgeos-dev libproj-dev libudunits2-dev pandoc
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: |
+            any::rmarkdown
+            any::knitr
+            any::kableExtra
+            any::yaml
+            any::rprojroot
+          needs: check
+
+      - name: Regenerate SDC age-matched figure
+        run: Rscript tools/multiverse/plot_age_matched.R
+
+      - name: Run structural and scientific guards
+        run: |
+          Rscript tools/ci/check_parse.R
+          Rscript tools/ci/check_supply_conservation.R
+          Rscript tools/ci/check_appendix_literals.R
           Rscript tools/ci/check_age_matched_manuscript_ssot.R
-          status=$?
-          set -e
-          if [ "$status" -eq 0 ]; then
-            echo "::error::guard unexpectedly passed before the fix"
-            exit 1
-          fi
-          echo "RED confirmed: guard rejected the current chain"
+
+      - name: Render main manuscript
+        run: Rscript render.R
+
+      - name: Manuscript semantic QA
+        run: Rscript tools/ci/check_manuscript.R
+
+      - name: Verify corrected claims reached rendered manuscript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from html import unescape
+          from pathlib import Path
+          import re
+
+          raw = Path(
+              "manuscript/e2sfca_accessibility_manuscript.html"
+          ).read_text()
+          plain = unescape(re.sub(r"<[^>]+>", " ", raw))
+          plain = " ".join(plain.split())
+          for needle in (
+              "two pairs exchange rank",
+              "10 of the 11 study years",
+          ):
+              if needle not in plain:
+                  raise SystemExit(
+                      f"rendered manuscript is missing corrected claim: {needle}")
+              print("render contains:", needle)
+          PY
+          test -s manuscript/figures/fig_age_matched_denominators.jpg
+          test ! -e manuscript/appendix_age_matched_denominators.docx
+
+      - name: Upload regenerated main manuscript
+        uses: actions/upload-artifact@v7
+        with:
+          name: corrected-age-matched-main-manuscript
+          path: |
+            manuscript/e2sfca_accessibility_manuscript.html
+            manuscript/e2sfca_accessibility_manuscript.docx
+            manuscript/figures/fig_age_matched_denominators.jpg
+            manuscript/appendix_age_matched_denominators.Rmd
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Commit verified manuscript-chain fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/tmp-age-matched-ssot-red.yml
+          git add \
+            SHA256SUMS.txt \
+            .github/workflows/pr-scientific-gate.yml \
+            tools/ci/check_age_matched_manuscript_ssot.R \
+            tools/ci/render_appendix.sh \
+            tools/multiverse/plot_age_matched.R \
+            manuscript/e2sfca_accessibility_manuscript.Rmd \
+            manuscript/appendix_age_matched_denominators.Rmd \
+            manuscript/figures/fig_age_matched_denominators.jpg
+          git add -u \
+            manuscript/appendix_age_matched_denominators.docx \
+            .github/workflows/tmp-age-matched-ssot-red.yml
+          git diff --cached --check
+          git commit -m \
+            "fix(manuscript): fail closed on corrected age-matched panel"
+          git push origin HEAD:chatgpt/age-matched-manuscript-regeneration
