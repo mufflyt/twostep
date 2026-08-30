@@ -581,7 +581,7 @@ Areas where American Indian or Alaska Native women lived had the highest zero-ac
 (`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
 points higher than non-Hispanic White areas. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
-(`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine alone declined
+(`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine declined most
 (`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
 specifications.
 
@@ -1150,14 +1150,15 @@ Supplemental Digital Content.
 
 ### Change in accessibility by subspecialty
 
-Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine alone declined; the per-subspecialty change is in eResults S8.
+Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine declined most; the per-subspecialty change is in eResults S8.
 
 ## Discussion
 
 In this national analysis of potential spatial accessibility to the seven
 ABOG-certified obstetric-gynecologic subspecialties, accessibility concentrated in
-metropolitan areas and was lowest for rural areas and for areas where American Indian
-or Alaska Native women lived, changing little across the study period. The
+metropolitan areas and, in 2020, was lowest for rural areas and for areas where
+American Indian or Alaska Native women lived; in gynecologic oncology these
+disparities changed little across the study period. The
 subspecialties differed markedly in standardized geographic reachability and temporal
 trajectories, but those cross-subspecialty differences should not be read as
 differences in clinical adequacy because the denominator was the same total female
@@ -1782,7 +1783,9 @@ access or outcomes. These spatial patterns were robust to the modeling assumptio
 across the alternative specifications (Appendix Table S2), the rural lower-access
 pattern held for all `r sens_n`
 subspecialties under every specification, and the rural and race contrasts moved in
-magnitude but never reversed in direction (Appendix Table S2).
+magnitude but never reversed in direction, except for complex family planning --
+already near parity -- whose American Indian and Alaska Native contrast crossed to a
+slight advantage under the slowest decay and the M2SFCA penalty (Appendix Table S2).
 
 ```{r fig_equity_hm}
 # Figure 4 provenance: isochrones scripts/map_equity_heatmap.R (built 2026-07-18;
@@ -1977,7 +1980,9 @@ supply, activity, geocoding, and parameter uncertainty through the model is a na
 (providers and population outside the United States were unavailable) could not be
 captured [@Gao2017]; however, a sensitivity analysis across the alternative
 specifications left the
-direction of the rurality and race disparities unchanged (Appendix Table S2; the
+direction of the rurality disparities unchanged and the race disparities unchanged for
+6 of 7 subspecialties, complex family planning crossing parity under the slowest decay
+and the M2SFCA penalty (Appendix Table S2; the
 national mean and its ranking are invariant to these choices by the conservation
 property and are not a robustness result). Fourth, the zero-access metric is defined at the tract level (the share of
 a group living in tracts with zero mean modeled access) and may undercount people
