@@ -606,7 +606,11 @@ cat(sprintf(
 
 Access to advanced obstetric and gynecologic care depends not only on the size of
 the workforce but also on where clinicians practice relative to the populations they
-serve. The present study evaluates five subspecialties for which the American Board
+serve. What follows measures reachability of subspecialty care specifically;
+generalist obstetrician-gynecologists, certified nurse-midwives, and advanced
+practice clinicians deliver most obstetric and gynecologic care in the United
+States, and nothing here should be read as their absence or as a substitute for
+measuring it. The present study evaluates five subspecialties for which the American Board
 of Obstetrics and Gynecology (ABOG) administers subspecialty certification, complex
 family planning, gynecologic oncology, maternal-fetal medicine, reproductive
 endocrinology and infertility, and urogynecology and reconstructive pelvic surgery,
@@ -779,7 +783,10 @@ sparse, so a geodesic measure credits rural women with access they do not have a
 biases the very rural-urban contrast this study estimates [@Ludrosky2023]. Drive time
 is also the impedance in which the model's distance-decay weights were originally
 estimated, and the one in which referral and travel decisions are actually made
-(eMethods S4).
+(eMethods S4). The bands describe consultative and referral reachability, not
+emergency response: acute obstetric stabilization occurs locally, and a
+180-minute contour is an outer bound on where a subspecialty consultation can
+plausibly be reached, not a standard for urgent care.
 
 ### Enhanced two-step floating catchment area accessibility
 
