@@ -256,8 +256,18 @@ desjardins_fold <- desjardins_aian_100mi / unname(gci("zero_aian")["point"])
 # deficit, i.e. it is not rurality relabeled.
 aian_rural_zero_ratio <- unname(gci("zero_aian")["point"] / gci("rural_zero")["point"])
 
-# 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
-# retirements) and reported as a provisional most-recent observation (#3).
+# 2022 is the primary modeled endpoint; 2023 is right-censored AND carries an
+# upward artifact -- recorded practice coordinates per physician step 0.35 -> 0.41
+# while headcount falls in every group, and the 2023 access shift tracks the
+# coordinate step (r = 0.96), not the workforce. Reported provisionally (#3).
+# MFM headcount endpoints, computed from the frozen year-coordinate panel so the
+# Discussion's workforce sentence cannot drift from the cohort it describes.
+.ycm <- readRDS(here::here("artifacts", "2sfca", "provenance",
+  "frozen_run_e2sfca_20260712_190734", "step_3_year_coord_map.rds"))
+.mfm <- .ycm[.ycm$subspecialty_name == "Maternal-Fetal Medicine", ]
+mfm_n_first <- length(unique(.mfm$npi[.mfm$analysis_year == first_year]))
+mfm_n_last  <- length(unique(.mfm$npi[.mfm$analysis_year == last_year]))
+rm(.ycm, .mfm)
 primary_last <- 2022L
 change_tbl_22 <- e2sfca_specialty_change(national_tbl, last_year = primary_last)
 spec_chg22 <- function(spec) dplyr::filter(change_tbl_22, subspecialty == spec)
@@ -1157,7 +1167,7 @@ Supplemental Digital Content.
 
 ### Change in accessibility by subspecialty
 
-Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine declined most; the per-subspecialty change is in eResults S8.
+Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine declined most; the per-subspecialty change is in eResults S8. The maternal-fetal medicine decline is a fall in the counted workforce rather than a modeling effect: active certified physicians fell from `r intc(mfm_n_first)` to `r intc(mfm_n_last)` between `r first_year` and `r last_year`, and accessibility fell with it. Our data cannot identify why. Plausible contributors that this study does not test include retirement outpacing a fellowship pipeline that expands slowly, the closure of community obstetric units and consolidation of high-risk care into centers with the neonatal intensive care and in-house coverage that maternal-fetal medicine requires [@Kaufman2016rural; @ACOG2023], and a shift toward remote co-management, which serves patients at a distance while contracting the physical practice footprint this measure records.
 
 ## Discussion
 
@@ -1397,8 +1407,14 @@ analyses across the seven specialty groups and multiple groups are exploratory: 
 prespecified no primary comparison and applied no multiple-comparisons correction,
 and we therefore emphasize the direction and magnitude of change over statistical
 significance. The most recent year (`r last_year`) was excluded from trend
-estimation and is reported as a provisional observation because its workforce panel
-is subject to right-censoring. To assess robustness to modeling choices, we
+estimation and is reported as a provisional observation. Its workforce panel is
+right-censored, and it also carries an administrative discontinuity in the other
+direction: pooled recorded practice coordinates per physician step from 0.35 to
+0.41 between `r primary_last` and `r last_year` after a decade of gradual drift,
+and the `r last_year` level shift in accessibility tracks that step across the
+seven groups rather than headcount, which fell in every group. The net direction
+of the `r last_year` artifact is therefore upward, and the year should not be read
+as evidence of recovery. To assess robustness to modeling choices, we
 recomputed the 2020 accessibility surface for every subspecialty under the
 alternative specifications summarized in Appendix Table S2, and compared the national
 ranking and the rurality and race contrasts with the base specification.

@@ -117,6 +117,57 @@ matters:
   reports. Harmless today; a trap if the script is ever reused on 2010-vintage
   tracts.
 
+## Finding 5 — the 2023 level shift is a coordinate artifact, not a rebound
+
+Found while testing an exploratory claim that 2023 showed a workforce rebound.
+
+In 2023 every subspecialty **lost** physicians and **gained** recorded practice
+coordinates:
+
+| 2022 → 2023 | NPIs | coordinates |
+|---|---:|---:|
+| MFM | −1.3% | **+23.3%** |
+| REI | −0.5% | +21.6% |
+| PAG | −2.1% | +15.6% |
+| CFP | −1.0% | +9.8% |
+| FPMRS | −1.0% | +9.3% |
+| GO | −1.0% | +7.9% |
+| MIGS | −4.5% | +5.4% |
+
+Pooled coordinates per physician step from **0.348 to 0.410**, a break on a decade
+of gradual drift (0.305 → 0.311 → 0.335 → 0.354 → 0.348 across 2013–2022 — the
+drift is real; the step is not part of it). E2SFCA builds a catchment around every
+coordinate, so spreading the same physicians over more origins raises modeled
+access without adding supply. Across the seven groups the correlation between each
+subspecialty's coordinate change and its access change is **r = 0.961**.
+
+**What this does and does not affect.**
+
+It contaminates the 2023 *level*, and therefore any 2013→2023 endpoint
+comparison. It does **not** manufacture the decade-long growth story. Over
+2013→2023 five of seven groups grew genuinely in headcount, and MFM's decline is
+real workforce loss, not an artifact:
+
+| | NPIs 2013 → 2023 | change | access change |
+|---|---|---:|---:|
+| MFM | 1,873 → 1,420 | −24.2% | −19.4% |
+| REI | 1,037 → 1,019 | −1.7% | +10.2% |
+| PAG | 129 → 139 | +7.8% | +13.2% |
+| FPMRS | 892 → 1,021 | +14.5% | +19.3% |
+| GO | 896 → 1,041 | +16.2% | +20.1% |
+| CFP | 67 → 95 | +41.8% | +39.2% |
+| MIGS | 344 → 505 | +46.8% | +58.5% |
+
+A claim that other subspecialties' coordinate surges "masked underlying headcount
+contractions" was tested and is false: only MFM and REI lost physicians over the
+decade, and only REI gained access while doing so.
+
+The manuscript's design already handled this correctly — the primary window ends
+at 2022 and 2023 is provisional. What was wrong was the stated *reason*: the
+Methods attributed it to right-censoring alone, an under-recording bias, when the
+measurable 2023 anomaly is over-recording of coordinates and points upward. That
+sentence now names both directions.
+
 ## What is guarded, and by what
 
 | vector | mechanism |
