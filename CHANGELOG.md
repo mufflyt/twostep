@@ -20,6 +20,7 @@ If you are looking for:
 | how to cite this work | [`CITATION.cff`](CITATION.cff) / [`CITATION.bib`](CITATION.bib) |
 | where every figure came from | [`docs/FIGURE_PROVENANCE.md`](docs/FIGURE_PROVENANCE.md) |
 | where every data input came from | [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md) |
+| whether the workforce panel is temporally correct | [`docs/APPENDIX_COHORT_TEMPORAL_INTEGRITY.md`](docs/APPENDIX_COHORT_TEMPORAL_INTEGRITY.md) |
 | which isochrone set the analysis used, and why it is pinned by hash | [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) |
 | whether this commit is publishable | `bash tools/ci/release_audit.sh` |
 | where the canonical copies of the large inputs live | [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) §6 |
