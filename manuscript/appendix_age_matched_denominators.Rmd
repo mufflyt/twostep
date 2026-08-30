@@ -251,9 +251,42 @@ if (have_results && file.exists(amdp) && file.exists(wp)) {
 
 The changes in the American Indian and Alaska Native contrast are therefore not
 noise: they are the mechanical consequence of a younger age structure
-interacting with a narrower age window. The disparity persists in every
-subspecialty, but age-matching *widens* it wherever the window favours younger
-women and *narrows* it wherever the window favours older women.
+interacting with a narrower age window. In the 2020 sensitivity analysis the
+disparity persists in every subspecialty, but age-matching *widens* it wherever
+the window favours younger women and *narrows* it wherever the window favours
+older women.
+
+```{r cfp-parity, include=FALSE}
+# Computed, never typed: this paragraph reports where the AIAN:White contrast
+# crosses parity, and a typed value here would go stale the moment the panel is
+# recomputed. The appendix literal guard forbids >= 3-decimal literals in prose
+# for exactly this reason.
+.pan <- utils::read.csv("artifacts/2sfca/agematched_panel/age_matched_panel.csv",
+                        stringsAsFactors = FALSE)
+.cfp <- .pan[.pan$subspec == "CFP", ]
+.over <- .cfp[.cfp$aian_white_ratio >= 1, ]
+.n_over_specs <- length(unique(.pan$subspec[.pan$aian_white_ratio >= 1]))
+.yrs_over <- sort(unique(.over$year))
+.lo <- .cfp[which.min(.cfp$aian_white_ratio), ]
+.f2 <- function(x) sprintf("%.2f", x)
+.get <- function(y, rg) .cfp$aian_white_ratio[.cfp$year == y & .cfp$regime == rg]
+```
+
+The 2020 scope of that statement is deliberate. Across the full eleven-year panel
+the American Indian and Alaska Native contrast is **not** below parity in every
+subspecialty-year. Complex family planning is the exception, and the only one:
+it reaches its minimum of `r .f2(.lo$aian_white_ratio)` in `r .lo$year`, is still
+below parity in 2020 at `r .f2(.get(2020, "age_matched"))` age-matched, and then
+crosses parity in `r paste(.yrs_over, collapse = " and ")` --
+`r .f2(.get(2022, "all_ages"))` and `r .f2(.get(2023, "all_ages"))` all-ages,
+`r .f2(.get(2022, "age_matched"))` and `r .f2(.get(2023, "age_matched"))`
+age-matched. The path there is not monotonic; it falls through
+`r .lo$year` before rising. That `r .n_over_specs` of seven subspecialties ever
+exceed parity is consistent with the specification curve, which already
+identifies this same contrast as the fragile one -- it reverses for complex
+family planning under flatter decay and under M2SFCA. Reporting the crossing
+rather than suppressing it is the point: a disparity claim that held everywhere
+and always would be a claim this analysis does not support.
 
 #### Conservation
 

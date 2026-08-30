@@ -1,0 +1,123 @@
+{
+  "record": "twostep/level-b-reproduction/v1",
+  "executed": "2026-08-29/30 UTC",
+  "run_id": "agematched_20260829_221801",
+  "instance": "i-08bfd33463716096e (r6i.2xlarge)",
+  "ami": "ami-081b31d5df91089c4 (overlap-r45-spatial-20260711-1741)",
+  "scientific_commit": "10afe5cb2935a3c11a2feb5ccb120baa846f1d01 (v0.2.0)",
+  "executed_from_commit": "743a0af (all scientific computation files byte-identical to v0.2.0)",
+  "environment": {
+    "R": "4.5.1",
+    "sf": "1.1.1",
+    "terra": "1.9.34",
+    "exactextractr": "0.10.1",
+    "mufflyaccess": "0.10.0 (frozen analysis version)",
+    "runtime_installs": "none"
+  },
+  "inputs_verified": {
+    "frozen_isochrones": "4/4 sha256 exact",
+    "acs_denominator_cache": "24/24 sha256 exact",
+    "ruca": "2/2 sha256 exact",
+    "manifest_freeze_hash": "58ffc05aa898243f...",
+    "denominator_identities": "231/231 exact"
+  },
+  "gate_2020": {
+    "max_relative_deviation": 3.328e-06,
+    "tolerance": 0.001,
+    "origins": "7/7 cells conserved",
+    "verdict": "PASS"
+  },
+  "panel": {
+    "cells": 154,
+    "keys_match_released": true,
+    "byte_identical_to_released": true,
+    "released_sha256": "485df006e8156a5f15add4ad6173e752d320c6d21b2f33f2e1f7e4e4cb025064",
+    "level_b_sha256": "485df006e8156a5f15add4ad6173e752d320c6d21b2f33f2e1f7e4e4cb025064"
+  },
+  "supply_conservation": "154/154",
+  "per_column": {
+    "denominator": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "national": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "metro": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "rural": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "white": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "aian": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "rural_metro_ratio": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "aian_white_ratio": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "n_supply_origins": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    },
+    "n_iso_origins": {
+      "n": 154,
+      "max_abs_diff": 0.0,
+      "max_rel_diff": 0.0,
+      "worst_cell": null,
+      "verdict": "PASS"
+    }
+  },
+  "claims": {
+    "C2_rural_metro_below_1_all_cells": true,
+    "C3_aian_white_below_1_all_cells": false,
+    "C3_exceptions": [
+      "2022 CFP age_matched=1.0066",
+      "2022 CFP all_ages=1.0154",
+      "2023 CFP age_matched=1.0637",
+      "2023 CFP all_ages=1.0660"
+    ],
+    "C3_note": "C3 as formally stated in the appendix is a 2020 claim and holds. Across the full panel, complex family planning crosses parity in 2022-2023; this is a property of the released data, reproduced exactly, not a Level B discrepancy."
+  },
+  "released_artifact_modified": false,
+  "verdict": "PASS -- independently recomputed panel is byte-identical to the released panel"
+}

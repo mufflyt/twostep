@@ -368,8 +368,8 @@ cons_pct <- function(x) sprintf("%.2f", x)
 # The precis is fully static, so its count is exact and single-sourced here:
 precis_text <- paste(
   "Potential travel-time accessibility to board-certified obstetrics-gynecology",
-  "subspecialists shows large, persistent rural and area-level racial disparities,",
-  "worst in rural areas and in areas where American Indian or Alaska Native women live.")
+  "subspecialists in 2020 was lowest in rural areas and in areas where American",
+  "Indian or Alaska Native women live.")
 precis_word_count <- length(strsplit(trimws(precis_text), "\\s+")[[1]])
 
 # Abstract, main-text, and supplement counts are measured from the FINAL knitted
@@ -585,9 +585,9 @@ points higher than non-Hispanic White areas. From `r first_year` to
 (`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
 specifications.
 
-**Conclusion.** Access to obstetrics-gynecology subspecialists shows large,
-persistent rural and area-level racial disparities narrowing little over the
-decade. Across-subspecialty differences identify standardized geographic
+**Conclusion.** Rural and area-level racial disparities spanned all seven
+subspecialties in 2020 and, in gynecologic oncology, changed little across the
+study period. Across-subspecialty differences identify standardized geographic
 reachability, not clinical adequacy, because all were indexed to the
 same total-female denominator.
 
@@ -1020,11 +1020,11 @@ URPS, urogynecology and reconstructive pelvic surgery.
 
 ### Disparities across all subspecialties
 
-The rurality and area-level race/ethnicity disparities held across all seven specialty groups (Figure 3), with rural areas and areas where American Indian or Alaska Native women lived lowest in every one; per-subspecialty estimates are in eResults S5.
+In 2020, rural areas and areas where American Indian or Alaska Native women lived had lower accessibility across all seven subspecialties (Figure 3); per-subspecialty estimates are in eResults S5.
 
 ### Persistence of disparities over time
 
-The rural and area-level racial disparities persisted with little narrowing across `r first_year`-`r last_year`; the year-by-year detail is in eResults S6.
+In gynecologic oncology, rural and area-level racial disparities persisted with little narrowing across `r first_year`-`r last_year`; the year-by-year detail is in eResults S6.
 
 ### Access deserts across subspecialties
 
@@ -1306,10 +1306,11 @@ The natural next step is to move from where subspecialists are located toward wh
 
 ## Conclusion
 
-Across the contiguous United States, potential accessibility to board-certified
-obstetric and gynecologic subspecialists was persistently lower in rural areas and
-in areas where American Indian or Alaska Native women lived, and narrowed little
-over more than a decade.
+Across the contiguous United States in 2020, potential accessibility to
+board-certified obstetric and gynecologic subspecialists was lower in rural areas
+and in areas where American Indian or Alaska Native women lived, across all seven
+subspecialties. In gynecologic oncology, these disparities persisted with little
+narrowing over more than a decade.
 As a measure of where specialized care is potentially reachable, not of realized or
 clinically sufficient access, these findings identify the populations and regions
 that may benefit most from regionalized care, outreach, telehealth, and targeted
@@ -1805,8 +1806,8 @@ Alaska Native; NHOPI, Native Hawaiian or Other Pacific Islander.
 
 ## eResults S6: Persistence of disparities over time {-}
 
-Rural and area-level racial disparities persisted across the decade (Figure 5; Appendix
-Table S1). Over `r first_year`-`r primary_last`, the metropolitan-to-rural
+In gynecologic oncology, rural and area-level racial disparities persisted across the
+study period (Figure 5; Appendix Table S1). Over `r first_year`-`r primary_last`, the metropolitan-to-rural
 gynecologic oncology accessibility ratio narrowed by
 `r sprintf("%.3f", abs(go_ratio_trend[["slope"]]))` per year
 (`r fmt_p_txt(go_ratio_trend[["p_ols"]])`; Newey-West
