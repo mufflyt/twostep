@@ -1284,7 +1284,12 @@ not the absence of barriers.
 Strengths include a near-census of board-certified subspecialists rather than a
 sample; a mass-conserving demand allocation representing the full female population
 [@Apparicio2017]; year-specific cohorts reflecting workforce entry, exit, and
-relocation; and fully reproducible, canonical-source computation. Unlike
+relocation; and fully reproducible, canonical-source computation. Cohort exit is
+recorded from certification registries rather than from practice activity, and a
+small residue of physicians with a recorded retirement remain in the panel
+afterwards; because retirements accumulate, this leaves later years marginally
+better supplied than earlier ones and would, if anything, flatter the growth we
+report rather than the disparities. Unlike
 nearest-provider travel time or provider ratios, the floating-catchment design jointly
 incorporates provider availability, competing demand, and travel impedance, flagging
 low-access areas those simpler measures miss [@Drake2021].
