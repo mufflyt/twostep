@@ -1166,7 +1166,7 @@ population for every field.
 
 Our findings extend prior single-subspecialty and county-level work. For gynecologic
 oncology, our results refine the county-level model of Desjardins and colleagues, who
-found 95.2% of counties (roughly 54.7 million at-risk women) with no gynecologic
+found 2,862 counties (57.4 million at-risk women) with no active gynecologic
 oncologist and no improvement over two decades for American Indian or Alaska Native
 women beyond a 100-mile straight-line radius (25.6% to
 `r pp1(desjardins_aian_100mi)`%; P=.866)
