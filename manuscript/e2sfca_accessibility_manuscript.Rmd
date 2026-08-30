@@ -579,7 +579,7 @@ were about six times as likely to live where no subspecialist was within the mod
 (`r pp1(gci("rural_zero")["point"])`% vs `r pp1(gci("metro_zero")["point"])`%).
 Areas where American Indian or Alaska Native women lived had the highest zero-access share
 (`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
-points higher than non-Hispanic White areas. From `r first_year` to
+percentage points higher than non-Hispanic White areas. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
 (`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine declined most
 (`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
@@ -1370,9 +1370,17 @@ summarized by ordinary least-squares slopes of the annual estimate on calendar y
 over `r first_year`-`r primary_last`. Because successive ACS 5-year estimates
 overlap and provider cohorts are serially correlated, we also computed Newey-West
 heteroskedasticity- and autocorrelation-consistent (HAC) P values, with the lag
-prespecified at `r trend_hac$hac_lag` to reflect the overlap of the 5-year ACS
-window (Appendix Table S1); because only 10 annual estimates were available, these
-trend tests are imprecise and are interpreted descriptively. The stratified trend
+prespecified at `r trend_hac$hac_lag` to match the overlap of the 5-year ACS window
+(Appendix Table S1). Consecutive 5-year ACS estimates share four of their five
+sample years, so the sampling error of the annual series is autocorrelated by
+construction out to lag four and is uncorrelated beyond it; a Bartlett kernel
+truncated at that lag is therefore the bandwidth implied by the survey design
+rather than a tuned choice, and ordinary least-squares standard errors, which
+assume independent residuals, would be too small here for a reason that has
+nothing to do with the workforce. Because only 10 annual estimates were available,
+the HAC estimator itself is imprecise; test statistics are referred to a Student
+*t* distribution rather than a normal, and these trend tests are interpreted
+descriptively. The stratified trend
 analyses across the seven specialty groups and multiple groups are exploratory: we
 prespecified no primary comparison and applied no multiple-comparisons correction,
 and we therefore emphasize the direction and magnitude of change over statistical
