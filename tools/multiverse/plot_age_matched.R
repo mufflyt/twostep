@@ -28,9 +28,18 @@ suppressWarnings(suppressMessages({ library(yaml) }))
 root <- tryCatch(rprojroot::find_root(rprojroot::has_file("DESCRIPTION")), error = function(e) ".")
 setwd(root)
 
-RES <- "artifacts/multiverse/age_matched_results.csv"
-if (!file.exists(RES)) { message("results not present yet: ", RES); quit(status = 0L, save = "no") }
+# The panel is the single source. 2020 rows are selected below; there is no
+# fallback to the standalone file.
+RES <- "artifacts/2sfca/agematched_panel/age_matched_panel.csv"
+if (!file.exists(RES))
+  stop("the age-matched panel is missing: ", RES,
+       "\n  It is the sole source for this figure; there is no fallback.", call. = FALSE)
 res <- utils::read.csv(RES, stringsAsFactors = FALSE)
+# The panel spans 2013-2023; this figure is the 2020 cross-section, matching the
+# manuscript table. Without this filter rownames() below would collide across
+# eleven years and silently plot whichever row happened to land last.
+if ("year" %in% names(res)) res <- res[res$year == 2020L, , drop = FALSE]
+stopifnot(nrow(res) == 14L)
 man <- yaml::read_yaml("inst/multiverse/age_matched_denominator.yml")
 win <- setNames(vapply(man$subspecialties, function(s) s$age_range, character(1)),
                 vapply(man$subspecialties, function(s) s$code, character(1)))
@@ -71,7 +80,10 @@ rng <- range(c(aa$rural_metro_ratio, am$rural_metro_ratio,
                aa$aian_white_ratio,  am$aian_white_ratio), na.rm = TRUE)
 graphics::plot(NA, xlim = c(0.75, 4.25), ylim = c(min(rng, 0.9) * 0.92, max(rng, 1.05) * 1.06),
                xaxt = "n", xlab = "", ylab = "ratio (below 1 = disadvantage)",
-               main = "B. Disparity contrasts are\nunchanged by the denominator", cex.main = 0.98)
+               # "persist", not "unchanged": the qualitative disparities survive age matching,
+# but the ratios themselves move -- up to 1.56% in the correction diff. The old
+# title claimed more than the data supports.
+                main = "B. Disparity contrasts persist\nunder age matching", cex.main = 0.98)
 graphics::abline(h = 1, lty = 2, col = "grey35")
 graphics::text(4.25, 1.008, "parity", pos = 4, cex = 0.6, col = "grey35", xpd = NA)
 for (k in ORD) {

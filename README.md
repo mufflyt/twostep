@@ -12,7 +12,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![Version](https://img.shields.io/badge/version-0.1.0-informational.svg)](https://github.com/mufflyt/twostep/blob/main/DESCRIPTION)
+[![Version](https://img.shields.io/badge/version-0.2.0-informational.svg)](https://github.com/mufflyt/twostep/blob/main/DESCRIPTION)
 [![R >= 4.1](https://img.shields.io/badge/R-%3E%3D%204.1-blue.svg)](https://cran.r-project.org/)
 [![docs](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://mufflyt.github.io/twostep/)
 
@@ -42,6 +42,18 @@ no network access — its only external code dependency is the
 [`mufflyaccess`](https://github.com/mufflyt/mufflyaccess) package (data lineage in
 [`docs/DATA_PROVENANCE.md`](https://github.com/mufflyt/twostep/blob/main/docs/DATA_PROVENANCE.md)).
 
+### What the analysis finds, in one figure
+
+![National E2SFCA access to gynecologic subspecialists, 2013-2023](https://raw.githubusercontent.com/mufflyt/twostep/main/manuscript/figures/panel_c_e2sfca_national_access.png)
+
+Population-weighted national access per 100,000 women, log scale, for all seven
+subspecialties across the full study window. The dashed line marks the 2019–2020
+tract-vintage transition; a controlled seam analysis found geometry-only effects
+there to be negligible, and no smoothing is applied. The two-order-of-magnitude
+spread between maternal-fetal medicine and complex family planning is the
+motivating observation — and the reason the age-matched sensitivity analysis
+below exists, since these seven subspecialties do not serve the same population.
+
 ## How this analysis is verified
 
 Most accessibility papers ask whether the code runs. These layers ask whether the
@@ -56,7 +68,11 @@ Most accessibility papers ask whether the code runs. These layers ask whether th
 | **Scientific-core coverage** | an exported function no test ever calls | [`tools/ci/scientific_coverage.R`](tools/ci/scientific_coverage.R) — found 10 untested exports |
 | **Cross-platform agreement** | results that depend on the machine | three GEOS versions agree to 2e-16 |
 | **Manuscript quantifier guards** | prose that drifted from the numbers it describes | "about one in five" must match the computed value or the render fails |
+| **Geography contract** | an accessibility surface computed against an incomplete isochrone set | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — four SHA-256s, gated before the first panel year |
 | **Specification curve** | conclusions that depend on one modelling choice | [`inst/multiverse/`](inst/multiverse/) — prespecified and hash-frozen |
+| **Input pinning by hash** | the analysis silently run against the wrong copy of an input | [`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) — nine isochrone sets exist; only the hash tells them apart |
+| **Supply conservation** | a provider whose catchment is missing vanishing from the numerator | [`tools/ci/check_supply_conservation.R`](tools/ci/check_supply_conservation.R) — `n_iso_origins == n_supply_origins`, every cell |
+| **Release audit** | a freeze declared from four workflow runs reconciled by hand | [`tools/ci/release_audit.sh`](tools/ci/release_audit.sh) — all 23 gates, one verdict |
 
 Two things worth stating plainly, because they are results rather than
 advertising:
@@ -66,10 +82,79 @@ advertising:
   contrast does not — it reverses for complex family planning under flatter decay
   and under M2SFCA, where the primary estimate sits 2.5% from parity. The abstract
   was corrected accordingly.
+
+  ![Specification curve: AIAN-White area disparity](https://raw.githubusercontent.com/mufflyt/twostep/main/artifacts/multiverse/fig_speccurve_aian_white.jpg)
+
+  The reversal is visible rather than asserted: CFP (pink) crosses the parity line
+  under S03 (slower decay) and S07 (M2SFCA). Every other subspecialty stays below
+  it in every specification, and the primary analysis S01 is shaded.
+
+  ![Specification curve: rural-metropolitan disparity](https://raw.githubusercontent.com/mufflyt/twostep/main/artifacts/multiverse/fig_speccurve_rural_metro.jpg)
+
+  The rural–metropolitan contrast is the control case. C2 is
+  `all(rural_metro_ratio < 1)`, and the whole y-axis tops out near 0.7 — every
+  subspecialty is rural-disadvantaged in every specification, by a wide margin.
+  Note the dashed line here is the manuscript's 0.5 threshold, **not** parity:
+  PAG sits above it under several specifications, and under slower decay (S03)
+  most subspecialties do. That is a claim about magnitude, not about direction,
+  and it is the reason the two curves need reading against their own reference
+  line rather than against each other.
 - Three load-bearing artifacts **have no record of the inputs that produced them**.
   [`tools/ci/check_artifact_provenance.R`](tools/ci/check_artifact_provenance.R)
   reports this rather than failing, because the inputs are not currently
   recoverable. It is a known gap, not a solved problem.
+
+## The geography contract
+
+The accessibility surface is only as complete as the isochrone set behind it, and a
+wrong set is indistinguishable from the right one by name, path or file size. So the
+set is pinned by **hash**, not by location:
+[`inst/multiverse/frozen_isochrones.sha256`](inst/multiverse/frozen_isochrones.sha256),
+enforced by
+[`tools/ci/check_frozen_isochrones.sh`](tools/ci/check_frozen_isochrones.sh) before the
+first panel year runs.
+
+This is not hypothetical. A local directory carried **3,909** provider origins where the
+frozen set carries **4,050**:
+
+![Provider origins missing from the incomplete isochrone set](docs/figures/isochrone_coverage_gap.png)
+
+The 141 missing origins are nationally distributed, not a regional artifact. Which of them
+mattered depended on the cell: each subspecialty has its own provider set, so the drops are
+per-cell rather than a partition of one shared list. The five marked red are the ones the
+gynecologic-oncology cell needed — 7 of its 890 supply units, 0.787%, which with
+`unmatched_supply_policy = "drop"` vanished silently and put **that cell** 0.786% below the
+frozen value while the run reported success. FPMRS lost 15 origins, MFM 6, REI 5, PAG 2,
+MIGS 1, CFP none: **12 of 14 cells**, 34 origin-drops per regime and 68 across both.
+
+Relative shortfall was largest where the provider set was smallest — PAG 3.54% and FPMRS
+2.17% against the corrected value, against GO's 0.79% — which is why PAG and MIGS exchanged
+rank once the supply was restored.
+
+Nine isochrone directories existed across the analysis machine and an attached drive.
+**None** of them matched the frozen hashes; two were byte-identical to each other and
+both were the short set. The frozen set was recovered from S3. That is the argument for
+hashing rather than repointing: a corrected path fixes one day's mistake, a hash makes
+the class of mistake unavailable.
+
+C2 and C3 survived the correction unchanged. The subspecialty ordering did not — see
+[`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md) for the full account and
+[`artifacts/multiverse/age_matched_correction_diff.csv`](artifacts/multiverse/age_matched_correction_diff.csv)
+for all 136 affected quantities.
+
+To fetch a working copy and prove it is the right one before trusting it:
+
+```bash
+aws s3 sync s3://tyler-valhalla-tiles/seam_run/inputs/isochrones/ "$E2SFCA_ISO_DIR"
+bash tools/ci/check_frozen_isochrones.sh "$E2SFCA_ISO_DIR"
+```
+
+`mufflyaccess` (≥ 0.10.0) also serves the set as a single source of truth —
+`verify_frozen_isochrones()`, `use_frozen_isochrones()`, `frozen_isochrones_dir()`
+and `frozen_isochrones_provenance()`, backed by the same manifest and by canonical
+S3 and Dropbox copies. `E2SFCA_ISO_DIR` still works, but it is now **verified
+rather than trusted**: the old contract was "tell me where it is and I will
+believe you," which is exactly how the wrong set got used.
 
 ## Learn the method
 
@@ -112,8 +197,48 @@ README and manuscript name the year explicitly rather than saying "current":
 | Temporal-change window (Table 1 "Change" column, trend analyses) | **2013–2022** | 2023 is right-censored and reported provisionally |
 | URPS board-certified-active workforce (cross-reference) | **2023** | `mufflyaccess::urps_count()` (1,306 national / 1,303 CONUS, `include_urology = TRUE`) |
 
+## Age-matched demand denominators
+
+The primary analysis indexes all seven subspecialties to the same denominator —
+the total female population of all ages. That is a deliberate, comparable choice,
+but it is not the population each subspecialty plausibly serves: a
+pediatric/adolescent gynecologist is measured against a population 76% of which
+is outside their age window, and a minimally invasive gynecologic surgeon against
+one only 18% outside. A **sensitivity analysis, not a replacement**, re-indexes
+each subspecialty to its own age range.
+
+![Age-matched versus all-ages demand denominators](https://raw.githubusercontent.com/mufflyt/twostep/main/manuscript/figures/fig_age_matched_denominators.jpg)
+
+Three things are comparable across the two regimes, and each gets a panel.
+**A** is the mechanism: the share of the all-ages female population each age
+window retains, from 82% (MIGS, 15 and over) down to 24% (PAG, under 20).
+**B** is the result: rural:metropolitan and AIAN:White contrasts are
+dimensionless, so they *can* be compared — and both disparities persist, moving
+by at most 1.56%. **C** is claim C5: levels are not comparable across regimes
+(halving a denominator roughly doubles the value, which is arithmetic and not a
+finding), but rank is, and four of seven subspecialties change rank.
+
+The panel covers all **154 cells** (7 subspecialties × 11 years × 2 regimes) at
+`artifacts/2sfca/agematched_panel/age_matched_panel.csv`, with `provenance.json`
+recording the manifest, runner, engine and per-year input hashes. It is the sole
+source for every age-matched number in the manuscript, the appendix and this
+figure; [`tools/ci/check_agematched_ssot.R`](tools/ci/check_agematched_ssot.R)
+fails if any live consumer reads the older standalone 2020 file instead.
+
 ## Status and open items
 
+- **RESOLVED (2026-08-25): the age-matched analysis ran against the wrong
+  isochrone set.** Supply for providers whose catchment was missing was silently
+  dropped, understating access in 12 of 14 cells and changing the C5 ordering.
+  The runner now fails closed, the input is pinned by hash, and every committed
+  cell must satisfy `n_iso_origins == n_supply_origins`. Full account in
+  [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md).
+- **`tools/ci/check_artifact_provenance.R` is still non-strict.** Three
+  load-bearing artifacts have no record of the inputs that produced them. It
+  reports rather than fails because those inputs are not currently recoverable.
+  A known gap, not a solved problem.
+- **`manuscript/figures/figS10_satellite_clinics.jpg` is orphaned** — on disk,
+  referenced by no document, and absent from `FIGURE_PROVENANCE.csv`.
 - **RESOLVED (2026-08-16): Figure 1 and Table 1 now agree at 2020.** This entry
   previously warned that Table 1's headline had moved to 2022 while Figure 1
   (`manuscript/figures/fig0_level2020.jpg`) remained the 2020 surface, so the two

@@ -105,6 +105,15 @@ jobs:
       # fail-closed run; that is the point.
       - name: No supply may enter E2SFCA without a catchment
         run: Rscript tools/ci/check_supply_conservation.R
+      - name: The age-matched panel satisfies its structural invariants
+        run: Rscript tools/ci/check_panel_invariants.R
+      # One artifact: every live age-matched consumer must read the panel, never
+      # the standalone 2020 file. They are byte-identical today, so a consumer
+      # pointed at the wrong one has no symptom until they diverge -- which has
+      # already happened once.
+      - name: Age-matched chain has a single source
+        run: Rscript tools/ci/check_agematched_ssot.R
+
 
 
       # Data-adversarial corpus. mutation_corpus.R mutates the ENGINE and asks
@@ -180,6 +189,14 @@ jobs:
         run: Rscript tools/ci/check_rd_percent.R
       - name: Appendix numbers are computed, not typed
         run: Rscript tools/ci/check_appendix_literals.R
+      - name: Documented supply-loss figures match the correction diff
+        run: Rscript tools/ci/check_documented_shortfalls.R
+      - name: NEWS.md headings do not read as version numbers
+        run: Rscript tools/ci/check_news_headings.R
+      - name: One version, stated the same in every file
+        run: Rscript tools/ci/check_version_consistency.R
+      - name: Counts stated in prose match the repository
+        run: Rscript tools/ci/check_documented_counts.R
 
   artifact-provenance:
     name: frozen artifacts record their inputs

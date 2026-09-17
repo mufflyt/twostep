@@ -288,8 +288,18 @@ s10_rural_spread_nom <- .spread(.go_nom$rural_metro_ratio)
 s10_m2_level_drop <- 1 - (.go_m2$aian / .go_base$aian)
 s10_m2_ratio_move <- (.go_m2$aian_white_ratio / .go_base$aian_white_ratio) - 1
 
-# 2022 is the primary modeled endpoint; 2023 is right-censored (fewer recorded
-# retirements) and reported as a provisional most-recent observation (#3).
+# 2022 is the primary modeled endpoint; 2023 is right-censored AND carries an
+# upward artifact -- recorded practice coordinates per physician step 0.35 -> 0.41
+# while headcount falls in every group, and the 2023 access shift tracks the
+# coordinate step (r = 0.96), not the workforce. Reported provisionally (#3).
+# MFM headcount endpoints, computed from the frozen year-coordinate panel so the
+# Discussion's workforce sentence cannot drift from the cohort it describes.
+.ycm <- readRDS(here::here("artifacts", "2sfca", "provenance",
+  "frozen_run_e2sfca_20260712_190734", "step_3_year_coord_map.rds"))
+.mfm <- .ycm[.ycm$subspecialty_name == "Maternal-Fetal Medicine", ]
+mfm_n_first <- length(unique(.mfm$npi[.mfm$analysis_year == first_year]))
+mfm_n_last  <- length(unique(.mfm$npi[.mfm$analysis_year == last_year]))
+rm(.ycm, .mfm)
 primary_last <- 2022L
 change_tbl_22 <- e2sfca_specialty_change(national_tbl, last_year = primary_last)
 spec_chg22 <- function(spec) dplyr::filter(change_tbl_22, subspecialty == spec)
@@ -309,7 +319,20 @@ decliners <- change_tbl |> dplyr::filter(abs_change < 0) |>
 # number quoted in three places must come from one source. Fails loud: this is a
 # committed artifact, and a Results subsection whose table silently vanished is
 # exactly the failure mode the appendix render guard exists to prevent.
-.am_path <- here::here("artifacts", "multiverse", "age_matched_results.csv")
+# THE PANEL is the authoritative artifact: eleven vintages computed end to end on
+# the frozen AMI, so "same environment, only the denominator changed" holds without
+# qualification. The standalone 2020 file is byte-identical to the panel's 2020
+# rows, but reading the panel means the document and the correction diff cite one
+# source rather than two that merely agree.
+# MANDATORY, not preferred. A fallback to the standalone 2020 file is fail-OPEN
+# provenance: the document would silently cite a different artifact than the
+# correction diff whenever the panel was absent, and nothing would say so.
+.am_path <- here::here("artifacts", "2sfca", "agematched_panel", "age_matched_panel.csv")
+if (!file.exists(.am_path))
+  stop("the age-matched panel is missing: ", .am_path,
+       "\n  It is the sole source for every age-matched number in this manuscript.",
+       "\n  There is deliberately no fallback -- rebuild the panel rather than",
+       "\n  rendering against a different artifact.")
 if (!file.exists(.am_path))
   stop("age-matched results missing: ", .am_path)
 # SUPPLY CONSERVATION, enforced at render time. The committed 2020 age-matched
@@ -331,10 +354,21 @@ if (all(c("n_supply_origins", "n_iso_origins") %in% names(.am_chk))) {
       .am_chk$n_supply_origins[which.max(.am_drop)]))
 }
 am_raw   <- utils::read.csv(.am_path, stringsAsFactors = FALSE)
+# The panel spans 2013-2023. The reported cross-sectional table is 2020, matching
+# the primary analysis's exemplar year; the full panel drives the ordering claim
+# below, which is a decade-scale statement rather than a single-year one.
+am_panel_all <- am_raw
+if ("year" %in% names(am_raw)) am_raw <- am_raw[am_raw$year == 2020L, , drop = FALSE]
 am_all   <- am_raw[am_raw$regime == "all_ages", ];    rownames(am_all) <- am_all$subspec
 am_age   <- am_raw[am_raw$regime == "age_matched", ]; rownames(am_age) <- am_age$subspec
-am_order <- c("PAG", "CFP", "MFM", "REI", "MIGS", "GO", "FPMRS")
-am_order <- am_order[am_order %in% rownames(am_all) & am_order %in% rownames(am_age)]
+# Derived from the SSOT constant and then ORDERED BY THE DATA -- ascending
+# age-eligible share -- rather than by a hand-written code vector. A literal
+# seven-code list here both duplicates E2SFCA_SUBSPECIALTIES and silently goes
+# stale; tests/testthat/test-ssot-subspecialties.R forbids it, correctly.
+am_order <- E2SFCA_SUBSPECIALTIES[E2SFCA_SUBSPECIALTIES %in% rownames(am_all) &
+                                  E2SFCA_SUBSPECIALTIES %in% rownames(am_age)]
+am_order <- am_order[order(am_age[am_order, "denominator"] /
+                           am_all[am_order, "denominator"])]
 # alpha: the share of the all-ages denominator each age window retains
 am_alpha <- stats::setNames(
   am_age[am_order, "denominator"] / am_all[am_order, "denominator"], am_order)
@@ -376,8 +410,8 @@ cons_pct <- function(x) sprintf("%.2f", x)
 # The precis is fully static, so its count is exact and single-sourced here:
 precis_text <- paste(
   "Potential travel-time accessibility to board-certified obstetrics-gynecology",
-  "subspecialists shows large, persistent rural and area-level racial disparities,",
-  "worst in rural areas and in areas where American Indian or Alaska Native women live.")
+  "subspecialists in 2020 was lowest in rural areas and in areas where American",
+  "Indian or Alaska Native women live.")
 precis_word_count <- length(strsplit(trimws(precis_text), "\\s+")[[1]])
 
 # Abstract, main-text, and supplement counts are measured from the FINAL knitted
@@ -605,15 +639,15 @@ were about six times as likely to live where no subspecialist was within the mod
 (`r pp1(gci("rural_zero")["point"])`% vs `r pp1(gci("metro_zero")["point"])`%).
 Areas where American Indian or Alaska Native women lived had the highest zero-access share
 (`r pp1(gci("zero_aian")["point"])`%), `r pp1(gci("aianzero_minus_whitezero")["point"])`
-points higher than non-Hispanic White areas. From `r first_year` to
+percentage points higher than non-Hispanic White areas. From `r first_year` to
 `r primary_last`, minimally invasive gynecologic surgery increased most
-(`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine alone declined
+(`r pp1(migs_c22$rel_change_pct)`%) and maternal-fetal medicine declined most
 (`r pp1(mfm_c22$rel_change_pct)`%). Rural disparities held across all
 specifications.
 
-**Conclusion.** Access to obstetrics-gynecology subspecialists shows large,
-persistent rural and area-level racial disparities narrowing little over the
-decade. Across-subspecialty differences identify standardized geographic
+**Conclusion.** Rural and area-level racial disparities spanned all seven
+subspecialties in 2020 and, in gynecologic oncology, changed little across the
+study period. Across-subspecialty differences identify standardized geographic
 reachability, not clinical adequacy, because all were indexed to the
 same total-female denominator.
 
@@ -632,7 +666,11 @@ cat(sprintf(
 
 Access to advanced obstetric and gynecologic care depends not only on the size of
 the workforce but also on where clinicians practice relative to the populations they
-serve. The present study evaluates five subspecialties for which the American Board
+serve. What follows measures reachability of subspecialty care specifically;
+generalist obstetrician-gynecologists, certified nurse-midwives, and advanced
+practice clinicians deliver most obstetric and gynecologic care in the United
+States, and nothing here should be read as their absence or as a substitute for
+measuring it. The present study evaluates five subspecialties for which the American Board
 of Obstetrics and Gynecology (ABOG) administers subspecialty certification, complex
 family planning, gynecologic oncology, maternal-fetal medicine, reproductive
 endocrinology and infertility, and urogynecology and reconstructive pelvic surgery,
@@ -805,7 +843,10 @@ sparse, so a geodesic measure credits rural women with access they do not have a
 biases the very rural-urban contrast this study estimates [@Ludrosky2023]. Drive time
 is also the impedance in which the model's distance-decay weights were originally
 estimated, and the one in which referral and travel decisions are actually made
-(eMethods S4).
+(eMethods S4). The bands describe consultative and referral reachability, not
+emergency response: acute obstetric stabilization occurs locally, and a
+180-minute contour is an outer bound on where a subspecialty consultation can
+plausibly be reached, not a standard for urgent care.
 
 ### Enhanced two-step floating catchment area accessibility
 
@@ -1046,11 +1087,11 @@ URPS, urogynecology and reconstructive pelvic surgery.
 
 ### Disparities across all subspecialties
 
-The rurality and area-level race/ethnicity disparities held across all seven specialty groups (Figure 3), with rural areas and areas where American Indian or Alaska Native women lived lowest in every one; per-subspecialty estimates are in eResults S5.
+In 2020, rural areas and areas where American Indian or Alaska Native women lived had lower accessibility across all seven subspecialties (Figure 3); per-subspecialty estimates are in eResults S5.
 
 ### Persistence of disparities over time
 
-The rural and area-level racial disparities persisted with little narrowing across `r first_year`-`r last_year`; the year-by-year detail is in eResults S6.
+In gynecologic oncology, rural and area-level racial disparities persisted with little narrowing across `r first_year`-`r last_year`; the year-by-year detail is in eResults S6.
 
 ### Access deserts across subspecialties
 
@@ -1097,6 +1138,49 @@ Supplemental Digital Content.
   # Loaded once in setup so the Introduction, this table, and the Discussion all
   # quote the same numbers from the same source.
   .aa <- am_all; .am <- am_age; .o <- am_order; .al <- unname(am_alpha)
+  # Which subspecialties change rank, computed rather than named by hand. The
+  # previous text asserted a single pair; on the corrected panel TWO pairs
+  # exchange, and hardcoding the answer is how that went stale unnoticed.
+  .ord <- function(d) d$subspec[order(-d$national)]
+  .oa <- .ord(.aa[.o, ]); .om <- .ord(.am[.o, ])
+  .ra <- stats::setNames(seq_along(.oa), .oa); .rb <- stats::setNames(seq_along(.om), .om)
+  .moved <- names(.ra)[.ra[names(.ra)] != .rb[names(.ra)]]
+  # Express it as exchanged PAIRS where the movement is a clean swap: "A and B
+  # exchange rank" is both shorter and more informative than listing four names.
+  .pairs <- list(); .rest <- .moved
+  for (x in .moved) {
+    if (!x %in% .rest) next
+    y <- .om[.ra[[x]]]                      # who now occupies x's old position
+    if (!is.na(y) && y %in% .rest && identical(.om[.ra[[y]]], x)) {
+      .pairs[[length(.pairs) + 1L]] <- c(x, y); .rest <- setdiff(.rest, c(x, y))
+    }
+  }
+  # "with", not "and": one of the field names is itself "reproductive
+  # endocrinology AND infertility", so joining pairs with "and" produces a
+  # sentence no reader can parse.
+  .pair_txt <- vapply(.pairs, function(z)
+    sprintf("%s with %s", full_name[[z[1]]], full_name[[z[2]]]), character(1))
+  .rank_moved_txt <- if (!length(.moved)) {
+    "no subspecialty changed rank"
+  } else if (length(.pair_txt) && !length(.rest)) {
+    sprintf("%s pair%s exchange rank -- %s", 
+            c("one","two","three","four")[min(length(.pair_txt), 4L)],
+            if (length(.pair_txt) > 1) "s" else "",
+            paste(.pair_txt, collapse = "; and "))
+  } else {
+    sprintf("%s changed rank", paste(unname(full_name[.moved]), collapse = ", "))
+  }
+  # And whether that is a 2020 artefact or holds across the decade.
+  .rank_years_txt <- ""
+  if (exists("am_panel_all") && "year" %in% names(am_panel_all)) {
+    .yrs <- sort(unique(am_panel_all$year))
+    .diff <- vapply(.yrs, function(y) {
+      d <- am_panel_all[am_panel_all$year == y, ]
+      !identical(.ord(d[d$regime == "all_ages", ]), .ord(d[d$regime == "age_matched", ]))
+    }, logical(1))
+    .rank_years_txt <- sprintf(", and the ordering differs between the two denominators in %d of the %d study years",
+                               sum(.diff), length(.yrs))
+  }
   .tab <- data.frame(
     Subspecialty = unname(full_name[.o]),
     `Age window` = .am[.o, "age_range"],
@@ -1110,12 +1194,12 @@ Supplemental Digital Content.
     "(maximum %s), as did every ratio for areas where American Indian or Alaska ",
     "Native women live (maximum %s): the rural and racial disparities are not ",
     "artifacts of the shared denominator. The *ordering* of subspecialties did not ",
-    "survive, however -- %s and %s exchanged rank once each was indexed to the ",
-    "population it serves.\n"),
+    "survive, however: %s once each field is indexed to the population it ",
+    "serves%s.\n"),
     pp1(100 * am_alpha[[am_lo]]), full_name[[am_lo]],
     pp1(100 * am_alpha[[am_hi]]), full_name[[am_hi]],
     acc2(max(.am[.o, "rural_metro_ratio"])), acc2(max(.am[.o, "aian_white_ratio"])),
-    full_name[["GO"]], full_name[["REI"]]))
+    .rank_moved_txt, .rank_years_txt))
 }
 ```
 
@@ -1133,14 +1217,15 @@ Supplemental Digital Content.
 
 ### Change in accessibility by subspecialty
 
-Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine alone declined; the per-subspecialty change is in eResults S8.
+Decade-scale change differed by subspecialty, minimally invasive gynecologic surgery increased most and maternal-fetal medicine declined most; the per-subspecialty change is in eResults S8. The maternal-fetal medicine decline is a fall in the counted workforce rather than a modeling effect: active certified physicians fell from `r intc(mfm_n_first)` to `r intc(mfm_n_last)` between `r first_year` and `r last_year`, and accessibility fell with it. Our data cannot identify why. Plausible contributors that this study does not test include retirement outpacing a fellowship pipeline that expands slowly, the closure of community obstetric units and consolidation of high-risk care into centers with the neonatal intensive care and in-house coverage that maternal-fetal medicine requires [@Kaufman2016rural; @ACOG2023], and a shift toward remote co-management, which serves patients at a distance while contracting the physical practice footprint this measure records.
 
 ## Discussion
 
 In this national analysis of potential spatial accessibility to the seven
 ABOG-certified obstetric-gynecologic subspecialties, accessibility concentrated in
-metropolitan areas and was lowest for rural areas and for areas where American Indian
-or Alaska Native women lived, changing little across the study period. The
+metropolitan areas and, in 2020, was lowest for rural areas and for areas where
+American Indian or Alaska Native women lived; in gynecologic oncology these
+disparities changed little across the study period. The
 subspecialties differed markedly in standardized geographic reachability and temporal
 trajectories, but those cross-subspecialty differences should not be read as
 differences in clinical adequacy because the denominator was the same total female
@@ -1148,7 +1233,7 @@ population for every field.
 
 Our findings extend prior single-subspecialty and county-level work. For gynecologic
 oncology, our results refine the county-level model of Desjardins and colleagues, who
-found 95.2% of counties (roughly 54.7 million at-risk women) with no gynecologic
+found 2,862 counties (57.4 million at-risk women) with no active gynecologic
 oncologist and no improvement over two decades for American Indian or Alaska Native
 women beyond a 100-mile straight-line radius (25.6% to
 `r pp1(desjardins_aian_100mi)`%; P=.866)
@@ -1259,7 +1344,12 @@ not the absence of barriers.
 Strengths include a near-census of board-certified subspecialists rather than a
 sample; a mass-conserving demand allocation representing the full female population
 [@Apparicio2017]; year-specific cohorts reflecting workforce entry, exit, and
-relocation; and fully reproducible, canonical-source computation. Unlike
+relocation; and fully reproducible, canonical-source computation. Cohort exit is
+recorded from certification registries rather than from practice activity, and a
+small residue of physicians with a recorded retirement remain in the panel
+afterwards; because retirements accumulate, this leaves later years marginally
+better supplied than earlier ones and would, if anything, flatter the growth we
+report rather than the disparities. Unlike
 nearest-provider travel time or provider ratios, the floating-catchment design jointly
 incorporates provider availability, competing demand, and travel impedance, flagging
 low-access areas those simpler measures miss [@Drake2021].
@@ -1289,10 +1379,11 @@ The natural next step is to move from where subspecialists are located toward wh
 
 ## Conclusion
 
-Across the contiguous United States, potential accessibility to board-certified
-obstetric and gynecologic subspecialists was persistently lower in rural areas and
-in areas where American Indian or Alaska Native women lived, and narrowed little
-over more than a decade.
+Across the contiguous United States in 2020, potential accessibility to
+board-certified obstetric and gynecologic subspecialists was lower in rural areas
+and in areas where American Indian or Alaska Native women lived, across all seven
+subspecialties. In gynecologic oncology, these disparities persisted with little
+narrowing over more than a decade.
 As a measure of where specialized care is potentially reachable, not of realized or
 clinically sufficient access, these findings identify the populations and regions
 that may benefit most from regionalized care, outreach, telehealth, and targeted
@@ -1351,15 +1442,29 @@ summarized by ordinary least-squares slopes of the annual estimate on calendar y
 over `r first_year`-`r primary_last`. Because successive ACS 5-year estimates
 overlap and provider cohorts are serially correlated, we also computed Newey-West
 heteroskedasticity- and autocorrelation-consistent (HAC) P values, with the lag
-prespecified at `r trend_hac$hac_lag` to reflect the overlap of the 5-year ACS
-window (Appendix Table S1); because only 10 annual estimates were available, these
-trend tests are imprecise and are interpreted descriptively. The stratified trend
+prespecified at `r trend_hac$hac_lag` to match the overlap of the 5-year ACS window
+(Appendix Table S1). Consecutive 5-year ACS estimates share four of their five
+sample years, so the sampling error of the annual series is autocorrelated by
+construction out to lag four and is uncorrelated beyond it; a Bartlett kernel
+truncated at that lag is therefore the bandwidth implied by the survey design
+rather than a tuned choice, and ordinary least-squares standard errors, which
+assume independent residuals, would be too small here for a reason that has
+nothing to do with the workforce. Because only 10 annual estimates were available,
+the HAC estimator itself is imprecise; test statistics are referred to a Student
+*t* distribution rather than a normal, and these trend tests are interpreted
+descriptively. The stratified trend
 analyses across the seven specialty groups and multiple groups are exploratory: we
 prespecified no primary comparison and applied no multiple-comparisons correction,
 and we therefore emphasize the direction and magnitude of change over statistical
 significance. The most recent year (`r last_year`) was excluded from trend
-estimation and is reported as a provisional observation because its workforce panel
-is subject to right-censoring. To assess robustness to modeling choices, we
+estimation and is reported as a provisional observation. Its workforce panel is
+right-censored, and it also carries an administrative discontinuity in the other
+direction: pooled recorded practice coordinates per physician step from 0.35 to
+0.41 between `r primary_last` and `r last_year` after a decade of gradual drift,
+and the `r last_year` level shift in accessibility tracks that step across the
+seven groups rather than headcount, which fell in every group. The net direction
+of the `r last_year` artifact is therefore upward, and the year should not be read
+as evidence of recovery. To assess robustness to modeling choices, we
 recomputed the 2020 accessibility surface for every subspecialty under the
 alternative specifications summarized in Appendix Table S2, and compared the national
 ranking and the rurality and race contrasts with the base specification.
@@ -1764,7 +1869,9 @@ access or outcomes. These spatial patterns were robust to the modeling assumptio
 across the alternative specifications (Appendix Table S2), the rural lower-access
 pattern held for all `r sens_n`
 subspecialties under every specification, and the rural and race contrasts moved in
-magnitude but never reversed in direction (Appendix Table S2).
+magnitude but never reversed in direction, except for complex family planning --
+already near parity -- whose American Indian and Alaska Native contrast crossed to a
+slight advantage under the slowest decay and the M2SFCA penalty (Appendix Table S2).
 
 ```{r fig_equity_hm}
 # Figure 4 provenance: isochrones scripts/map_equity_heatmap.R (built 2026-07-18;
@@ -1788,8 +1895,8 @@ Alaska Native; NHOPI, Native Hawaiian or Other Pacific Islander.
 
 ## eResults S6: Persistence of disparities over time {-}
 
-Rural and area-level racial disparities persisted across the decade (Figure 5; Appendix
-Table S1). Over `r first_year`-`r primary_last`, the metropolitan-to-rural
+In gynecologic oncology, rural and area-level racial disparities persisted across the
+study period (Figure 5; Appendix Table S1). Over `r first_year`-`r primary_last`, the metropolitan-to-rural
 gynecologic oncology accessibility ratio narrowed by
 `r sprintf("%.3f", abs(go_ratio_trend[["slope"]]))` per year
 (`r fmt_p_txt(go_ratio_trend[["p_ols"]])`; Newey-West
@@ -1959,7 +2066,9 @@ supply, activity, geocoding, and parameter uncertainty through the model is a na
 (providers and population outside the United States were unavailable) could not be
 captured [@Gao2017]; however, a sensitivity analysis across the alternative
 specifications left the
-direction of the rurality and race disparities unchanged (Appendix Table S2; the
+direction of the rurality disparities unchanged and the race disparities unchanged for
+6 of 7 subspecialties, complex family planning crossing parity under the slowest decay
+and the M2SFCA penalty (Appendix Table S2; the
 national mean and its ranking are invariant to these choices by the conservation
 property and are not a robustness result). Fourth, the zero-access metric is defined at the tract level (the share of
 a group living in tracts with zero mean modeled access) and may undercount people

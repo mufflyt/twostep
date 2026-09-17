@@ -75,6 +75,11 @@ n_core <- length(unlist(regmatches(paste(cov[i:j], collapse = " "),
 spec <- yaml::read_yaml("inst/multiverse/specification_manifest.yml")
 n_exec <- sum(vapply(spec$specifications, function(s) identical(s$status, "frozen"), logical(1)))
 
+# gates the release audit actually runs. The README and the appendix both quote
+# this count in prose, and it moves every time a gate is added -- which is how
+# "all 19 gates" survived the twentieth. Counted from the audit's own run lines.
+n_gates <- length(grep('^run "', readLines("tools/ci/release_audit.sh", warn = FALSE)))
+
 claim_num <- function(pattern, label) {
   m <- regmatches(txt, regexpr(pattern, txt, perl = TRUE))
   if (!length(m)) { bad("README no longer states ", label, " -- the badge was removed or reworded"); return(NA_integer_) }
@@ -102,6 +107,22 @@ if (!is.na(c_core)) {
 if (!is.na(c_spec)) {
   note("specifications: README ", c_spec, "  manifest has ", n_exec, " executable")
   if (!identical(c_spec, n_exec)) bad("README claims ", c_spec, " specifications; the manifest has ", n_exec, " executable")
+}
+
+# The audit's gate count, wherever it is quoted. The appendix is included
+# because the README links to it as the account of this exact tooling, so a
+# count that disagrees there misleads the same reader one click later.
+for (gf in c("README.md", "docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md")) {
+  if (!file.exists(gf)) next
+  gtxt <- paste(readLines(gf, warn = FALSE), collapse = "\n")
+  gm <- unlist(regmatches(gtxt, gregexpr("all ([0-9]+) gates|ALL ([0-9]+) GATES", gtxt)))
+  for (one in gm) {
+    claimed <- as.integer(gsub("\\D", "", one))
+    note("audit gates: ", gf, " says ", claimed, "  release_audit.sh runs ", n_gates)
+    if (!identical(claimed, n_gates))
+      bad(gf, " claims the release audit runs ", claimed,
+          " gates; tools/ci/release_audit.sh runs ", n_gates)
+  }
 }
 
 # The assertion count is testthat's PASS tally, which is NOT the number of

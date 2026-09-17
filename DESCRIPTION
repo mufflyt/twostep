@@ -1,7 +1,7 @@
 Package: twostep
 Type: Package
 Title: Enhanced Two-Step Floating Catchment Area (E2SFCA) Accessibility to OB/GYN Subspecialists
-Version: 0.1.0
+Version: 0.2.0
 Date: 2026-08-18
 Authors@R: c(person(given = "Tyler", family = "Muffly", role = c("aut", "cre"),
     email = "tyler.muffly@dhha.org", comment = c(ORCID = "0000-0002-2044-1693")))

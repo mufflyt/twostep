@@ -75,6 +75,15 @@ re-freeze.
 The generation scripts in `scripts/` (`run_2sfca.R`, `stratify_allyears_access.R`,
 `inferential_stats_access.R`, `sensitivity_e2sfca_2020.R`, the seam/map scripts) and
 the engine in `R/` document how these artifacts were computed. They consume upstream
-pipeline inputs (road-network isochrones, the year-cohort panel, the ACS bundle) that
-are **not** shipped here, so they are included for provenance, not to be re-run inside
-this repo. See `docs/RUNBOOK_E2SFCA_ACCESSIBILITY.md`.
+pipeline inputs (the year-cohort panel, the ACS bundle) that are **not** shipped here,
+so they are included for provenance, not to be re-run inside this repo. See
+`docs/RUNBOOK_E2SFCA_ACCESSIBILITY.md`.
+
+**Isochrones are the exception, and are now reproducible here.** The age-matched panel
+runs against the frozen road-network isochrone set locally. The bytes are not in git
+(1.4 GB) but the four SHA-256s are, at `inst/multiverse/frozen_isochrones.sha256`, and
+`tools/ci/check_frozen_isochrones.sh` proves whichever copy is on disk is the right one
+before any year runs. This matters more than it sounds: nine isochrone directories
+existed across this machine and an attached drive and **none** of them was the frozen
+set, so identifying it by path rather than hash is how a 141-origin shortfall reached a
+manuscript artifact. See [`docs/APPENDIX_FROZEN_ISOCHRONE_SSOT.md`](APPENDIX_FROZEN_ISOCHRONE_SSOT.md).

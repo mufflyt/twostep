@@ -1,0 +1,30 @@
+{
+  "artifact": "artifacts/2sfca/agematched_panel/age_matched_panel.csv",
+  "results_sha256": "485df006e8156a5f15add4ad6173e752d320c6d21b2f33f2e1f7e4e4cb025064",
+  "manifest": "inst/multiverse/age_matched_denominator.yml",
+  "manifest_sha256": "58ffc05aa898243f4db346fc00d308ea7965936d76b1a941c4ab5e54fd726086",
+  "runner_sha256": "c5042650d07a3d94daa18c5be559830635c1e9a2d363d5054509001ff6ad7a1d",
+  "denominators_sha256": "2aa7198a3c4e3804e68cd179ad0d287fe0aba583bc89b364822fb3f2bdb762bc",
+  "consolidator_sha256": "b6b0348fbbebabdb943a67571d53a457897ba4f4ae21f4ce75aed3362638e6b5",
+  "engine_sha256": "08b14e8fdfad40e32f8bed9d05d16c2def883b6fb69d3aa82fad51bf8d000d7e",
+  "per_year_inputs": {
+    "age_matched_results_2013.csv": "e689a6f652bc018efe3cb3250085c2fc5de36ae1bf5274146bcc69e55240b016",
+    "age_matched_results_2014.csv": "b9db56516b57047a25ec9fe0655bfd0ce7fb14f445c610d4359328ab714c0b84",
+    "age_matched_results_2015.csv": "9f14340d4b30e1467e69d3a66862686dd85fb85bdc1254a09a8e7bf35f1fbba7",
+    "age_matched_results_2016.csv": "6c8a30628eb453a76cdd783dc4fe5095a5ade16dd933fc8bfe7513171cdf13ac",
+    "age_matched_results_2017.csv": "78d233a0cd04a99dc3606fb274ff846aaff3b44ee98157f233b08d7742c05252",
+    "age_matched_results_2018.csv": "ea78bc69f167c76b5a8ccd0a2ea69e3fe58952be22062b9106f011bdb720fcf4",
+    "age_matched_results_2019.csv": "031ab139a4aa3c6dc5c7ab06d08a34bebb213bc3c602d10c5f336ef88fe1a797",
+    "age_matched_results.csv": "14eca8518596b94befe0cb06308a039c5103dad986e91d777400f68310b68c72",
+    "age_matched_results_2021.csv": "f14ba0499b23810fac09f892bcb7e84dd53822de428dc8fc2ff92a2dc9b9436a",
+    "age_matched_results_2022.csv": "f5c065bde6370e450099fea6e8cc3827f4ccb005da7a88eb43b14cb8c1c22759",
+    "age_matched_results_2023.csv": "fd3d51521743c31298d898ea66956fce7a69feda9eccbe6e5a24016b78634efd"
+  },
+  "years": [2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023],
+  "n_cells": 154,
+  "n_subspecialties": 7,
+  "regimes": ["age_matched", "all_ages"],
+  "executed_at": "2026-08-25T07:32:05+0000",
+  "r_version": "4.5.1",
+  "platform": "x86_64-pc-linux-gnu"
+}

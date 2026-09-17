@@ -59,7 +59,12 @@ artifacts/ci/
 # Age-matched panel working set: per-year supply extracted from the frozen-run
 # tarball, and per-vintage ACS caches. Derived and large; the tarball and the
 # Census API are the sources.
-artifacts/2sfca/agematched_panel/
+# Derived working set only: the per-cell supply files extracted from the frozen
+# run's tarball. The PANEL ITSELF is the deliverable and is tracked -- an earlier
+# blanket ignore of this directory would have kept the corrected 154-row result
+# out of the repository entirely.
+artifacts/2sfca/agematched_panel/sup/
+artifacts/2sfca/agematched_panel/ec2/
 artifacts/2sfca/sensitivity/cache/
 
 # The frozen isochrone set (1.4 GB across four bands). Content is pinned by
@@ -68,3 +73,7 @@ artifacts/2sfca/sensitivity/cache/
 # belong in git, but the hashes do, so tools/ci/check_frozen_isochrones.sh can
 # prove whichever copy is on disk is the right one.
 artifacts/2sfca/frozen_isochrones/
+
+# Pinned RUCA payload: fetched from S3 and hash-verified by
+# tools/multiverse/resolve_ruca.sh. Only inst/multiverse/ruca_inputs.json ships.
+artifacts/2sfca/ruca/
