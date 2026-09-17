@@ -1,0 +1,45 @@
+# Distribute per-state scenario supply onto baseline provider origins
+
+The E2SFCA engine consumes supply as \`data.frame(coord_id, supply)\` –
+a count per provider ORIGIN, not per state. This turns a scenario's
+per-state supply (\[urps_scenario_supply()\]) into that per-origin shape
+by scaling each baseline origin's supply within its state by
+\`scenario_state_total / baseline_state_total\`. A scenario that (say)
+grows the national workforce 1.5x grows each existing origin
+proportionally within its state's allocated share; it never invents new
+provider locations.
+
+## Usage
+
+``` r
+urps_allocate_origins(state_supply, baseline_origins)
+```
+
+## Arguments
+
+- state_supply:
+
+  A \[urps_scenario_supply()\] frame (needs \`state_abbr\` /
+  \`state_fips\` and \`supply\`).
+
+- baseline_origins:
+
+  A \`data.frame\` of the baseline roster's per-origin supply:
+  \`coord_id\` (character origin key \`"lat_lon"\`), \`supply\`
+  (baseline count, \`\> 0\`), and a state key – \`state_abbr\` or
+  \`state_fips\` – matching \`state_supply\`.
+
+## Value
+
+A \`data.frame(coord_id, supply)\` with \`supply \> 0\`, ready to pass
+to \`compute_e2sfca()\`. The per-state sums equal
+\`state_supply\$supply\` (up to the states that actually have baseline
+origins). States with a positive scenario supply but NO baseline origin
+cannot be placed and are reported via a warning and the
+\`"unplaceable"\` attribute (a named vector of state -\> unplaced
+count); creating provider locations that do not exist is out of scope
+for a proportional scenario.
+
+## See also
+
+\[urps_scenario_supply()\], \[urps_project_accessibility()\]
