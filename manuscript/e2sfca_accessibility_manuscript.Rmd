@@ -2035,13 +2035,13 @@ readily overcome distance by traveling to distant centers, a spatially uniform
 potential-access measure may understate realized disadvantage for lower-income and
 rural populations [@Yilma2023]. Relatedly, drive time is a better impedance than
 geodesic distance (eMethods S4) but is itself modeled, and it carries assumptions a
-straight-line measure does not make. Travel times are modeled rather than observed:
-absent an applied historical traffic profile *[the routing engine's speed
-configuration to be confirmed by the authors]*, the isochrones represent typical
-rather than time-specific conditions and do not vary with time of day, day of week,
-weather, seasonal road closure, or ferry and mountain-pass schedule, so they will
-understate travel burden in congested metropolitan corridors and in winter conditions
-at high elevation and latitude. To the extent that unrepresented congestion is the
+straight-line measure does not make. Travel times are modeled rather than observed.
+The isochrones were generated with the routing engine's default automobile costing
+and no departure time supplied, so they carry the road network's static speeds: they
+do not vary with time of day, day of week, weather, seasonal road closure, or ferry
+and mountain-pass schedule, and they will therefore understate travel burden in
+congested metropolitan corridors and in winter conditions at high elevation and
+latitude. To the extent that unrepresented congestion is the
 larger of these, it favors metropolitan areas, and the reported rural-metropolitan gap
 is conservative on that axis. A single OpenStreetMap snapshot was applied to all study years, a
 deliberate choice that isolates cohort change from road-extract change (Methods) but
