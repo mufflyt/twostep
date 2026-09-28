@@ -68,7 +68,8 @@ CORE <- c(
   # the gate built to catch untested scientific exports would not have fired if
   # their tests were removed. They ship with tests today; tiering them CORE is
   # what keeps that true.
-  "assert_state_join_loss", "partition_unknown_access", "relabel_ct_geoids_safe"
+  "assert_state_join_loss", "partition_unknown_access", "relabel_ct_geoids_safe",
+  "urps_inpatient_band_weights"
 )
 SUPPORT <- c(
   "CANONICAL_BANDS", "get_canonical_bands", "get_primary_access_band",
@@ -78,7 +79,10 @@ SUPPORT <- c(
   "DENOMINATOR_CATEGORY", "TRACT_REACHED_COVERAGE_PCT",
   "ACCESS_SAFE_LABELS", "ACCESS_FORBIDDEN_TERMS", "assert_access_language",
   "assert_matching_geography", "acs_year_of", "tract_vintage_of",
-  "ct_equivalency_table_path"
+  "ct_equivalency_table_path",
+  "URPS_INPATIENT_SIGMA_MILES", "URPS_INPATIENT_SIGMA_MINUTES",
+  "MA_ROAD_NETWORK_RADIUS_MILES", "URPS_INPATIENT_SIGMA_BY_AVAILABILITY",
+  "URPS_INPATIENT_SIGMA_BY_AVAILABILITY_MIN"
 )
 # OTHER is an EXPLICIT list, not the residual. That distinction is the whole
 # point: while OTHER was "everything left over", a newly exported function was
