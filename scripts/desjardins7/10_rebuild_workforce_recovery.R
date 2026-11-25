@@ -40,7 +40,6 @@ rec <- readr::read_csv(file.path(OUT,"recovered_2020.csv"), show_col_types=FALSE
 comb <- bind_rows(act0 |> transmute(npi, code, cert, GEOID=as.character(GEOID)), rec) |>
   distinct(npi, code, .keep_all=TRUE) |>
   left_join(ruca, by="GEOID")
-comb$rurality[is.na(comb$rurality)] <- "Rural"
 comb$stage <- ifelse((YR - comb$cert) <= 15, "early", "late")
 say("combined mapped workforce: %d (orig %d + recovered %d)", nrow(comb), nrow(act0), nrow(rec))
 

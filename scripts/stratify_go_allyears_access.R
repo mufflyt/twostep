@@ -18,36 +18,46 @@ OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 CACHE <- Sys.getenv("STRAT_CACHE", file.path(tempdir(), "acs_race_cache"))
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE); dir.create(CACHE, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[strat-all] %s\n", sprintf(...)))
-# SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
-conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "ct_geoid_relabel.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
+# SSOT: canonical CONUS set lives in mufflyaccess (re-exported by
+# scripts/manuscript_e2sfca_values.R); guarded by test-ssot-conus-fips.R.
+conus <- function() mufflyaccess::CONUS_STATE_FIPS
 ACCDIR <- Sys.getenv("GO_ACCESS_DIR")                       # dir holding step_4_2sfca_GO_<yr>.rds
 stopifnot(nzchar(ACCDIR), dir.exists(ACCDIR))
 YEARS <- 2013:2023
 
-acs_year_of <- function(y) max(min(y, 2022L), 2013L)
-vintage_of  <- function(y) if (y >= 2020L) 2020L else 2010L
+# acs_year_of() / tract_vintage_of() come from the SSOT module; keep the local
+# name this script has always used for the tract-vintage map.
+vintage_of <- tract_vintage_of
 ruca_2020 <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"), colClasses="character")
 ruca_2010 <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping_2010.csv"), colClasses="character")
 ruca_of <- function(y) {
   r <- if (vintage_of(y) == 2020L) ruca_2020 else ruca_2010
-  transmute(r, GEOID = tract_geoid, rurality = ifelse(as.integer(ruca_code) %in% 1:3, "Metropolitan", "Rural"))
+  transmute(r, GEOID = tract_geoid, rurality = rurality_from_ruca(ruca_code)) |>
+    filter(!is.na(rurality))
 }
 
-VARS <- c(total_f="B01001_026", white_nh="B01001H_017", hispanic="B01001I_017",
-          black="B01001B_017", aian="B01001C_017", asian="B01001D_017", nhpi="B01001E_017")
-fetch_den <- function(acs_year) {                            # cached per ACS-year
-  cf <- file.path(CACHE, sprintf("acs_den_%d.rds", acs_year))
-  if (file.exists(cf)) return(readRDS(cf))
-  say("fetching ACS %d female denominators (total + 6 groups)", acs_year)
+VARS <- c(total_f = unname(TOTAL_FEMALE_VAR), RACE_FEMALE_VARS)
+fetch_den <- function(ay) {                                       # cached per ACS-year
+  cf <- file.path(CACHE, sprintf("acs_den_%d.rds", ay))
+  # Re-apply the CT relabel on cached frames too; it is idempotent and a no-op
+  # below ACS 2022.
+  if (file.exists(cf)) return(relabel_ct_geoids_safe(readRDS(cf), as.integer(ay)))
+  say("fetching ACS %d female denominators (total + 6 groups)", ay)
   raw <- purrr::map_dfr(conus(), function(s) suppressMessages(tidycensus::get_acs(
-    geography="tract", variables=VARS, state=s, year=acs_year, geometry=FALSE)))
+    geography="tract", variables=VARS, state=s, year=ay, geometry=FALSE)))
   den <- raw |> transmute(GEOID=as.character(GEOID), variable, estimate=as.numeric(estimate)) |>
-    tidyr::pivot_wider(names_from=variable, values_from=estimate)
+    tidyr::pivot_wider(names_from=variable, values_from=estimate) |>
+    relabel_ct_geoids_safe(den, as.integer(ay))
   saveRDS(den, cf); den
 }
 
-wmean <- function(x, w){ ok<-!is.na(x)&!is.na(w)&w>0; sum(x[ok]*w[ok])/sum(w[ok]) }
-zshare<- function(a, w){ ok<-!is.na(w)&w>0; sum(w[ok][a[ok]==0])/sum(w[ok]) }
+# NA value/weight contributes nothing to the weighted estimators (never a
+# measured zero); the module sums over all elements, so zero the NA slots first.
+wmean <- function(x, w){ bad <- is.na(x) | is.na(w); x[bad] <- 0; w[bad] <- 0; weighted_mean_all(x, w) }
+zshare<- function(a, w){ bad <- is.na(a) | is.na(w); a[bad] <- 0; w[bad] <- 0; zero_access_share(a, w) / 100 }
 GRP <- tibble::tribble(~key,~label,
   "white_nh","White, non-Hispanic","black","Black alone","hispanic","Hispanic (any race)",
   "asian","Asian alone","aian","Am. Indian/Alaska Native","nhpi","Nat. Hawaiian/Pac. Isl.")
@@ -58,8 +68,16 @@ for (y in YEARS) {
   stopifnot(file.exists(af))
   acc <- readRDS(af) |> transmute(GEOID=as.character(GEOID), access=access_mean_population_per100k)
   den <- fetch_den(acs_year_of(y))
-  d <- acc |> inner_join(ruca_of(y), by="GEOID") |> inner_join(den, by="GEOID")
-  d$access[is.na(d$access)] <- 0
+  d <- acc |> left_join(ruca_of(y), by="GEOID") |> left_join(den, by="GEOID")
+  .lost_ruca <- is.na(d$rurality)
+  .lost_den  <- is.na(d$total_f)
+  assert_state_join_loss(as.character(d$GEOID), .lost_den,
+                         context = sprintf("GO %d ACS denominator join", y))
+  d <- d[!.lost_ruca & !.lost_den, , drop = FALSE]
+  .part <- partition_unknown_access(d, "access")
+  say("%d: dropped %d no-RUCA, %d no-denominator; %d NA-access excluded (not zeroed)",
+      y, sum(.lost_ruca), sum(.lost_den), .part$n_unknown)
+  d <- .part$kept
   rur_all[[as.character(y)]] <- d |> group_by(rurality) |>
     summarise(year=y, mean_access=wmean(access,total_f), pct_zero=100*zshare(access,total_f),
               women=sum(total_f,na.rm=TRUE), .groups="drop")

@@ -188,13 +188,12 @@ classify_bivariate <- function(data, var1, var2, n_bins = 3, method = "quantile"
     stop("classify_bivariate: data has 0 rows \u2014 cannot compute breaks or classify")
   }
 
-  # Extract variables
+  # Extract variables. Missing values stay missing: an NA is unknown, not a
+  # measured zero, and must not be pulled into the lowest bin.
   x <- data[[var1]]
   y <- data[[var2]]
-
-  # Handle missing values
-  x[is.na(x)] <- 0
-  y[is.na(y)] <- 0
+  if (all(is.na(x))) stop(sprintf("classify_bivariate: '%s' is entirely missing", var1))
+  if (all(is.na(y))) stop(sprintf("classify_bivariate: '%s' is entirely missing", var2))
 
   # Classify based on method
   if (method == "quantile") {
@@ -223,16 +222,16 @@ classify_bivariate <- function(data, var1, var2, n_bins = 3, method = "quantile"
   x_breaks <- unique(x_breaks)
   y_breaks <- unique(y_breaks)
 
-  # Classify into bins
+  # Classify into bins. cut() returns NA for NA inputs; that NA is preserved
+  # rather than assigned to the lowest class.
   data$var1_class <- cut(x, breaks = x_breaks, labels = FALSE, include.lowest = TRUE)
   data$var2_class <- cut(y, breaks = y_breaks, labels = FALSE, include.lowest = TRUE)
 
-  # Handle NAs (assign to lowest class)
-  data$var1_class[is.na(data$var1_class)] <- 1
-  data$var2_class[is.na(data$var2_class)] <- 1
-
-  # Create combined bivariate class
-  data$bivar_class <- paste0(data$var1_class, "-", data$var2_class)
+  # Create combined bivariate class; NA on either axis stays NA (unclassified),
+  # not the string "NA-1" that paste0() would otherwise produce.
+  data$bivar_class <- ifelse(is.na(data$var1_class) | is.na(data$var2_class),
+                             NA_character_,
+                             paste0(data$var1_class, "-", data$var2_class))
 
   # Store break points as attributes (for legend)
   attr(data, "var1_breaks") <- x_breaks

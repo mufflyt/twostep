@@ -20,6 +20,7 @@ suppressWarnings(suppressMessages({ library(sf); library(dplyr); library(terra);
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca", "cell_zero"); dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 CACHE <- file.path(OUT, "cache")
@@ -36,15 +37,18 @@ GRP_LABELS <- c(total_f="Total", metro_f="Metropolitan", rural_f="Rural",
 acs <- readRDS(file.path(CACHE, "acs2020_allrace.rds")); say("loaded cached ACS 2020")
 ruca <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"), colClasses="character") |>
   dplyr::transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(ruca_code))
-den <- acs$den |> dplyr::left_join(ruca, by="GEOID") |>
-  dplyr::mutate(dplyr::across(dplyr::any_of(names(RVARS)), ~tidyr::replace_na(.,0)),
-    metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
-    rural_f = ifelse(rurality %in% "Rural",        total_f, 0))
 # tract polygons in the E2SFCA equal-area CRS; drop empty geometries (the same
 # ones dropped from the demand grid), which exact_extract cannot handle
 geom5070 <- sf::st_transform(acs$geom, E2SFCA_AREA_CRS)
 geom5070 <- geom5070[!sf::st_is_empty(geom5070), ]
-den <- den[match(geom5070$GEOID, den$GEOID), ]        # align rows to polygon order
+den <- acs$den |> dplyr::left_join(ruca, by="GEOID")
+den <- align_denominator_to_reference(
+  den, geom5070, by = "GEOID",
+  context = "cell-level zero-access 2020 denominators",
+  complete_cols = names(RVARS))
+den <- den |> dplyr::mutate(
+  metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
+  rural_f = ifelse(rurality %in% "Rural",        total_f, 0))
 GRP_COLS <- names(GRP_LABELS)
 say("tracts=%d  total F=%.0f  (res=%dm)", nrow(den), sum(den$total_f), RES)
 

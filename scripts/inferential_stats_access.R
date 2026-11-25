@@ -32,6 +32,8 @@ stopifnot(nzchar(ACCDIR), dir.exists(ACCDIR)); dir.create(CACHE,showWarnings=FAL
 say <- function(...) cat(sprintf("[infer] %s\n", sprintf(...)))
 # SSOT anchor (CONUS_STATE_FIPS): canonical CONUS set in scripts/manuscript_e2sfca_values.R; guarded by tests/testthat/test-ssot-conus-fips.R
 conus <- function() sprintf("%02d", c(1,4:6,8:13,16:42,44:51,53:56))
+source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 
 VARS <- c(total_f="B01001_026", white_nh="B01001H_017", hispanic="B01001I_017",
           black="B01001B_017", aian="B01001C_017", asian="B01001D_017", nhpi="B01001E_017")
@@ -53,24 +55,45 @@ moe <- acs |> select(GEOID,variable,moe) |> tidyr::pivot_wider(names_from=variab
 af <- file.path(ACCDIR, sprintf("step_4_2sfca_%s_2020.rds", SUB)); stopifnot(file.exists(af))
 acc <- readRDS(af) |> transmute(GEOID=as.character(GEOID), access=access_mean_population_per100k)
 ruca <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colClasses="character") |>
-  transmute(GEOID=tract_geoid, rurality=ifelse(as.integer(ruca_code)%in%1:3,"Metropolitan","Rural"))
-d <- acc |> inner_join(ruca,by="GEOID") |> inner_join(est,by="GEOID") |> inner_join(moe,by="GEOID")
-d$access[is.na(d$access)] <- 0
-say("%s 2020 tracts joined: %d", SUB, nrow(d))
+  transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(ruca_code))
+d <- acc |> left_join(ruca,by="GEOID") |> left_join(est,by="GEOID") |> left_join(moe,by="GEOID")
+.lost_ruca <- is.na(d$rurality)
+.lost_den  <- is.na(d$total_f)
+assert_state_join_loss(as.character(d$GEOID), .lost_den,
+                       context = sprintf("%s 2020 ACS denominator join", SUB))
+d <- d[!.lost_ruca & !.lost_den, , drop = FALSE]
+.part <- partition_unknown_access(d, "access")
+say("%s 2020 tracts joined: %d (dropped %d no-RUCA, %d no-denominator; %d NA-access excluded, not zeroed)",
+    SUB, nrow(d), sum(.lost_ruca), sum(.lost_den), .part$n_unknown)
+d <- .part$kept
 
 WV <- names(VARS)                                  # total_f, white_nh, ...
-se <- lapply(WV, function(v){ s <- d[[paste0("moe_",v)]]/1.645; s[is.na(s)] <- 0; s })
+for (v in WV) {
+  if (anyNA(d[[v]])) {
+    stop(sprintf("inferential_stats_access: NA ACS estimate in column '%s' (%s%s). NA population is UNKNOWN, not zero.",
+                 v, paste(utils::head(d$GEOID[is.na(d[[v]])], 5), collapse = ", "),
+                 if (sum(is.na(d[[v]])) > 5) sprintf(" and %d more", sum(is.na(d[[v]])) - 5L) else ""),
+         call. = FALSE)
+  }
+  mv <- paste0("moe_", v)
+  if (anyNA(d[[mv]])) {
+    stop(sprintf("inferential_stats_access: NA ACS MOE in column '%s' (%s%s). Missing uncertainty is not zero uncertainty.",
+                 mv, paste(utils::head(d$GEOID[is.na(d[[mv]])], 5), collapse = ", "),
+                 if (sum(is.na(d[[mv]])) > 5) sprintf(" and %d more", sum(is.na(d[[mv]])) - 5L) else ""),
+         call. = FALSE)
+  }
+}
+se <- lapply(WV, function(v){ d[[paste0("moe_", v)]] / 1.645 })
 names(se) <- WV
-pt <- setNames(lapply(WV, function(v){ x<-d[[v]]; x[is.na(x)]<-0; x }), WV)
+pt <- setNames(lapply(WV, function(v){ as.numeric(d[[v]]) }), WV)
 
 # Weighted-mean / zero-share helpers come from the tested SSOT module (guarded by
 # tests/testthat/test-accessibility-stratification.R, incl. the MC-unbiasedness
 # regression test). They sum over ALL elements — see the module for why the
 # w>0-filter is a bug for the Monte-Carlo draws.
-source(file.path(ROOT, "R", "accessibility_stratification.R"))
 wmean <- weighted_mean_all
 zsh   <- zero_access_share
-is_metro <- d$rurality=="Metropolitan"; is_rural <- !is_metro
+is_metro <- d$rurality=="Metropolitan"; is_rural <- d$rurality=="Rural"
 acc_v <- d$access
 
 # point estimates (from actual ACS estimates)

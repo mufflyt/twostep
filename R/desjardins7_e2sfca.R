@@ -350,3 +350,83 @@ dj7_no_access_share <- function(access_df, dvec) {
   if (!is.finite(sw) || sw <= 0) return(NA_real_)
   100 * sum(w[A <= 0]) / sw
 }
+
+#' Weighted study outcomes from a dj7 tract-access table.
+#'
+#' Combines [dj7_tract_access()] output (reached tracts only) with a denominator
+#' frame covering EVERY tract, so unreached tracts enter as measured zero access
+#' rather than disappearing from the denominator. Missing demand weights are an
+#' error here even though the lower-level dj7 helpers are deliberately total:
+#' at the study layer an NA ACS estimate is unknown population, not zero.
+#'
+#' @param access_df data.frame(GEOID, A) from [dj7_tract_access()].
+#' @param den data.frame with `GEOID`, `weight_col`, and optionally `rurality_col`.
+#' @param weight_col denominator column (e.g. `"total_f"` or a field-specific one).
+#' @param rurality_col optional column with `"Metropolitan"`/`"Rural"`/`NA`.
+#'   NA rurality is excluded from BOTH stratum means but remains in the overall
+#'   mean and no-access share (it is population, just unclassified).
+#' @param scale multiplier applied to `A` for reporting (default 1e5 = per 100k).
+#' @return list(mean, metro, rural, ratio, no_access, n_tracts, n_reached,
+#'   n_uncoded_rurality).
+#' @keywords internal
+#' @examples
+#' acc <- data.frame(GEOID = c("A", "B"), A = c(0.1, 0.2))
+#' den <- data.frame(GEOID = c("A", "B"), total_f = c(10, 20),
+#'                   rurality = c("Metropolitan", "Rural"))
+#' dj7_weighted_outcomes(acc, den)
+dj7_weighted_outcomes <- function(access_df, den, weight_col = "total_f",
+                                  rurality_col = "rurality", scale = 1e5) {
+  stopifnot(is.data.frame(access_df), is.data.frame(den),
+            "GEOID" %in% names(den), weight_col %in% names(den))
+  stopifnot(all(c("GEOID", "A") %in% names(access_df)))
+
+  gid <- as.character(den$GEOID)
+  if (anyNA(gid) || anyDuplicated(gid)) {
+    stop("dj7_weighted_outcomes: den$GEOID must be non-NA and unique", call. = FALSE)
+  }
+  w <- as.numeric(den[[weight_col]])
+  if (anyNA(w)) {
+    stop(sprintf("dj7_weighted_outcomes: NA in denominator column '%s' (%s%s). ",
+                 weight_col, paste(utils::head(gid[is.na(w)], 5), collapse = ", "),
+                 if (sum(is.na(w)) > 5) sprintf(" and %d more", sum(is.na(w)) - 5L) else ""),
+         call. = FALSE)
+  }
+  if (any(!is.finite(w)) || any(w < 0)) {
+    stop("dj7_weighted_outcomes: denominator weights must be finite and non-negative",
+         call. = FALSE)
+  }
+  agid <- as.character(access_df$GEOID)
+  a <- as.numeric(access_df$A)
+  if (anyNA(agid) || anyDuplicated(agid)) {
+    stop("dj7_weighted_outcomes: access_df$GEOID must be non-NA and unique", call. = FALSE)
+  }
+  if (any(!is.finite(a))) {
+    stop("dj7_weighted_outcomes: access_df$A must be finite (unreached tracts are absent, not NA)",
+         call. = FALSE)
+  }
+
+  dvec <- stats::setNames(w, gid)
+  no_access <- dj7_no_access_share(access_df, dvec)
+
+  aval <- stats::setNames(rep(0, length(gid)), gid)
+  aval[agid] <- a
+  access_scaled <- aval * scale
+
+  mean_access <- dj7_wmean(access_scaled, w)
+  metro <- rural <- NA_real_
+  n_uncoded <- NA_integer_
+  has_rurality <- !is.null(rurality_col) && rurality_col %in% names(den)
+  if (has_rurality) {
+    r <- den[[rurality_col]]
+    n_uncoded <- sum(is.na(r))
+    metro_w <- ifelse(!is.na(r) & r == "Metropolitan", w, 0)
+    rural_w <- ifelse(!is.na(r) & r == "Rural", w, 0)
+    metro <- dj7_wmean(access_scaled, metro_w)
+    rural <- dj7_wmean(access_scaled, rural_w)
+  }
+  ratio <- if (is.finite(metro) && is.finite(rural) && rural > 0) metro / rural else NA_real_
+
+  list(mean = mean_access, metro = metro, rural = rural, ratio = ratio,
+       no_access = no_access, n_tracts = length(gid), n_reached = nrow(access_df),
+       n_uncoded_rurality = n_uncoded)
+}

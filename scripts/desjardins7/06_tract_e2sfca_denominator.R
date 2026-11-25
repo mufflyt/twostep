@@ -16,27 +16,26 @@ suppressWarnings(suppressMessages({ library(sf); library(dplyr) }))
 ROOT <- if (requireNamespace("here", quietly=TRUE)) here::here() else normalizePath(".")
 # SSOT: frozen run id from the canonical constant (scripts/manuscript_e2sfca_values.R).
 source(file.path(ROOT,"scripts","manuscript_e2sfca_values.R"))
+source(file.path(ROOT,"R","desjardins7_e2sfca.R"))
+source(file.path(ROOT,"R","study_join_accounting.R"))
 OUT  <- file.path(ROOT,"artifacts","desjardins7")
 UNP  <- file.path(ROOT,"artifacts","2sfca","ec2",E2SFCA_FROZEN_RUN_ID,"unpacked")
 say  <- function(...) { cat(sprintf("[dj7-e2] %s\n", sprintf(...))); flush.console() }
-SUBS <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP")
+`%||%` <- function(a,b) if(is.null(a)) b else a
+SUBS <- DJ7_SUBS
 YR <- 2020L
-# SSOT anchor (E2SFCA_DEFAULT_WEIGHTS): identical to the engine's canonical weights in
-# R/two_step_floating_catchment.R; literal retained for standalone execution. Guarded by
-# tests/testthat/test-ssot-band-weights.R.
-Wc  <- c(`30`=1.00,`60`=0.68,`120`=0.22,`180`=0.09)          # cumulative band weights
-Wi  <- c(`30`=unname(Wc["30"]-Wc["60"]), `60`=unname(Wc["60"]-Wc["120"]),  # incremental (demand)
-         `120`=unname(Wc["120"]-Wc["180"]), `180`=unname(Wc["180"]))
-# SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
-BANDS <- c(30L,60L,120L,180L)
+# SSOT: band weights, bands, and the tract-centroid E2SFCA recurrence live in
+# R/desjardins7_e2sfca.R (dj7_incr_weights / dj7_tract_access / dj7_weighted_outcomes).
+Wc  <- DJ7_WC_BASE
+BANDS <- DJ7_BANDS
 FIELD <- c(MFM="repro_1544",REI="repro_1544",CFP="repro_1549",MIGS="age_1854",
            PAG="girls_019",GO="age_40p",FPMRS="age_40p")
 
 # tract centroids + denominators + rurality
 acs  <- readRDS(file.path(ROOT,"artifacts","2sfca","cell_zero","cache","acs2020_allrace.rds"))
 age  <- readRDS(file.path(OUT,"cache","acs2020_female_age.rds")) |>
-  mutate(across(-GEOID, ~tidyr::replace_na(as.numeric(.),0)))
-brk  <- function(d,ids) rowSums(d[,sprintf("a%d",ids),drop=FALSE],na.rm=TRUE)
+  mutate(across(-GEOID, as.numeric))
+brk  <- function(d,ids) rowSums(d[,sprintf("a%d",ids),drop=FALSE],na.rm=FALSE)
 den  <- age |> transmute(GEOID=as.character(GEOID),
   total_f=f_total, adult_18p=brk(age,31:49), repro_1544=brk(age,30:38),
   repro_1549=brk(age,30:39), age_1854=brk(age,31:40), girls_019=brk(age,27:31), age_40p=brk(age,38:49))
@@ -46,9 +45,13 @@ ruca <- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colC
 cen  <- acs$geom |> select(GEOID) |> st_transform(5070) |> st_make_valid()
 cen  <- cen[!st_is_empty(cen),]; cen <- st_centroid(cen)
 cen$GEOID <- as.character(cen$GEOID)
-den  <- den[match(cen$GEOID, den$GEOID),]; den$GEOID <- cen$GEOID
+den  <- align_denominator_to_reference(
+  den, cen, by = "GEOID", context = "dj7 2020 denominators",
+  complete_cols = setdiff(names(den), "GEOID"))
 den  <- den |> left_join(ruca, by="GEOID")
-den$rurality[is.na(den$rurality)] <- "Rural"
+# rurality_from_ruca() returns NA for uncoded tracts (e.g. RUCA 99). That is
+# UNCLASSIFIED, not Rural: dj7_weighted_outcomes() keeps them in the overall
+# mean/no-access denominator but excludes them from both stratum means.
 say("tracts=%d  total_f=%.0f", nrow(cen), sum(den$total_f))
 
 # provider supply per subspec (coord_id, supply)
@@ -67,8 +70,6 @@ iso <- setNames(lapply(BANDS, function(b){
 }), as.character(BANDS))
 say("isochrones loaded for %d origins", length(orig))
 
-`%||%` <- function(a,b) if(is.null(a)) b else a
-
 # tract-in-band membership is denominator-independent: compute ONCE per subspec
 membership <- function(s) {
   cds <- sup[[s]]$coord_id
@@ -83,33 +84,15 @@ membership <- function(s) {
 
 # for a subspec + denominator (reusing precomputed membership), compute outcomes
 run_e2sfca <- function(s, dcol, memb) {
-  sp <- sup[[s]]; cds <- sp$coord_id
-  dvec <- setNames(den[[dcol]], den$GEOID)
-  # demand D_j = sum_b w'_b * cumpop(<=b)
-  Dj <- rep(0, length(cds)); names(Dj) <- cds
-  for (bb in as.character(BANDS)) {
-    cp <- memb[[bb]] |> mutate(d=dvec[GEOID]) |> group_by(coord_id) |>
-      summarise(pop=sum(d,na.rm=TRUE), .groups="drop")
-    add <- setNames(cp$pop, cp$coord_id)
-    Dj[names(add)] <- Dj[names(add)] + Wi[[bb]]*add
-  }
-  Rj <- setNames(sp$supply,cds) / pmax(Dj, .Machine$double.eps)
-  Rj[!is.finite(Rj)] <- 0
-  # A_i = sum_j Wc[tightest band] * R_j  (tightest = max Wc across bands present)
-  allpairs <- bind_rows(lapply(as.character(BANDS), function(bb)
-    memb[[bb]] |> mutate(w=Wc[[bb]]))) |>
-    group_by(GEOID, coord_id) |> summarise(w=max(w), .groups="drop") |>
-    mutate(contrib = w * Rj[coord_id])
-  Ai <- allpairs |> group_by(GEOID) |> summarise(A=sum(contrib,na.rm=TRUE), .groups="drop")
-  d2 <- den |> select(GEOID, w=all_of(dcol), rurality) |> left_join(Ai, by="GEOID")
-  d2$A[is.na(d2$A)] <- 0; d2$A100 <- d2$A*1e5
-  wm <- function(x,w){ok<-w>0&!is.na(w); if(sum(w[ok])<=0) NA else sum(x[ok]*w[ok])/sum(w[ok])}
-  tibble::tibble(subspec=s, denom=dcol,
-    mean=wm(d2$A100,d2$w),
-    metro=wm(d2$A100[d2$rurality=="Metropolitan"], d2$w[d2$rurality=="Metropolitan"]),
-    rural=wm(d2$A100[d2$rurality=="Rural"], d2$w[d2$rurality=="Rural"]),
-    no_access=100*sum(d2$w[d2$A<=0],na.rm=TRUE)/sum(d2$w,na.rm=TRUE)) |>
-    mutate(ratio=metro/pmax(rural,.Machine$double.eps))
+  sp <- sup[[s]]
+  supply_vec <- stats::setNames(as.numeric(sp$supply), as.character(sp$coord_id))
+  dvec <- stats::setNames(as.numeric(den[[dcol]]), as.character(den$GEOID))
+  acc <- dj7_tract_access(memb, supply_vec, dvec, Wc = Wc)
+  out <- dj7_weighted_outcomes(acc, den, weight_col = dcol,
+                               rurality_col = "rurality", scale = 1e5)
+  tibble::tibble(subspec = s, denom = dcol, mean = out$mean, metro = out$metro,
+                 rural = out$rural, no_access = out$no_access) |>
+    mutate(ratio = out$ratio)
 }
 
 rows <- list()

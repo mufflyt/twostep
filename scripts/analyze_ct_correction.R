@@ -63,6 +63,7 @@ stopifnot(!is.na(FROZ), dir.exists(FROZ))
 # R/census_data_fetcher.R alongside the ACS fetchers; in twostep it is a
 # first-class export of its own module. Same function, same equivalency table.
 source(file.path("R", "ct_geoid_relabel.R"))
+source(file.path("R", "study_join_accounting.R"))
 BUNDLE <- readRDS(file.path("artifacts", "2sfca_seam", "acs_bundle_2013_2022.rds"))
 
 # Population on the LEGACY GEOID vocabulary the tract layer uses. This is the
@@ -102,11 +103,20 @@ wmean <- function(a, p) {
 analyze <- function(s, y) {
   fr <- read_cell(FROZ, s, y); co <- read_cell(CORR, s, y)
   if (is.null(fr) || is.null(co)) return(NULL)
-  # Align on GEOID; both should be the same tract layer.
-  stopifnot(setequal(fr$GEOID, co$GEOID))
-  co <- co[match(fr$GEOID, co$GEOID), ]
+  # Align on GEOID; both should be the same tract layer. align_denominator_to_reference()
+  # fails closed on missing/extra/duplicate/NA keys instead of trusting setequal()+match().
+  co <- align_denominator_to_reference(
+    co, fr, by = "GEOID",
+    context = sprintf("CT correction %s %d corrected cell", s, y))
   g <- fr$GEOID
   P <- POP[[as.character(y)]][g]
+  if (anyNA(P)) {
+    stop(sprintf("analyze_ct_correction: %d tract(s) have NA population for %s %d (%s%s). NA population is UNKNOWN, not zero.",
+                 sum(is.na(P)), s, y,
+                 paste(utils::head(names(P)[is.na(P)], 5), collapse = ", "),
+                 if (sum(is.na(P)) > 5) sprintf(" and %d more", sum(is.na(P)) - 5L) else ""),
+         call. = FALSE)
+  }
   ct <- is_ct(g)
 
   # --- headline means ------------------------------------------------------

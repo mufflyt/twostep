@@ -18,24 +18,25 @@ OUT  <- file.path(ROOT,"artifacts","desjardins7")
 UNP  <- file.path(ROOT,"artifacts","2sfca","ec2",E2SFCA_FROZEN_RUN_ID,"unpacked")
 say  <- function(...) { cat(sprintf("[dj7-dw] %s\n", sprintf(...))); flush.console() }
 source(file.path(ROOT,"R","accessibility_stratification.R"))
-# SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
-SUBS <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP"); BANDS <- c(30L,60L,120L,180L)
+source(file.path(ROOT,"R","desjardins7_e2sfca.R"))
+source(file.path(ROOT,"R","study_join_accounting.R"))
+SUBS <- DJ7_SUBS; BANDS <- DJ7_BANDS
 SCHEMES <- list(
-  base    = c(`30`=1.00,`60`=0.68,`120`=0.22,`180`=0.09),
+  base    = DJ7_WC_BASE,
   steeper = c(`30`=1.00,`60`=0.50,`120`=0.10,`180`=0.02),
   flatter = c(`30`=1.00,`60`=0.85,`120`=0.55,`180`=0.30))
-incr <- function(Wc) c(`30`=unname(Wc[1]-Wc[2]),`60`=unname(Wc[2]-Wc[3]),
-                       `120`=unname(Wc[3]-Wc[4]),`180`=unname(Wc[4]))
 
 acs <- readRDS(file.path(ROOT,"artifacts","2sfca","cell_zero","cache","acs2020_allrace.rds"))
-den <- acs$den |> transmute(GEOID=as.character(GEOID), total_f=tidyr::replace_na(total_f,0))
-ruca<- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colClasses="character") |>
-  transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(as.integer(ruca_code)))
 cen <- acs$geom |> select(GEOID) |> st_transform(5070) |> st_make_valid()
 cen <- cen[!st_is_empty(cen),]; cen <- st_centroid(cen); cen$GEOID <- as.character(cen$GEOID)
-den <- den[match(cen$GEOID, den$GEOID),]; den$GEOID <- cen$GEOID
-den <- den |> left_join(ruca, by="GEOID"); den$rurality[is.na(den$rurality)] <- "Rural"
-dvec <- setNames(den$total_f, den$GEOID)
+den <- acs$den |> transmute(GEOID=as.character(GEOID), total_f=total_f)
+den <- align_denominator_to_reference(den, cen, by="GEOID",
+  context="dj7 decay-weight denominators", complete_cols="total_f")
+ruca<- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colClasses="character") |>
+  transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(as.integer(ruca_code)))
+den <- den |> left_join(ruca, by="GEOID")
+# NA rurality (uncoded RUCA) stays unclassified; excluded from stratum means only.
+dvec <- setNames(as.numeric(den$total_f), as.character(den$GEOID))
 
 sup <- setNames(lapply(SUBS, function(s)
   readRDS(file.path(UNP,sprintf("step_4_2sfca_%s_2020_providers.rds",s))) |>
@@ -47,33 +48,21 @@ iso <- setNames(lapply(BANDS, function(b){
   x<-x[x$coord_id %in% orig,,drop=FALSE]; st_geometry(x)<-attr(x,"sf_column")
   st_make_valid(st_transform(x[,"coord_id"],5070))}), as.character(BANDS))
 
-wm <- function(x,w){ok<-w>0; sum(x[ok]*w[ok])/sum(w[ok])}
 rows <- list()
 for (s in SUBS) {
   cds <- sup[[s]]$coord_id
+  supply_vec <- setNames(as.numeric(sup[[s]]$supply), as.character(cds))
   say("membership for %s ...", s)
   memb <- lapply(as.character(BANDS), function(bb){
     ib<-iso[[bb]][iso[[bb]]$coord_id %in% cds,]
     j<-st_join(cen, ib, join=st_within, left=FALSE); tibble::tibble(coord_id=j$coord_id, GEOID=j$GEOID)})
   names(memb)<-as.character(BANDS)
-  # cumulative population per origin per band (weight-independent)
-  cumpop <- lapply(as.character(BANDS), function(bb)
-    memb[[bb]] |> mutate(d=dvec[GEOID]) |> group_by(coord_id) |> summarise(p=sum(d,na.rm=TRUE),.groups="drop"))
-  names(cumpop)<-as.character(BANDS)
   for (nm in names(SCHEMES)) {
-    Wc <- SCHEMES[[nm]]; Wi <- incr(Wc)
-    Dj <- setNames(rep(0,length(cds)),cds)
-    for (bb in as.character(BANDS)) { a<-setNames(cumpop[[bb]]$p,cumpop[[bb]]$coord_id); Dj[names(a)]<-Dj[names(a)]+Wi[[bb]]*a }
-    Rj <- setNames(sup[[s]]$supply,cds)/pmax(Dj,.Machine$double.eps); Rj[!is.finite(Rj)]<-0
-    ap <- bind_rows(lapply(as.character(BANDS), function(bb) memb[[bb]] |> mutate(w=Wc[[bb]]))) |>
-      group_by(GEOID,coord_id) |> summarise(w=max(w),.groups="drop") |> mutate(c=w*Rj[coord_id])
-    Ai <- ap |> group_by(GEOID) |> summarise(A=sum(c,na.rm=TRUE),.groups="drop")
-    d2 <- den |> left_join(Ai,by="GEOID"); d2$A[is.na(d2$A)]<-0; d2$A100<-d2$A*1e5
+    acc <- dj7_tract_access(memb, supply_vec, dvec, Wc = SCHEMES[[nm]])
+    out <- dj7_weighted_outcomes(acc, den, weight_col = "total_f",
+                                 rurality_col = "rurality", scale = 1e5)
     rows[[paste(s,nm)]] <- tibble::tibble(subspec=s, scheme=nm,
-      mean=wm(d2$A100,d2$total_f),
-      ratio=wm(d2$A100[d2$rurality=="Metropolitan"],d2$total_f[d2$rurality=="Metropolitan"])/
-            wm(d2$A100[d2$rurality=="Rural"],d2$total_f[d2$rurality=="Rural"]),
-      no_access=100*sum(d2$total_f[d2$A<=0])/sum(d2$total_f))
+      mean=out$mean, ratio=out$ratio, no_access=out$no_access)
   }
   r <- dplyr::bind_rows(rows[grep(paste0("^",s," "),names(rows))])
   say("  %s ratio base/steeper/flatter = %.2f / %.2f / %.2f", s,

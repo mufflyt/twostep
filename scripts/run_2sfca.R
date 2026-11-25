@@ -424,7 +424,9 @@ for (yr in YEARS) {
     pop_vals <- pop_vals[substr(pop_vals$GEOID, 1, 2) %in% STATE_FIPS, , drop = FALSE]
   }
   tracts_yr <- dplyr::left_join(geom, pop_vals, by = "GEOID")
-  tracts_yr$female_pop[is.na(tracts_yr$female_pop)] <- 0
+  # Do NOT zero-fill female_pop here: compute_e2sfca() fails closed on NA
+  # population because unknown demand is not zero demand. The raster path gets
+  # the same guarantee from attach_e2sfca_population().
 
   if (ENGINE == "raster") {
     # Rasterize tract geometry once per vintage; attach population per year.

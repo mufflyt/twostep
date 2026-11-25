@@ -15,21 +15,22 @@ OUT  <- file.path(ROOT,"artifacts","desjardins7")
 UNP  <- file.path(ROOT,"artifacts","2sfca","ec2",E2SFCA_FROZEN_RUN_ID,"unpacked")
 say  <- function(...) { cat(sprintf("[dj7-sr] %s\n", sprintf(...))); flush.console() }
 source(file.path(ROOT,"R","accessibility_stratification.R"))
-SUBS <- c("MFM","GO","REI","FPMRS","MIGS","PAG","CFP")
-Wc <- c(`30`=1.00,`60`=0.68,`120`=0.22,`180`=0.09)
-Wi <- c(`30`=unname(Wc["30"]-Wc["60"]),`60`=unname(Wc["60"]-Wc["120"]),
-        `120`=unname(Wc["120"]-Wc["180"]),`180`=unname(Wc["180"]))
-# SSOT anchor (CANONICAL_BANDS): the drive-time bands below are the canonical set defined in R/contour_bands.R (CANONICAL_BANDS = c(30L, 60L, 120L, 180L)); literal retained for standalone execution.
-BANDS <- c(30L,60L,120L,180L)
+source(file.path(ROOT,"R","desjardins7_e2sfca.R"))
+source(file.path(ROOT,"R","study_join_accounting.R"))
+SUBS <- DJ7_SUBS
+Wc <- DJ7_WC_BASE
+BANDS <- DJ7_BANDS
 
 acs <- readRDS(file.path(ROOT,"artifacts","2sfca","cell_zero","cache","acs2020_allrace.rds"))
-den <- acs$den |> transmute(GEOID=as.character(GEOID), total_f=tidyr::replace_na(total_f,0))
-ruca<- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colClasses="character") |>
-  transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(as.integer(ruca_code)))
 cen <- acs$geom |> select(GEOID) |> st_transform(5070) |> st_make_valid()
 cen <- cen[!st_is_empty(cen),]; cen <- st_centroid(cen); cen$GEOID <- as.character(cen$GEOID)
-den <- den[match(cen$GEOID, den$GEOID),]; den$GEOID <- cen$GEOID
-den <- den |> left_join(ruca, by="GEOID"); den$rurality[is.na(den$rurality)] <- "Rural"
+den <- acs$den |> transmute(GEOID=as.character(GEOID), total_f=total_f)
+den <- align_denominator_to_reference(den, cen, by="GEOID",
+  context="dj7 surface denominators", complete_cols="total_f")
+ruca<- read.csv(file.path(ROOT,"data","external","ruca_tract_mapping.csv"),colClasses="character") |>
+  transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(as.integer(ruca_code)))
+den <- den |> left_join(ruca, by="GEOID")
+# NA rurality (uncoded RUCA) stays unclassified; it is excluded from stratum means only.
 
 rec <- readr::read_csv(file.path(OUT,"recovered_2020.csv"), show_col_types=FALSE) |>
   filter(in_surface_5km)
@@ -64,24 +65,16 @@ iso <- setNames(lapply(BANDS, function(b){
 
 outcomes <- function(s, supdf){
   cds <- supdf$coord_id
-  Dj <- setNames(rep(0,length(cds)), cds); dvec <- setNames(den$total_f, den$GEOID)
+  supply_vec <- setNames(as.numeric(supdf$supply), as.character(supdf$coord_id))
+  dvec <- setNames(as.numeric(den$total_f), as.character(den$GEOID))
   memb <- lapply(as.character(BANDS), function(bb){
     ib<-iso[[bb]][iso[[bb]]$coord_id %in% cds,]
     j<-st_join(cen, ib, join=st_within, left=FALSE); tibble::tibble(coord_id=j$coord_id, GEOID=j$GEOID)})
   names(memb)<-as.character(BANDS)
-  for (bb in as.character(BANDS)){
-    cp<-memb[[bb]] |> mutate(d=dvec[GEOID]) |> group_by(coord_id) |> summarise(p=sum(d,na.rm=TRUE),.groups="drop")
-    a<-setNames(cp$p,cp$coord_id); Dj[names(a)]<-Dj[names(a)]+Wi[[bb]]*a }
-  Rj <- setNames(supdf$supply,cds)/pmax(Dj,.Machine$double.eps); Rj[!is.finite(Rj)]<-0
-  ap <- bind_rows(lapply(as.character(BANDS), function(bb) memb[[bb]] |> mutate(w=Wc[[bb]]))) |>
-    group_by(GEOID,coord_id) |> summarise(w=max(w),.groups="drop") |> mutate(c=w*Rj[coord_id])
-  Ai <- ap |> group_by(GEOID) |> summarise(A=sum(c,na.rm=TRUE),.groups="drop")
-  d2 <- den |> left_join(Ai,by="GEOID"); d2$A[is.na(d2$A)]<-0; d2$A100<-d2$A*1e5
-  wm<-function(x,w){ok<-w>0; sum(x[ok]*w[ok])/sum(w[ok])}
-  c(mean=wm(d2$A100,d2$total_f),
-    metro=wm(d2$A100[d2$rurality=="Metropolitan"],d2$total_f[d2$rurality=="Metropolitan"]),
-    rural=wm(d2$A100[d2$rurality=="Rural"],d2$total_f[d2$rurality=="Rural"]),
-    no_access=100*sum(d2$total_f[d2$A<=0])/sum(d2$total_f))
+  acc <- dj7_tract_access(memb, supply_vec, dvec, Wc = Wc)
+  out <- dj7_weighted_outcomes(acc, den, weight_col = "total_f",
+                               rurality_col = "rurality", scale = 1e5)
+  c(mean = out$mean, metro = out$metro, rural = out$rural, no_access = out$no_access)
 }
 
 rows<-list()

@@ -1,3 +1,39 @@
+# --- NPI/address normalization helpers ---------------------------------------
+# Top-level (not nested in build_multisite_e2sfca_weights) so tests can exercise
+# them without running the full CHIA pipeline. NPIs canonicalize through the
+# mufflyaccess SSOT; ZIPs follow the same first-ZIP / ZIP+4 / left-pad-to-5
+# convention as mysterycall_clean_zip().
+
+canonicalize_npi <- function(x) {
+  mufflyaccess::canon_npi(x, verbose = TRUE)
+}
+
+normalize_zip <- function(x) {
+  vapply(base::as.character(x), function(v) {
+    if (base::is.na(v)) return(NA_character_)
+    v <- base::trimws(v)
+    if (!base::nzchar(v)) return(NA_character_)
+    # First ZIP when several are separated by comma / semicolon / slash.
+    v <- base::trimws(base::strsplit(v, "[,;/]")[[1L]][1L])
+    m <- base::regmatches(v, base::regexpr("[0-9]+", v))
+    if (!base::length(m) || base::is.na(m[1L]) || !base::nzchar(m[1L])) {
+      return(NA_character_)
+    }
+    d <- m[1L]
+    if (base::nchar(d) > 5L) d <- base::substr(d, 1L, 5L)   # ZIP+4 without a dash
+    if (base::nchar(d) < 5L) d <- paste0(strrep("0", 5L - base::nchar(d)), d)
+    d
+  }, character(1), USE.NAMES = FALSE)
+}
+
+normalize_text <- function(x) {
+  x |> base::as.character() |> tidyr::replace_na("") |> stringr::str_to_upper() |> stringr::str_replace_all("&", " AND ") |> stringr::str_replace_all("[^A-Z0-9]", "") |> stringr::str_squish()
+}
+
+make_address_key <- function( address1, address2, city, state, zip) {
+  base::paste( normalize_text(address1), normalize_text(address2), normalize_text(city), normalize_text(state), normalize_zip(zip), sep = "|" )
+}
+
 #' Build empirically calibrated multi-location E2SFCA capacity weights 
 #' 
 #' Uses CHIA claim-line location information to estimate clinician-specific 
@@ -115,18 +151,6 @@ build_multisite_e2sfca_weights <- function(
     readr::read_delim( file = path, delim = delim, show_col_types = FALSE, progress = FALSE ) 
   } 
   
-  normalize_zip <- function(x) { 
-    x |> base::as.character() |> stringr::str_replace_all("[^0-9]", "") |> stringr::str_sub(1L, 5L) |> dplyr::na_if("") 
-  } 
-  
-  normalize_text <- function(x) { 
-    x |> base::as.character() |> tidyr::replace_na("") |> stringr::str_to_upper() |> stringr::str_replace_all("&", " AND ") |> stringr::str_replace_all("[^A-Z0-9]", "") |> stringr::str_squish() 
-  } 
-  
-  make_address_key <- function( address1, address2, city, state, zip) { 
-    base::paste( normalize_text(address1), normalize_text(address2), normalize_text(city), normalize_text(state), normalize_zip(zip), sep = "|" ) 
-  } 
-  
   parse_bool <- function(x) { 
     normalized <- x |> base::as.character() |> stringr::str_to_lower() |> stringr::str_trim() 
     normalized %in% base::c( "1", "true", "t", "yes", "y", "primary", "rural" ) 
@@ -169,8 +193,15 @@ build_multisite_e2sfca_weights <- function(
   stamp <- base::format( base::Sys.time(), "%Y%m%d_%H%M%S" ) 
   base::dir.create( save_dir, recursive = TRUE, showWarnings = FALSE ) 
   
-  target_npis <- target_npis |> base::as.character() |> base::unique() 
-  target_npis <- target_npis[ !base::is.na(target_npis) & base::nzchar(target_npis) ] 
+  target_raw <- base::as.character(target_npis)
+  target_empty <- base::is.na(target_raw) | !base::nzchar(base::trimws(target_raw))
+  target_canon <- canonicalize_npi(target_raw)
+  bad_target <- !target_empty & base::is.na(target_canon)
+  if (base::any(bad_target)) {
+    base::stop("target_npis contains ", base::sum(bad_target),
+               " malformed NPI value(s) rejected by mufflyaccess::canon_npi().")
+  }
+  target_npis <- base::unique(target_canon[!target_empty])
   if (base::length(target_npis) == 0L) { base::stop("target_npis is empty.") } 
   
   log_step( "Inputs: ", base::format( base::length(target_npis), big.mark = "," ), " target NPIs." ) 
@@ -204,12 +235,15 @@ build_multisite_e2sfca_weights <- function(
     lat = base::as.numeric( .data[[location_map$lat]] ), 
     lon = base::as.numeric( .data[[location_map$lon]] ), 
     rural_raw = .data[[location_rural_col]] 
-  ) |> dplyr::filter(.data$npi %in% target_npis) |> dplyr::collect() |> dplyr::mutate( 
+  ) |> dplyr::collect() |> dplyr::mutate( 
+    # canon_npi() is an R-side SSOT step and cannot be pushed into DuckDB, so
+    # canonicalize after collect and before the target-NPI filter.
+    npi = canonicalize_npi(.data$npi),
     zip5 = normalize_zip(.data$zip), 
     address_key = make_address_key( .data$address1, .data$address2, .data$city, .data$state, .data$zip ), 
     is_primary = parse_bool(.data$is_primary_raw), 
     rural = parse_bool(.data$rural_raw) 
-  ) |> dplyr::group_by( .data$npi, .data$address_key ) |> dplyr::summarise( 
+  ) |> dplyr::filter(!base::is.na(.data$npi), .data$npi %in% target_npis) |> dplyr::group_by( .data$npi, .data$address_key ) |> dplyr::summarise( 
     address1 = first_nonmissing(.data$address1), 
     address2 = first_nonmissing(.data$address2), 
     city = first_nonmissing(.data$city), 
@@ -265,7 +299,11 @@ build_multisite_e2sfca_weights <- function(
     city = base::as.character( .data[[provider_map$city]] ), 
     state = base::as.character( .data[[provider_map$state]] ), 
     zip = base::as.character( .data[[provider_map$zip]] ) 
-  ) 
+  ) |> dplyr::collect() |> dplyr::mutate( 
+    # Same R-side canonicalization as canonical_locations; keep the frame as a
+    # DuckDB relation so the downstream provider/claims joins stay lazy.
+    npi = canonicalize_npi(.data$npi)
+  ) |> duckplyr::as_duckdb_tibble()
   
   rendering_lookup <- provider_core |> dplyr::filter( !base::is.na(.data$npi), .data$npi != "" ) |> dplyr::group_by( .data$payer_id, .data$provider_id ) |> dplyr::summarise( n_npi = dplyr::n_distinct(.data$npi), npi = base::min(.data$npi), .groups = "drop" ) |> dplyr::filter(.data$n_npi == 1L) |> dplyr::select( .data$payer_id, .data$provider_id, .data$npi ) 
   
@@ -417,7 +455,7 @@ build_multisite_e2sfca_weights <- function(
     provider_capacity <- national_weights |> dplyr::distinct(.data$npi) |> dplyr::mutate(total_capacity_fte = 1) 
   } else { 
     log_step( "Reading provider capacity file: ", capacity_path ) 
-    provider_capacity <- read_small(capacity_path) |> dplyr::transmute( npi = base::as.character( .data[[capacity_map$npi]] ), total_capacity_fte = base::as.numeric( .data[[capacity_map$capacity]] ) ) |> dplyr::filter(.data$npi %in% target_npis) 
+    provider_capacity <- read_small(capacity_path) |> dplyr::transmute( npi = canonicalize_npi(base::as.character( .data[[capacity_map$npi]] )), total_capacity_fte = base::as.numeric( .data[[capacity_map$capacity]] ) ) |> dplyr::filter(!base::is.na(.data$npi), .data$npi %in% target_npis) 
     missing_capacity <- national_weights |> dplyr::distinct(.data$npi) |> dplyr::anti_join( provider_capacity, by = "npi" ) 
     if (base::nrow(missing_capacity) > 0L) { 
       capacity_missing_path <- save_csv( missing_capacity, "multisite_missing_capacity", stamp ) 
@@ -434,7 +472,7 @@ build_multisite_e2sfca_weights <- function(
   if (!base::is.null(medicare_path)) { 
     log_step( "Adding NPI-level Medicare utilization validation: ", medicare_path ) 
     medicare_raw <- read_large( medicare_path, medicare_delim ) 
-    medicare_validation <- medicare_raw |> dplyr::transmute( npi = base::as.character( .data[[medicare_map$npi]] ), services = base::as.numeric( .data[[medicare_map$services]] ), beneficiary_days = base::as.numeric( .data[[medicare_map$beneficiary_days]] ) ) |> dplyr::filter(.data$npi %in% target_npis) |> dplyr::group_by(.data$npi) |> dplyr::summarise( medicare_services = base::sum( .data$services, na.rm = TRUE ), medicare_beneficiary_days = base::sum( .data$beneficiary_days, na.rm = TRUE ), .groups = "drop" ) |> dplyr::collect() |> dplyr::left_join( national_weights |> dplyr::group_by(.data$npi) |> dplyr::summarise( n_locations = base::max( .data$n_locations ), secondary_share = 1 - .data$empirical_model_weight[ .data$is_primary ][[1L]], weight_source = base::paste( base::unique(.data$weight_source), collapse = "+" ), .groups = "drop" ), by = "npi" ) 
+    medicare_validation <- medicare_raw |> dplyr::transmute( npi = base::as.character( .data[[medicare_map$npi]] ), services = base::as.numeric( .data[[medicare_map$services]] ), beneficiary_days = base::as.numeric( .data[[medicare_map$beneficiary_days]] ) ) |> dplyr::collect() |> dplyr::mutate( npi = canonicalize_npi(.data$npi) ) |> dplyr::filter(!base::is.na(.data$npi), .data$npi %in% target_npis) |> dplyr::group_by(.data$npi) |> dplyr::summarise( medicare_services = base::sum( .data$services, na.rm = TRUE ), medicare_beneficiary_days = base::sum( .data$beneficiary_days, na.rm = TRUE ), .groups = "drop" ) |> dplyr::left_join( national_weights |> dplyr::group_by(.data$npi) |> dplyr::summarise( n_locations = base::max( .data$n_locations ), secondary_share = 1 - .data$empirical_model_weight[ .data$is_primary ][[1L]], weight_source = base::paste( base::unique(.data$weight_source), collapse = "+" ), .groups = "drop" ), by = "npi" ) 
   } 
   
   cadr_validation <- NULL 
@@ -447,7 +485,7 @@ build_multisite_e2sfca_weights <- function(
     } else { 
       cadr_address2_col <- cadr_map$address2 
     } 
-    cadr_rows <- cadr_raw |> dplyr::transmute( npi = base::as.character( .data[[cadr_map$npi]] ), address1 = base::as.character( .data[[cadr_map$address1]] ), address2 = base::as.character( .data[[cadr_address2_col]] ), city = base::as.character( .data[[cadr_map$city]] ), state = base::as.character( .data[[cadr_map$state]] ), zip = base::as.character( .data[[cadr_map$zip]] ), service_date = lubridate::ymd( base::as.character( .data[[cadr_map$service_date]] ), quiet = TRUE ) ) |> dplyr::filter(.data$npi %in% target_npis) |> dplyr::mutate( zip5 = normalize_zip(.data$zip), address_key = make_address_key( .data$address1, .data$address2, .data$city, .data$state, .data$zip ) ) 
+    cadr_rows <- cadr_raw |> dplyr::transmute( npi = canonicalize_npi(base::as.character( .data[[cadr_map$npi]] )), address1 = base::as.character( .data[[cadr_map$address1]] ), address2 = base::as.character( .data[[cadr_address2_col]] ), city = base::as.character( .data[[cadr_map$city]] ), state = base::as.character( .data[[cadr_map$state]] ), zip = base::as.character( .data[[cadr_map$zip]] ), service_date = lubridate::ymd( base::as.character( .data[[cadr_map$service_date]] ), quiet = TRUE ) ) |> dplyr::filter(!base::is.na(.data$npi), .data$npi %in% target_npis) |> dplyr::mutate( zip5 = normalize_zip(.data$zip), address_key = make_address_key( .data$address1, .data$address2, .data$city, .data$state, .data$zip ) ) 
     cadr_exact <- cadr_rows |> dplyr::inner_join( national_weights |> dplyr::select( .data$npi, .data$address_key, .data$canonical_location_id, .data$empirical_model_weight, .data$is_primary ), by = base::c( "npi", "address_key" ) ) |> dplyr::mutate( match_method = "exact_address" ) 
     cadr_unmatched <- cadr_rows |> dplyr::anti_join( cadr_exact |> dplyr::select( .data$npi, .data$address_key ), by = base::c( "npi", "address_key" ) ) 
     national_unique_zip <- national_weights |> dplyr::group_by( .data$npi, .data$zip5 ) |> dplyr::filter( !base::is.na(.data$zip5), dplyr::n() == 1L ) |> dplyr::ungroup() |> dplyr::select( .data$npi, .data$zip5, .data$canonical_location_id, .data$empirical_model_weight, .data$is_primary ) 
