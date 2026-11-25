@@ -17,6 +17,7 @@ suppressWarnings(suppressMessages({ library(sf); library(dplyr); library(terra) 
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca", "spatial_outcomes"); dir.create(OUT, showWarnings=FALSE, recursive=TRUE)
 say <- function(...) { cat(sprintf("[spatial] %s\n", sprintf(...))); flush.console() }
@@ -26,7 +27,10 @@ THRESH <- c(60L, 120L, 180L)
 
 # reuse the cell-zero ACS cache (total female + geometry + RUCA-independent)
 acs <- readRDS(file.path(ROOT,"artifacts","2sfca","cell_zero","cache","acs2020_allrace.rds"))
-den <- acs$den |> dplyr::mutate(total_f = tidyr::replace_na(total_f, 0))
+den <- align_denominator_to_reference(
+  acs$den, acs$geom, by = "GEOID",
+  context = "spatial outcomes 2020 denominators",
+  complete_cols = "total_f")
 say("tracts=%d total F=%.0f res=%dm", nrow(den), sum(den$total_f), RES)
 
 newest <- function(p){f<-list.files(file.path(ROOT,"artifacts"),p,recursive=TRUE,full.names=TRUE);f[order(file.info(f)$mtime,decreasing=TRUE)][1]}

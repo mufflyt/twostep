@@ -51,6 +51,7 @@ suppressWarnings(suppressMessages({
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca", "sensitivity")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
@@ -121,10 +122,14 @@ if (file.exists(acs_cf)) { acs <- readRDS(acs_cf); say("loaded cached ACS 2020 t
                          file.path(ROOT,"data","external","ruca_tract_mapping.csv"))
 ruca <- read.csv(.ruca_path, colClasses="character") |>
   dplyr::transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(ruca_code))
-den <- acs$den |> dplyr::left_join(ruca, by="GEOID") |>
-  dplyr::mutate(dplyr::across(c(total_f,white_f,aian_f), ~tidyr::replace_na(.,0)),
-    metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
-    rural_f = ifelse(rurality %in% "Rural",        total_f, 0))
+den <- acs$den |> dplyr::left_join(ruca, by="GEOID")
+den <- align_denominator_to_reference(
+  den, acs$geom, by = "GEOID",
+  context = "sensitivity 2020 denominators",
+  complete_cols = c("total_f", "white_f", "aian_f"))
+den <- den |> dplyr::mutate(
+  metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
+  rural_f = ifelse(rurality %in% "Rural",        total_f, 0))
 say("tracts=%d  total F=%.0f  metro=%.0f rural=%.0f  White=%.0f AIAN=%.0f",
     nrow(den), sum(den$total_f), sum(den$metro_f), sum(den$rural_f),
     sum(den$white_f), sum(den$aian_f))

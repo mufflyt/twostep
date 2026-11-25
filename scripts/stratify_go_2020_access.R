@@ -23,6 +23,9 @@ source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))
 OUT  <- file.path(ROOT, "artifacts", "2sfca", "figures")
 dir.create(OUT, showWarnings = FALSE, recursive = TRUE)
 say <- function(...) cat(sprintf("[strat] %s\n", sprintf(...)))
+source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "ct_geoid_relabel.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 conus <- function() CONUS_STATE_FIPS   # SSOT: scripts/manuscript_e2sfca_values.R
 
 # ── 1. per-tract GO 2020 access (production, verified) ───────────────────────
@@ -39,31 +42,39 @@ say("access tracts: %d  (zero-access: %d)", nrow(acc), sum(acc$access == 0, na.r
 ruca <- read.csv(file.path(ROOT, "data", "external", "ruca_tract_mapping.csv"),
                  colClasses = "character") |>
   transmute(GEOID = tract_geoid,
-            rurality = ifelse(as.integer(ruca_code) %in% 1:3, "Metropolitan", "Rural"))
+            rurality = rurality_from_ruca(ruca_code)) |>
+  filter(!is.na(rurality))
 say("RUCA crosswalk tracts: %d", nrow(ruca))
 
 # ── 3. ACS 2020 female denominators: total + by race/ethnicity ───────────────
 # race-iterated female TOTAL = _017 (NOT _026). H = White non-Hispanic,
 # I = Hispanic (any race); B/C/D/E = race alone.
-vars <- c(total_f = "B01001_026", white_nh = "B01001H_017", hispanic = "B01001I_017",
-          black = "B01001B_017", aian = "B01001C_017", asian = "B01001D_017",
-          nhpi = "B01001E_017")
-say("fetching ACS 2020 female denominators (total + 6 race/ethnicity groups)")
+acs_year <- acs_year_of(2020L)
+vars <- c(total_f = unname(TOTAL_FEMALE_VAR), RACE_FEMALE_VARS)
+say("fetching ACS %d female denominators (total + 6 race/ethnicity groups)", acs_year)
 raw <- purrr::map_dfr(conus(), function(s) suppressMessages(tidycensus::get_acs(
-  geography = "tract", variables = vars, state = s, year = 2020L, geometry = FALSE)))
+  geography = "tract", variables = vars, state = s, year = acs_year, geometry = FALSE)))
 den <- raw |>
   transmute(GEOID = as.character(GEOID), variable, estimate = as.numeric(estimate)) |>
-  tidyr::pivot_wider(names_from = variable, values_from = estimate)
+  tidyr::pivot_wider(names_from = variable, values_from = estimate) |>
+  relabel_ct_geoids_safe(den, as.integer(acs_year))
 say("ACS denominator tracts: %d", nrow(den))
 
-# ── 4. join (inner on GEOID) ─────────────────────────────────────────────────
-d <- acc |> inner_join(ruca, by = "GEOID") |> inner_join(den, by = "GEOID")
-say("joined tracts: %d (access %d / ruca %d / acs %d)", nrow(d), nrow(acc), nrow(ruca), nrow(den))
-d$access[is.na(d$access)] <- 0
+# ── 4. accounted join: NA access is unknown, not zero ────────────────────────
+d <- acc |> left_join(ruca, by = "GEOID") |> left_join(den, by = "GEOID")
+.lost_ruca <- is.na(d$rurality)
+.lost_den  <- is.na(d$total_f)
+assert_state_join_loss(as.character(d$GEOID), .lost_den,
+                       context = "GO 2020 ACS denominator join")
+d <- d[!.lost_ruca & !.lost_den, , drop = FALSE]
+.part <- partition_unknown_access(d, "access")
+say("joined tracts: %d (access %d / ruca %d / acs %d); dropped %d no-RUCA, %d no-denominator; %d NA-access excluded (not zeroed)",
+    nrow(d), nrow(acc), nrow(ruca), nrow(den), sum(.lost_ruca), sum(.lost_den), .part$n_unknown)
+d <- .part$kept
 
-# weighted helpers
-wmean <- function(x, w) { ok <- !is.na(x) & !is.na(w) & w > 0; sum(x[ok]*w[ok]) / sum(w[ok]) }
-zero_share <- function(access, w) { ok <- !is.na(w) & w > 0; sum(w[ok][access[ok] == 0]) / sum(w[ok]) }
+# weighted helpers: NA value/weight contributes nothing (never a measured zero)
+wmean <- function(x, w) { bad <- is.na(x) | is.na(w); x[bad] <- 0; w[bad] <- 0; weighted_mean_all(x, w) }
+zero_share <- function(access, w) { bad <- is.na(access) | is.na(w); access[bad] <- 0; w[bad] <- 0; zero_access_share(access, w) / 100 }
 
 # ── 5a. rurality strata (weighted by total female) ───────────────────────────
 rur <- d |> group_by(rurality) |>

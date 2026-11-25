@@ -19,6 +19,7 @@ suppressWarnings(suppressMessages({ library(sf); library(dplyr); library(terra);
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 source(file.path(ROOT, "R", "two_step_floating_catchment.R"))
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 options(tigris_use_cache = TRUE)
 OUT <- file.path(ROOT, "artifacts", "2sfca", "seam_subgroup"); dir.create(OUT, showWarnings=FALSE, recursive=TRUE)
 CACHE <- file.path(OUT, "cache"); dir.create(CACHE, showWarnings=FALSE, recursive=TRUE)
@@ -72,13 +73,16 @@ estimate_vintage <- function(vname) {
   acs <- fetch_vintage(vname)
   ruca <- read.csv(file.path(ROOT,"data","external",VINTAGES[[vname]]$ruca), colClasses="character") |>
     dplyr::transmute(GEOID=tract_geoid, rurality=rurality_from_ruca(ruca_code))
-  den <- acs$den |> dplyr::left_join(ruca, by="GEOID") |>
-    dplyr::mutate(dplyr::across(dplyr::any_of(names(RVARS)), ~tidyr::replace_na(.,0)),
-      metro_f=ifelse(rurality %in% "Metropolitan", total_f, 0),
-      rural_f=ifelse(rurality %in% "Rural", total_f, 0))
   geom5070 <- sf::st_transform(acs$geom, E2SFCA_AREA_CRS)
   geom5070 <- geom5070[!sf::st_is_empty(geom5070), ]
-  den <- den[match(geom5070$GEOID, den$GEOID), ]
+  den <- acs$den |> dplyr::left_join(ruca, by="GEOID")
+  den <- align_denominator_to_reference(
+    den, geom5070, by = "GEOID",
+    context = sprintf("seam subgroup %s denominators", vname),
+    complete_cols = names(RVARS))
+  den <- den |> dplyr::mutate(
+    metro_f = ifelse(rurality %in% "Metropolitan", total_f, 0),
+    rural_f = ifelse(rurality %in% "Rural", total_f, 0))
   gg <- build_e2sfca_grid_geometry(acs$geom, resolution=RES)
   grid <- attach_e2sfca_population(gg, den[,c("GEOID","total_f")], "total_f", alloc="area")
   say("  [%s] grid built; %d subspec surfaces", vname, length(SUBS))

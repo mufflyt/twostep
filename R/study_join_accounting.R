@@ -94,3 +94,100 @@ partition_unknown_access <- function(d, access_col = "access") {
        n_unknown    = sum(unknown),
        frac_unknown = if (length(unknown)) mean(unknown) else 0)
 }
+
+# Align a denominator table to a reference geometry/key set, failing closed.
+#
+# The historic `den[match(geom$GEOID, den$GEOID), ]` pattern has two silent
+# failure modes: reference rows with no denominator become NA rows (unknown
+# demand treated as zero downstream), and denominator rows outside the reference
+# are dropped without a count. This helper makes both directions explicit:
+# missing reference keys are an error by default, extra denominator keys are an
+# error unless `allow_extra = TRUE`, and the returned frame is in reference
+# order. `complete_cols` optionally refuses NA denominator values after the
+# join, because an ACS estimate that is NA is missing data, not a zero count.
+align_denominator_to_reference <- function(den, reference, by = "GEOID",
+                                           context = "denominator",
+                                           allow_extra = FALSE,
+                                           complete_cols = NULL) {
+  checkmate::assert_data_frame(den)
+  checkmate::assert_data_frame(reference)
+  checkmate::assert_string(by)
+  checkmate::assert_string(context)
+  checkmate::assert_flag(allow_extra)
+  checkmate::assert_character(complete_cols, null.ok = TRUE)
+
+  if (inherits(den, "sf") && requireNamespace("sf", quietly = TRUE)) {
+    den <- sf::st_drop_geometry(den)
+  }
+  if (inherits(reference, "sf") && requireNamespace("sf", quietly = TRUE)) {
+    reference <- sf::st_drop_geometry(reference)
+  }
+  checkmate::assert_subset(by, names(den))
+  checkmate::assert_subset(by, names(reference))
+
+  dkey <- as.character(den[[by]])
+  rkey <- as.character(reference[[by]])
+  if (anyNA(dkey) || anyNA(rkey)) {
+    stop(sprintf("[strat] %s: NA in join key '%s' (denominator=%d, reference=%d). ",
+                 context, by, sum(is.na(dkey)), sum(is.na(rkey))), call. = FALSE)
+  }
+
+  dup_d <- unique(dkey[duplicated(dkey)])
+  if (length(dup_d)) {
+    stop(sprintf("[strat] %s: denominator has %d duplicated '%s' key(s) (%s). ",
+                 context, length(dup_d), by,
+                 paste(utils::head(dup_d, 5), collapse = ", ")), call. = FALSE)
+  }
+  dup_r <- unique(rkey[duplicated(rkey)])
+  if (length(dup_r)) {
+    stop(sprintf("[strat] %s: reference has %d duplicated '%s' key(s) (%s). ",
+                 context, length(dup_r), by,
+                 paste(utils::head(dup_r, 5), collapse = ", ")), call. = FALSE)
+  }
+
+  missing <- setdiff(rkey, dkey)
+  if (length(missing)) {
+    stop(sprintf(paste0("[strat] %s: %d reference '%s' key(s) have no denominator row ",
+                        "(%s%s). Missing demand is UNKNOWN, not zero: zero-filling it ",
+                        "would drop those residents from the denominator and inflate accessibility."),
+                 context, length(missing), by,
+                 paste(utils::head(missing, 5), collapse = ", "),
+                 if (length(missing) > 5) sprintf(" and %d more", length(missing) - 5L) else ""),
+         call. = FALSE)
+  }
+
+  extra <- setdiff(dkey, rkey)
+  if (length(extra) && !allow_extra) {
+    stop(sprintf(paste0("[strat] %s: %d denominator '%s' key(s) are outside the reference set ",
+                        "(%s%s). This is an unmatched population join, not an empty tract; ",
+                        "refusing to drop them silently."),
+                 context, length(extra), by,
+                 paste(utils::head(extra, 5), collapse = ", "),
+                 if (length(extra) > 5) sprintf(" and %d more", length(extra) - 5L) else ""),
+         call. = FALSE)
+  }
+
+  out <- den[match(rkey, dkey), , drop = FALSE]
+  rownames(out) <- NULL
+
+  if (!is.null(complete_cols)) {
+    for (cc in complete_cols) {
+      checkmate::assert_subset(cc, names(out))
+      bad <- is.na(out[[cc]])
+      if (any(bad)) {
+        stop(sprintf("[strat] %s: %d NA value(s) in denominator column '%s' (%s%s). ",
+                     context, sum(bad), cc,
+                     paste(utils::head(out[[by]][bad], 5), collapse = ", "),
+                     if (sum(bad) > 5) sprintf(" and %d more", sum(bad) - 5L) else ""),
+             call. = FALSE)
+      }
+    }
+  }
+
+  attr(out, "join_audit") <- list(
+    context = context, by = by,
+    n_reference = length(rkey), n_denominator = length(dkey),
+    n_missing_reference = length(missing), n_extra_denominator = length(extra),
+    missing_ids = utils::head(missing, 20), extra_ids = utils::head(extra, 20))
+  out
+}

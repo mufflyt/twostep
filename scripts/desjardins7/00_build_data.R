@@ -19,6 +19,7 @@ suppressWarnings(suppressMessages({ library(sf); library(dplyr) }))
 ROOT <- if (requireNamespace("here", quietly = TRUE)) here::here() else normalizePath(".")
 if (!exists("E2SFCA_FROZEN_RUN_ID")) source(file.path(ROOT, "scripts", "manuscript_e2sfca_values.R"))  # SSOT: frozen E2SFCA run
 source(file.path(ROOT, "R", "accessibility_stratification.R"))
+source(file.path(ROOT, "R", "study_join_accounting.R"))
 say <- function(...) { cat(sprintf("[dj7] %s\n", sprintf(...))); flush.console() }
 
 RUN   <- E2SFCA_FROZEN_RUN_ID
@@ -37,7 +38,11 @@ RACE_COLS <- c(white_nh="White, non-Hispanic", black="Black alone",
 
 # ---- shared inputs ----------------------------------------------------------
 acs  <- readRDS(file.path(ROOT, "artifacts", "2sfca", "cell_zero", "cache", "acs2020_allrace.rds"))
-den  <- acs$den |> dplyr::mutate(dplyr::across(-GEOID, ~tidyr::replace_na(as.numeric(.), 0)))
+den  <- acs$den
+den  <- align_denominator_to_reference(
+  den, acs$geom, by = "GEOID",
+  context = "desjardins7 ACS 2020 denominators",
+  complete_cols = setdiff(names(den), "GEOID"))
 ruca <- read.csv(file.path(ROOT, "data", "external", "ruca_tract_mapping.csv"), colClasses = "character") |>
   dplyr::transmute(GEOID = tract_geoid, rurality = rurality_from_ruca(as.integer(ruca_code)))
 den  <- den |> dplyr::left_join(ruca, by = "GEOID")
@@ -103,7 +108,6 @@ polys <- sf::st_transform(acs$geom, 5070)
 jn    <- sf::st_join(pts, polys[, "GEOID"], join = sf::st_within)
 act$GEOID <- jn$GEOID
 act <- act |> dplyr::left_join(ruca, by = "GEOID")
-act$rurality[is.na(act$rurality)] <- "Rural"           # unmatched (offshore/border) -> rural
 act$stage <- ifelse((YR - act$cert) <= 15, "Early-to-mid", "Late")
 
 t1 <- act |>
@@ -141,21 +145,31 @@ for (s in SUBS) {
   acc <- readRDS(access_path(s)) |>
     dplyr::transmute(GEOID = as.character(GEOID),
                      access = access_mean_population_per100k)
+  acc <- align_denominator_to_reference(
+    acc, den, by = "GEOID",
+    context = sprintf("desjardins7 %s 2020 access", s))
   d <- den |> dplyr::left_join(acc, by = "GEOID")
-  d$access[is.na(d$access)] <- 0
-  pos <- d$access[d$access > 0]
+  n_unknown_access <- sum(is.na(d$access))
+  if (n_unknown_access) {
+    say("  %s: %d tracts have NA access (excluded from quintile tables, not zeroed)",
+        s, n_unknown_access)
+  }
+  pos <- d$access[!is.na(d$access) & d$access > 0]
   brk <- stats::quantile(pos, probs = c(.25, .5, .75), na.rm = TRUE)
   d$quintile <- with(d, dplyr::case_when(
-    access <= 0                 ~ 1L,
-    access <= brk[1]            ~ 2L,
-    access <= brk[2]            ~ 3L,
-    access <= brk[3]            ~ 4L,
-    TRUE                        ~ 5L))
+    is.na(access)              ~ NA_integer_,
+    access <= 0                ~ 1L,
+    access <= brk[1]           ~ 2L,
+    access <= brk[2]           ~ 3L,
+    access <= brk[3]           ~ 4L,
+    TRUE                       ~ 5L))
   quintile_rows[[s]] <- d |> dplyr::transmute(subspec = s, GEOID, access, quintile)
-  # women by race x quintile
+  dc <- d[!is.na(d$quintile), , drop = FALSE]
+  # women by race x quintile (unknown-access tracts carry no quintile and are
+  # excluded from both numerator and denominator rather than counted as Q1)
   for (rc in names(RACE_COLS)) {
-    tot <- sum(d[[rc]])
-    agg <- tapply(d[[rc]], d$quintile, sum)
+    tot <- sum(dc[[rc]])
+    agg <- tapply(dc[[rc]], dc$quintile, sum)
     for (q in 1:5) {
       n <- ifelse(is.na(agg[as.character(q)]), 0, agg[as.character(q)])
       table2_rows[[length(table2_rows) + 1]] <- data.frame(
@@ -163,8 +177,8 @@ for (s in SUBS) {
         women = as.numeric(n), pct = 100 * as.numeric(n) / tot)
     }
   }
-  say("  %s: Q1 zero-access women (total female)=%.1f%%",
-      s, 100 * sum(d$total_f[d$quintile == 1]) / sum(d$total_f))
+  say("  %s: Q1 zero-access women (classified female)=%.1f%%",
+      s, 100 * sum(dc$total_f[dc$quintile == 1]) / sum(dc$total_f))
 }
 q_tbl <- dplyr::bind_rows(quintile_rows)
 readr::write_csv(q_tbl, file.path(OUT, "quintile_tract_2020.csv"))
