@@ -1,0 +1,15 @@
+# Active-bands fallback when \`isochrone_config.yaml\` cannot be read
+
+Integer vector matching the current 4-band production set (\`\[30, 60,
+120, 180\]\`). Used as the final fallback in \[get_active_bands()\] when
+no config directory resolves. Kept SEPARATE from the package's
+\`CANONICAL_BANDS\`: \`CANONICAL_BANDS\` is the universe of supported
+bands, while \`ACTIVE_BANDS_FALLBACK\` is the active analysis set (the
+two coincide today but the active set may shrink again for a
+band-specific failure mode).
+
+## Usage
+
+``` r
+ACTIVE_BANDS_FALLBACK
+```
